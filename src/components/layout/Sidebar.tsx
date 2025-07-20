@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Home, 
   Users, 
@@ -10,23 +11,25 @@ import {
   BarChart3
 } from 'lucide-react';
 
-interface SidebarProps {
-  currentPage: string;
-  onPageChange: (page: string) => void;
-}
-
 const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: Home },
-  { id: 'clientes', label: 'Clientes', icon: Users },
-  { id: 'imoveis', label: 'Imóveis', icon: Building },
-  { id: 'contratos', label: 'Contratos', icon: FileText },
-  { id: 'relatorios', label: 'Relatórios', icon: BarChart3 },
-  { id: 'configuracoes', label: 'Configurações', icon: Settings },
+  { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
+  { id: 'clientes', label: 'Clientes', icon: Users, path: '/clientes' },
+  { id: 'imoveis', label: 'Imóveis', icon: Building, path: '/imoveis' },
+  { id: 'contratos', label: 'Contratos', icon: FileText, path: '/contratos' },
+  { id: 'relatorios', label: 'Relatórios', icon: BarChart3, path: '/relatorios' },
+  { id: 'configuracoes', label: 'Configurações', icon: Settings, path: '/configuracoes' },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
+export const Sidebar: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleNavigation = (path: string) => {
+    navigate(path);
+    setIsMobileOpen(false);
+  };
 
   return (
     <>
@@ -75,15 +78,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
         <nav className="mt-8">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = currentPage === item.id;
+            const isActive = location.pathname === item.path;
             
             return (
               <button
                 key={item.id}
-                onClick={() => {
-                  onPageChange(item.id);
-                  setIsMobileOpen(false);
-                }}
+                onClick={() => handleNavigation(item.path)}
                 className={`
                   w-full flex items-center px-4 py-3 text-left
                   hover:bg-gray-700 transition-colors
