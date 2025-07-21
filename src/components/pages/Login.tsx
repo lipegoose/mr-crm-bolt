@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { Eye, EyeOff, User } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -27,14 +27,11 @@ export const Login: React.FC = () => {
       <div className="w-full max-w-md">
         {/* Logo e Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-orange rounded-default mb-4">
-            <User className="w-8 h-8 text-white" />
+          <div className="mb-4">
+            <img src="/logo-mrcrm.png" alt="Logo Mr.CRM" className="h-24 w-auto mx-auto" />
           </div>
-          <h1 className="text-3xl font-title font-bold text-white mb-2">
-            Mr.CRM
-          </h1>
           <p className="text-neutral-gray-medium">
-            Sistema de Gestão Imobiliária
+            CRM e CMS no mesmo lugar. Funcional, simples e do seu jeito.
           </p>
         </div>
 

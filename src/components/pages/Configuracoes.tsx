@@ -35,9 +35,9 @@ export const Configuracoes: React.FC = () => {
         return (
           <div className="space-y-6">
             <div className="flex items-center space-x-6">
-              <Avatar name="João Silva" size="lg" />
+              <Avatar name="Dan" size="lg" />
               <div>
-                <h3 className="text-lg font-semibold">João Silva</h3>
+                <h3 className="text-lg font-semibold">Dan</h3>
                 <p className="text-neutral-gray-medium">Administrador</p>
                 <Button variant="secondary" size="sm" className="mt-2">
                   Alterar Foto
@@ -46,16 +46,16 @@ export const Configuracoes: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input label="Nome completo" defaultValue="João Silva" />
-              <Input label="Email" type="email" defaultValue="joao.silva@mrcrm.com" />
-              <Input label="Telefone" defaultValue="(11) 99999-9999" />
+              <Input label="Nome completo" defaultValue="Dan" />
+              <Input label="Email" type="email" defaultValue="dan@bhelite.com" />
+              <Input label="Telefone" defaultValue="(31) 99999-9999" />
               <Input label="Cargo" defaultValue="Administrador" />
             </div>
 
             <div>
               <Input 
                 label="Endereço" 
-                defaultValue="Rua das Flores, 123 - Centro, São Paulo - SP" 
+                defaultValue="Rua das Flores, 123 - Centro, Belo Horizonte - MG" 
               />
             </div>
 

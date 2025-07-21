@@ -59,9 +59,7 @@ export const Sidebar: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           {!isCollapsed && (
-            <h1 className="text-xl font-title font-bold text-primary-orange">
-              Mr.CRM
-            </h1>
+            <img src="/logo-mrcrm.png" alt="Logo Mr.CRM" className="h-8 w-auto" />
           )}
           <button
             onClick={() => {

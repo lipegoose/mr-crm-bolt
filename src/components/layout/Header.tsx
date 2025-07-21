@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Search, LogOut } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
@@ -8,6 +9,12 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
+  const navigate = useNavigate();
+  
+  const handleLogout = () => {
+    // Aqui poderia ter lógica adicional de logout como limpar tokens, etc.
+    navigate('/login');
+  };
   return (
     <header className={`
       fixed top-0 right-0 h-16 bg-white border-b border-neutral-gray z-30
@@ -39,12 +46,12 @@ export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
 
           {/* User menu */}
           <div className="flex items-center space-x-3">
-            <Avatar name="João Silva" size="sm" />
+            <Avatar name="Dan" size="sm" />
             <div className="hidden md:block">
-              <p className="text-sm font-medium text-neutral-black">João Silva</p>
+              <p className="text-sm font-medium text-neutral-black">Dan</p>
               <p className="text-xs text-neutral-gray-medium">Administrador</p>
             </div>
-            <Button variant="secondary" size="sm">
+            <Button variant="secondary" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
