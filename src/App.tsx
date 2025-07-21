@@ -26,7 +26,7 @@ const AppLayout: React.FC = () => {
       <main className="transition-all duration-300 pt-16 lg:ml-64 ml-0">
         <div className="max-w-container mx-auto p-6">
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/imoveis" element={<Imoveis />} />
