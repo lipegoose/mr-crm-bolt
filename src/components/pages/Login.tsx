@@ -114,7 +114,7 @@ export const Login: React.FC = () => {
         {/* Footer */}
         <div className="text-center mt-8">
           <p className="text-sm text-neutral-gray-medium">
-            © 2024 Mr.CRM. Todos os direitos reservados.
+            © 2024 <a href="https://mrcrm.com.br/" target="_blank" rel="noopener noreferrer" className="text-primary-orange hover:text-primary-orange-hover" title="Site oficial do Mr.CRM">Mr.CRM</a>. Todos os direitos reservados.
           </p>
         </div>
       </div>
