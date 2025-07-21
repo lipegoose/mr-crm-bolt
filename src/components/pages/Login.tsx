@@ -28,10 +28,12 @@ export const Login: React.FC = () => {
         {/* Logo e Header */}
         <div className="text-center mb-8">
           <div className="mb-4">
-            <img src="/logo-mrcrm.png" alt="Logo Mr.CRM" className="h-24 w-auto mx-auto" />
+            <img src="/logo_semfundo.png" alt="Logo Mr.CRM" className="h-24 w-auto mx-auto" />
           </div>
           <p className="text-neutral-gray-medium">
-            CRM e CMS no mesmo lugar. Funcional, simples e do seu jeito.
+            CRM e CMS no mesmo lugar. 
+            <br />
+            Funcional, simples e do seu jeito.
           </p>
         </div>
 
