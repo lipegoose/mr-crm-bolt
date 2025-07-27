@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Avatar } from '../ui/Avatar';
+import { Select } from '../ui/Select';
+import { InputMask } from '../ui/InputMask';
 import { Plus, Search, Filter, Edit, Trash2, Phone, Mail } from 'lucide-react';
 
 interface Cliente {
@@ -45,12 +48,12 @@ const mockClientes: Cliente[] = [
   },
 ];
 
-export const Clientes: React.FC = () => {
-  const [clientes] = useState<Cliente[]>(mockClientes);
+export const Clientes = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
 
-  const filteredClientes = clientes.filter(cliente =>
+  const filteredClientes = mockClientes.filter(cliente =>
     cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cliente.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -148,12 +151,12 @@ export const Clientes: React.FC = () => {
         ))}
       </div>
 
-      {/* Form Modal */}
+      {/* Modal inicial (simplificado) */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-title font-semibold">Novo Cliente</h2>
+              <h2 className="text-xl font-title font-semibold">Cadastrar Cliente</h2>
               <button
                 onClick={() => setShowForm(false)}
                 className="text-neutral-gray-medium hover:text-neutral-black"
@@ -161,13 +164,73 @@ export const Clientes: React.FC = () => {
                 ✕
               </button>
             </div>
+            
             <form className="space-y-4">
-              <Input label="Nome completo" placeholder="Digite o nome" />
-              <Input label="Email" type="email" placeholder="email@exemplo.com" />
-              <Input label="Telefone" placeholder="(11) 99999-9999" />
-              <Input label="Cidade" placeholder="Digite a cidade" />
-              <div className="flex space-x-3 pt-4">
-                <Button type="submit" className="flex-1">Salvar</Button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Input 
+                    label="Nome" 
+                    placeholder="Digite o nome completo" 
+                    required 
+                  />
+                </div>
+                <div>
+                  <InputMask 
+                    label="Telefone" 
+                    placeholder="(00) 00000-0000" 
+                    mask="(##) #####-####" 
+                  />
+                </div>
+                <div>
+                  <Input 
+                    label="E-mail" 
+                    type="email" 
+                    placeholder="email@exemplo.com" 
+                  />
+                </div>
+                <div>
+                  <Select 
+                    label="Origem da captação" 
+                    required 
+                    options={[
+                      { value: '', label: 'Selecione' },
+                      { value: 'site', label: 'Site' },
+                      { value: 'indicacao', label: 'Indicação' },
+                      { value: 'redes_sociais', label: 'Redes Sociais' },
+                      { value: 'anuncio', label: 'Anúncio' },
+                      { value: 'outro', label: 'Outro' },
+                    ]} 
+                  />
+                </div>
+                <div>
+                  <Select 
+                    label="Categoria" 
+                    required 
+                    options={[
+                      { value: '', label: 'Selecione' },
+                      { value: 'cliente', label: 'Cliente' },
+                      { value: 'prospecto', label: 'Prospecto' },
+                      { value: 'lead', label: 'Lead' },
+                    ]} 
+                  />
+                </div>
+              </div>
+              
+              <div className="flex flex-col space-y-2">
+                <Button 
+                  type="button" 
+                  variant="secondary" 
+                  className="w-full text-sm" 
+                  onClick={() => {
+                    setShowForm(false);
+                    navigate('/clientes/novo');
+                  }}
+                >
+                  Ver cadastro completo
+                </Button>
+              </div>
+              
+              <div className="flex space-x-3 pt-4 border-t mt-4">
                 <Button 
                   type="button" 
                   variant="secondary" 
@@ -176,11 +239,13 @@ export const Clientes: React.FC = () => {
                 >
                   Cancelar
                 </Button>
+                <Button type="submit" className="flex-1">Cadastrar</Button>
               </div>
             </form>
           </Card>
         </div>
       )}
+      
     </div>
   );
 };

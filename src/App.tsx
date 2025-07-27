@@ -5,6 +5,7 @@ import { Header } from './components/layout/Header';
 import { Login } from './components/pages/Login';
 import { Dashboard } from './components/pages/Dashboard';
 import { Clientes } from './components/pages/Clientes';
+import ClienteCadastroCompleto from './components/pages/ClienteCadastroCompleto';
 import { Imoveis } from './components/pages/Imoveis';
 import { Contratos } from './components/pages/Contratos';
 import { Relatorios } from './components/pages/Relatorios';
@@ -29,6 +30,7 @@ const AppLayout: React.FC = () => {
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/clientes" element={<Clientes />} />
+            <Route path="/clientes/novo" element={<ClienteCadastroCompleto />} />
             <Route path="/imoveis" element={<Imoveis />} />
             <Route path="/contratos" element={<Contratos />} />
             <Route path="/relatorios" element={<Relatorios />} />
