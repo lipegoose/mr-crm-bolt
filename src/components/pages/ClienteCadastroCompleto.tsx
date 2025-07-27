@@ -158,10 +158,9 @@ const ClienteCadastroCompleto: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <InputMask 
+                    <Input 
                       label="RG" 
-                      placeholder="00.000.000-0" 
-                      mask="##.###.###-#"
+                      placeholder="Digite o RG" 
                     />
                   </div>
                   <div>
