@@ -21,7 +21,7 @@ export const StepNavigation: React.FC<StepNavigationProps> = ({
 }) => {
   return (
     <div className="flex flex-col space-y-1 min-w-[220px] border-r border-neutral-gray pr-4 h-full">
-      <h3 className="text-sm font-medium text-neutral-gray-medium mb-2 px-3">Passo a passo:</h3>
+      <h3 className="text-sm font-semibold text-neutral-gray-medium mb-4 px-3 pt-6">Passo a passo:</h3>
       <div className="flex flex-col space-y-1">
         {steps.map((step) => (
           <button
