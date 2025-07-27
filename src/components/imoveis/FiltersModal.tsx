@@ -237,18 +237,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
               </div>
             </div>
 
-            {/* UF - Sempre MG */}
-            <div>
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
-                UF
-              </label>
-              <Select
-                options={[{ value: 'MG', label: 'Minas Gerais' }]}
-                value={filters.uf}
-                onChange={(e) => handleChange('uf', e.target.value)}
-                disabled
-              />
-            </div>
+            {/* UF removido pois será sempre MG */}
 
             {/* Cidade */}
             <div>
@@ -297,84 +286,87 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
               />
             </div>
 
-            {/* Dormitórios */}
-            <div>
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
-                Dormitórios
-              </label>
-              <div className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => decrementField('dormitorios')}
-                  className="bg-neutral-gray-light p-2 rounded-l-md"
-                  disabled={filters.dormitorios === 0}
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <div className="px-4 py-2 border-t border-b border-neutral-gray">
-                  {filters.dormitorios}
+            {/* Dormitórios, Suítes e Garagens em uma linha */}
+            <div className="md:col-span-3 flex flex-wrap gap-4">
+              {/* Dormitórios */}
+              <div className="flex-1 min-w-[120px]">
+                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                  Dormitórios
+                </label>
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => decrementField('dormitorios')}
+                    className="bg-neutral-gray-light p-2 rounded-l-md"
+                    disabled={filters.dormitorios === 0}
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <div className="px-4 py-2 border-t border-b border-neutral-gray">
+                    {filters.dormitorios}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => incrementField('dormitorios')}
+                    className="bg-neutral-gray-light p-2 rounded-r-md"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => incrementField('dormitorios')}
-                  className="bg-neutral-gray-light p-2 rounded-r-md"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
               </div>
-            </div>
 
-            {/* Suítes */}
-            <div>
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
-                Suítes
-              </label>
-              <div className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => decrementField('suites')}
-                  className="bg-neutral-gray-light p-2 rounded-l-md"
-                  disabled={filters.suites === 0}
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <div className="px-4 py-2 border-t border-b border-neutral-gray">
-                  {filters.suites}
+              {/* Suítes */}
+              <div className="flex-1 min-w-[120px]">
+                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                  Suítes
+                </label>
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => decrementField('suites')}
+                    className="bg-neutral-gray-light p-2 rounded-l-md"
+                    disabled={filters.suites === 0}
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <div className="px-4 py-2 border-t border-b border-neutral-gray">
+                    {filters.suites}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => incrementField('suites')}
+                    className="bg-neutral-gray-light p-2 rounded-r-md"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => incrementField('suites')}
-                  className="bg-neutral-gray-light p-2 rounded-r-md"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
               </div>
-            </div>
 
-            {/* Garagens */}
-            <div>
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
-                Garagens
-              </label>
-              <div className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => decrementField('garagens')}
-                  className="bg-neutral-gray-light p-2 rounded-l-md"
-                  disabled={filters.garagens === 0}
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <div className="px-4 py-2 border-t border-b border-neutral-gray">
-                  {filters.garagens}
+              {/* Garagens */}
+              <div className="flex-1 min-w-[120px]">
+                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                  Garagens
+                </label>
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => decrementField('garagens')}
+                    className="bg-neutral-gray-light p-2 rounded-l-md"
+                    disabled={filters.garagens === 0}
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <div className="px-4 py-2 border-t border-b border-neutral-gray">
+                    {filters.garagens}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => incrementField('garagens')}
+                    className="bg-neutral-gray-light p-2 rounded-r-md"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => incrementField('garagens')}
-                  className="bg-neutral-gray-light p-2 rounded-r-md"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
               </div>
             </div>
 
@@ -401,128 +393,134 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
               </div>
             </div>
 
-            {/* Preço */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
-                Preço
-              </label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="text"
-                  placeholder="Mínimo"
-                  value={filters.precoMin}
-                  onChange={(e) => handleChange('precoMin', e.target.value)}
-                />
-                <span>até</span>
-                <Input
-                  type="text"
-                  placeholder="Máximo"
-                  value={filters.precoMax}
-                  onChange={(e) => handleChange('precoMax', e.target.value)}
-                />
+            {/* Preço e Área na mesma linha */}
+            <div className="md:col-span-3 flex flex-wrap gap-4">
+              {/* Preço */}
+              <div className="flex-1 min-w-[250px]">
+                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                  Preço
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="text"
+                    placeholder="Mínimo"
+                    value={filters.precoMin}
+                    onChange={(e) => handleChange('precoMin', e.target.value)}
+                  />
+                  <span>até</span>
+                  <Input
+                    type="text"
+                    placeholder="Máximo"
+                    value={filters.precoMax}
+                    onChange={(e) => handleChange('precoMax', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Área */}
+              <div className="flex-1 min-w-[250px]">
+                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                  Área
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="text"
+                    placeholder="Mínimo"
+                    value={filters.areaMin}
+                    onChange={(e) => handleChange('areaMin', e.target.value)}
+                  />
+                  <span>até</span>
+                  <Input
+                    type="text"
+                    placeholder="Máximo"
+                    value={filters.areaMax}
+                    onChange={(e) => handleChange('areaMax', e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Área */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
-                Área
-              </label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="text"
-                  placeholder="Mínimo"
-                  value={filters.areaMin}
-                  onChange={(e) => handleChange('areaMin', e.target.value)}
-                />
-                <span>até</span>
-                <Input
-                  type="text"
-                  placeholder="Máximo"
-                  value={filters.areaMax}
-                  onChange={(e) => handleChange('areaMax', e.target.value)}
-                />
+            {/* Mobiliado, Aceita Permuta e Aceita Financiamento em uma linha */}
+            <div className="md:col-span-3 flex flex-wrap gap-4">
+              {/* Mobiliado */}
+              <div className="flex-1 min-w-[120px]">
+                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                  Mobiliado
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleButton('mobiliado', 'sim')}
+                    className={`px-4 py-2 rounded-md ${isButtonSelected('mobiliado', 'sim') 
+                      ? 'bg-primary-orange text-white' 
+                      : 'bg-neutral-gray-light text-neutral-gray-dark'}`}
+                  >
+                    Sim
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleButton('mobiliado', 'nao')}
+                    className={`px-4 py-2 rounded-md ${isButtonSelected('mobiliado', 'nao') 
+                      ? 'bg-primary-orange text-white' 
+                      : 'bg-neutral-gray-light text-neutral-gray-dark'}`}
+                  >
+                    Não
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {/* Mobiliado */}
-            <div>
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
-                Mobiliado
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleToggleButton('mobiliado', 'sim')}
-                  className={`px-4 py-2 rounded-md ${isButtonSelected('mobiliado', 'sim') 
-                    ? 'bg-primary-orange text-white' 
-                    : 'bg-neutral-gray-light text-neutral-gray-dark'}`}
-                >
-                  Sim
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggleButton('mobiliado', 'nao')}
-                  className={`px-4 py-2 rounded-md ${isButtonSelected('mobiliado', 'nao') 
-                    ? 'bg-primary-orange text-white' 
-                    : 'bg-neutral-gray-light text-neutral-gray-dark'}`}
-                >
-                  Não
-                </button>
+              {/* Aceita Permuta */}
+              <div className="flex-1 min-w-[120px]">
+                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                  Aceita Permuta
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleButton('aceitaPermuta', 'sim')}
+                    className={`px-4 py-2 rounded-md ${isButtonSelected('aceitaPermuta', 'sim') 
+                      ? 'bg-primary-orange text-white' 
+                      : 'bg-neutral-gray-light text-neutral-gray-dark'}`}
+                  >
+                    Sim
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleButton('aceitaPermuta', 'nao')}
+                    className={`px-4 py-2 rounded-md ${isButtonSelected('aceitaPermuta', 'nao') 
+                      ? 'bg-primary-orange text-white' 
+                      : 'bg-neutral-gray-light text-neutral-gray-dark'}`}
+                  >
+                    Não
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {/* Aceita Permuta */}
-            <div>
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
-                Aceita Permuta
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleToggleButton('aceitaPermuta', 'sim')}
-                  className={`px-4 py-2 rounded-md ${isButtonSelected('aceitaPermuta', 'sim') 
-                    ? 'bg-primary-orange text-white' 
-                    : 'bg-neutral-gray-light text-neutral-gray-dark'}`}
-                >
-                  Sim
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggleButton('aceitaPermuta', 'nao')}
-                  className={`px-4 py-2 rounded-md ${isButtonSelected('aceitaPermuta', 'nao') 
-                    ? 'bg-primary-orange text-white' 
-                    : 'bg-neutral-gray-light text-neutral-gray-dark'}`}
-                >
-                  Não
-                </button>
-              </div>
-            </div>
-
-            {/* Aceita Financiamento */}
-            <div>
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
-                Aceita Financiamento
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleToggleButton('aceitaFinanciamento', 'sim')}
-                  className={`px-4 py-2 rounded-md ${isButtonSelected('aceitaFinanciamento', 'sim') 
-                    ? 'bg-primary-orange text-white' 
-                    : 'bg-neutral-gray-light text-neutral-gray-dark'}`}
-                >
-                  Sim
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggleButton('aceitaFinanciamento', 'nao')}
-                  className={`px-4 py-2 rounded-md ${isButtonSelected('aceitaFinanciamento', 'nao') 
-                    ? 'bg-primary-orange text-white' 
-                    : 'bg-neutral-gray-light text-neutral-gray-dark'}`}
-                >
-                  Não
-                </button>
+              {/* Aceita Financiamento */}
+              <div className="flex-1 min-w-[160px]">
+                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                  Aceita Financiamento
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleButton('aceitaFinanciamento', 'sim')}
+                    className={`px-4 py-2 rounded-md ${isButtonSelected('aceitaFinanciamento', 'sim') 
+                      ? 'bg-primary-orange text-white' 
+                      : 'bg-neutral-gray-light text-neutral-gray-dark'}`}
+                  >
+                    Sim
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleButton('aceitaFinanciamento', 'nao')}
+                    className={`px-4 py-2 rounded-md ${isButtonSelected('aceitaFinanciamento', 'nao') 
+                      ? 'bg-primary-orange text-white' 
+                      : 'bg-neutral-gray-light text-neutral-gray-dark'}`}
+                  >
+                    Não
+                  </button>
+                </div>
               </div>
             </div>
 
