@@ -59,7 +59,14 @@ export const Sidebar: React.FC = () => {
         {/* Header */}
         <div className={`flex items-center justify-between border-b border-gray-700 ${isCollapsed ? 'p-4' : 'py-0 px-4'}`}>
           {!isCollapsed && (
-            <img src="/logo-mrcrm.png" alt="Logo Mr.CRM" className="h-16 w-auto" />
+            <div 
+              onClick={() => handleNavigation('/dashboard')} 
+              className="cursor-pointer"
+              role="button"
+              aria-label="Ir para Dashboard"
+            >
+              <img src="/logo-mrcrm.png" alt="Logo Mr.CRM" className="h-16 w-auto" />
+            </div>
           )}
           <button
             onClick={() => {
