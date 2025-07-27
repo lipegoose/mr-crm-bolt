@@ -52,7 +52,7 @@ const Publicacao: React.FC<PublicacaoProps> = ({ onUpdate }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Publicar no site?
           </label>
           <div className="flex space-x-4">
@@ -69,7 +69,7 @@ const Publicacao: React.FC<PublicacaoProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Publicar nos portais parceiros?
           </label>
           <div className="flex space-x-4">
@@ -86,7 +86,7 @@ const Publicacao: React.FC<PublicacaoProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Destaque no site?
           </label>
           <div className="flex space-x-4">

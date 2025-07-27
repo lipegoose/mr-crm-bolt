@@ -95,7 +95,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Garagem coberta
           </label>
           <div className="flex space-x-4">
@@ -112,7 +112,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Possui box na garagem
           </label>
           <div className="flex space-x-4">

@@ -97,7 +97,7 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Mostrar preço no site?
           </label>
           <div className="flex space-x-4">
@@ -125,7 +125,7 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate }) => {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Mostrar alteração de preço no site?
           </label>
           <div className="flex space-x-4">
@@ -168,7 +168,7 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Período
           </label>
           <div className="flex space-x-4">
@@ -197,7 +197,7 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Está financiado?
           </label>
           <div className="flex space-x-4">
@@ -214,7 +214,7 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Aceita financiamento?
           </label>
           <div className="flex space-x-4">
@@ -231,7 +231,7 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Minha Casa Minha Vida
           </label>
           <div className="flex space-x-4">
@@ -270,7 +270,7 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Aceita permuta?
           </label>
           <div className="flex space-x-4">

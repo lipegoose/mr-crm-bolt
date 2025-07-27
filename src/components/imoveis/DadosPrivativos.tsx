@@ -117,7 +117,7 @@ const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Exclusividade
           </label>
           <div className="flex space-x-4">

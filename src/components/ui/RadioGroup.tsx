@@ -37,7 +37,7 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
   return (
     <div className={`w-full ${className}`}>
       {label && (
-        <div className="block text-sm font-medium text-neutral-black mb-2">
+        <div className="block text-sm font-semibold mb-2">
           {label}
           {required && <span className="text-status-error ml-1">*</span>}
         </div>

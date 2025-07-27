@@ -200,7 +200,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Tipo e Subtipo */}
             <div>
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+              <label className="block text-sm font-semibold mb-1">
                 Tipo e Subtipo
               </label>
               <Select
@@ -212,7 +212,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
 
             {/* Transação */}
             <div>
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+              <label className="block text-sm font-semibold mb-1">
                 Transação
               </label>
               <div className="flex gap-2">
@@ -241,7 +241,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
 
             {/* Cidade */}
             <div>
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+              <label className="block text-sm font-semibold mb-1">
                 Cidade
               </label>
               <Select
@@ -253,7 +253,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
 
             {/* Bairros - Select múltiplo */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+              <label className="block text-sm font-semibold mb-1">
                 Bairros
               </label>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -276,7 +276,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
 
             {/* Perfil do Imóvel */}
             <div>
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+              <label className="block text-sm font-semibold mb-1">
                 Perfil do Imóvel
               </label>
               <Select
@@ -290,7 +290,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
             <div className="md:col-span-3 flex flex-wrap gap-4">
               {/* Dormitórios */}
               <div className="flex-1 min-w-[120px]">
-                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                <label className="block text-sm font-semibold mb-1">
                   Dormitórios
                 </label>
                 <div className="flex items-center">
@@ -317,7 +317,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
 
               {/* Suítes */}
               <div className="flex-1 min-w-[120px]">
-                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                <label className="block text-sm font-semibold mb-1">
                   Suítes
                 </label>
                 <div className="flex items-center">
@@ -344,7 +344,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
 
               {/* Garagens */}
               <div className="flex-1 min-w-[120px]">
-                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                <label className="block text-sm font-semibold mb-1">
                   Garagens
                 </label>
                 <div className="flex items-center">
@@ -372,7 +372,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
 
             {/* Situação - Select múltiplo */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+              <label className="block text-sm font-semibold mb-1">
                 Situação
               </label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -397,7 +397,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
             <div className="md:col-span-3 flex flex-wrap gap-4">
               {/* Preço */}
               <div className="flex-1 min-w-[250px]">
-                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                <label className="block text-sm font-semibold mb-1">
                   Preço
                 </label>
                 <div className="flex items-center gap-2">
@@ -419,7 +419,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
 
               {/* Área */}
               <div className="flex-1 min-w-[250px]">
-                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                <label className="block text-sm font-semibold mb-1">
                   Área
                 </label>
                 <div className="flex items-center gap-2">
@@ -444,7 +444,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
             <div className="md:col-span-3 flex flex-wrap gap-4">
               {/* Mobiliado */}
               <div className="flex-1 min-w-[120px]">
-                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                <label className="block text-sm font-semibold mb-1">
                   Mobiliado
                 </label>
                 <div className="flex gap-2">
@@ -471,7 +471,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
 
               {/* Aceita Permuta */}
               <div className="flex-1 min-w-[120px]">
-                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                <label className="block text-sm font-semibold mb-1">
                   Aceita Permuta
                 </label>
                 <div className="flex gap-2">
@@ -498,7 +498,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
 
               {/* Aceita Financiamento */}
               <div className="flex-1 min-w-[160px]">
-                <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+                <label className="block text-sm font-semibold mb-1">
                   Aceita Financiamento
                 </label>
                 <div className="flex gap-2">
@@ -526,7 +526,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
 
             {/* Requisitos do Imóvel - Select múltiplo */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+              <label className="block text-sm font-semibold mb-1">
                 Requisitos do Imóvel
               </label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -549,7 +549,7 @@ const FiltersModal: React.FC<FiltersModalProps> = ({ isOpen, onClose, onApplyFil
 
             {/* Requisitos do Condomínio - Select múltiplo */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-neutral-gray-dark mb-1">
+              <label className="block text-sm font-semibold mb-1">
                 Requisitos do Condomínio
               </label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">

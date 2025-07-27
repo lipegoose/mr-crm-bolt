@@ -225,7 +225,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Mostrar endereço no site?
           </label>
           <div className="flex space-x-4">
@@ -242,7 +242,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Mostrar número no site?
           </label>
           <div className="flex space-x-4">
@@ -259,7 +259,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Mostrar apenas proximidades?
           </label>
           <div className="flex space-x-4">

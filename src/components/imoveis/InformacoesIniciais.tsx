@@ -122,7 +122,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate }) =
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Condomínio/empreendimento?
           </label>
           <div className="flex space-x-4">
@@ -219,7 +219,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate }) =
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Terreno
           </label>
           <div className="flex space-x-4">
@@ -237,7 +237,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate }) =
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Escriturado
           </label>
           <div className="flex space-x-4">
@@ -254,7 +254,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate }) =
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Esquina
           </label>
           <div className="flex space-x-4">
@@ -271,7 +271,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate }) =
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Tem mobília
           </label>
           <div className="flex space-x-4">

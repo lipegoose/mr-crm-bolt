@@ -86,7 +86,7 @@ const Descricao: React.FC<DescricaoProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Mostrar título no site?
           </label>
           <div className="flex space-x-4">
@@ -125,7 +125,7 @@ const Descricao: React.FC<DescricaoProps> = ({ onUpdate }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-black mb-1">
+          <label className="block text-sm font-semibold mb-1">
             Mostrar descrição no site?
           </label>
           <div className="flex space-x-4">

@@ -16,7 +16,7 @@ export const Input: React.FC<InputProps> = ({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-neutral-black mb-1">
+        <label className="block text-sm font-semibold mb-1">
           {label}
         </label>
       )}
