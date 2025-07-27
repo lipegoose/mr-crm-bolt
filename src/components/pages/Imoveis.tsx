@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Plus, Search, Filter, Edit, Trash2, MapPin, DollarSign, Home } from 'lucide-react';
@@ -54,9 +55,9 @@ const mockImoveis: Imovel[] = [
 ];
 
 export const Imoveis: React.FC = () => {
+  const navigate = useNavigate();
   const [imoveis] = useState<Imovel[]>(mockImoveis);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showForm, setShowForm] = useState(false);
 
   const filteredImoveis = imoveis.filter(imovel =>
     imovel.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -106,7 +107,7 @@ export const Imoveis: React.FC = () => {
           <h1 className="text-3xl font-title font-bold text-neutral-black">Imóveis</h1>
           <p className="text-neutral-gray-medium mt-1">Gerencie seu portfólio de imóveis</p>
         </div>
-        <Button onClick={() => setShowForm(true)}>
+        <Button onClick={() => navigate('/imoveis/novo')}>
           <Plus className="w-4 h-4 mr-2" />
           Novo Imóvel
         </Button>
@@ -201,116 +202,7 @@ export const Imoveis: React.FC = () => {
           );
         })}
       </div>
-
-      {/* Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-title font-semibold">Novo Imóvel</h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-neutral-gray-medium hover:text-neutral-black"
-              >
-                ✕
-              </button>
-            </div>
-            <form className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-black mb-1">
-                  Título
-                </label>
-                <input
-                  type="text"
-                  placeholder="Digite o título"
-                  className="w-full px-component py-2 border border-neutral-gray rounded-default focus:outline-none focus:border-primary-orange"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-neutral-black mb-1">
-                  Tipo
-                </label>
-                <select className="w-full px-component py-2 border border-neutral-gray rounded-default focus:outline-none focus:border-primary-orange">
-                  <option value="">Selecione o tipo</option>
-                  <option value="casa">Casa</option>
-                  <option value="apartamento">Apartamento</option>
-                  <option value="comercial">Comercial</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-black mb-1">
-                  Endereço
-                </label>
-                <input
-                  type="text"
-                  placeholder="Digite o endereço completo"
-                  className="w-full px-component py-2 border border-neutral-gray rounded-default focus:outline-none focus:border-primary-orange"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-black mb-1">
-                    Preço (R$)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="0,00"
-                    className="w-full px-component py-2 border border-neutral-gray rounded-default focus:outline-none focus:border-primary-orange"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-black mb-1">
-                    Área (m²)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="0"
-                    className="w-full px-component py-2 border border-neutral-gray rounded-default focus:outline-none focus:border-primary-orange"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-black mb-1">
-                    Quartos
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="0"
-                    className="w-full px-component py-2 border border-neutral-gray rounded-default focus:outline-none focus:border-primary-orange"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-black mb-1">
-                    Banheiros
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="0"
-                    className="w-full px-component py-2 border border-neutral-gray rounded-default focus:outline-none focus:border-primary-orange"
-                  />
-                </div>
-              </div>
-
-              <div className="flex space-x-3 pt-4">
-                <Button type="submit" className="flex-1">Salvar</Button>
-                <Button 
-                  type="button" 
-                  variant="secondary" 
-                  onClick={() => setShowForm(false)}
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </Card>
-        </div>
-      )}
+      
     </div>
   );
 };

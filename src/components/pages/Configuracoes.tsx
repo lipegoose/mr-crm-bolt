@@ -10,8 +10,8 @@ import {
   Palette, 
   Database, 
   Mail,
-  Phone,
-  MapPin,
+  // Phone, // Removido pois não está sendo usado
+  // MapPin, // Removido pois não está sendo usado
   Save,
   Eye,
   EyeOff

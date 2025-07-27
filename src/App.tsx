@@ -7,6 +7,7 @@ import { Dashboard } from './components/pages/Dashboard';
 import { Clientes } from './components/pages/Clientes';
 import ClienteCadastroCompleto from './components/pages/ClienteCadastroCompleto';
 import { Imoveis } from './components/pages/Imoveis';
+import ImovelCadastro from './components/pages/ImovelCadastro';
 import { Contratos } from './components/pages/Contratos';
 import { Relatorios } from './components/pages/Relatorios';
 import { Configuracoes } from './components/pages/Configuracoes';
@@ -32,6 +33,7 @@ const AppLayout: React.FC = () => {
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/clientes/novo" element={<ClienteCadastroCompleto />} />
             <Route path="/imoveis" element={<Imoveis />} />
+            <Route path="/imoveis/novo" element={<ImovelCadastro />} />
             <Route path="/contratos" element={<Contratos />} />
             <Route path="/relatorios" element={<Relatorios />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
