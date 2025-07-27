@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Plus, Search, Filter, Edit, Trash2, MapPin, DollarSign, Home } from 'lucide-react';
+import FiltersModal from '../imoveis/FiltersModal';
 
 interface Imovel {
   id: number;
@@ -58,11 +59,51 @@ export const Imoveis: React.FC = () => {
   const navigate = useNavigate();
   const [imoveis] = useState<Imovel[]>(mockImoveis);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<any>(null);
 
-  const filteredImoveis = imoveis.filter(imovel =>
-    imovel.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    imovel.endereco.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredImoveis = imoveis.filter(imovel => {
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = (
+        imovel.titulo.toLowerCase().includes(searchLower) ||
+        imovel.endereco.toLowerCase().includes(searchLower) ||
+        imovel.tipo.toLowerCase().includes(searchLower)
+      );
+      
+      if (!matchesSearch) return false;
+    }
+    
+    if (!activeFilters) return true;
+    
+    let matches = true;
+    
+    if (activeFilters.tipoSubtipo && activeFilters.tipoSubtipo !== '') {
+      matches = matches && imovel.tipo === activeFilters.tipoSubtipo;
+    }
+    
+    if (activeFilters.precoMin && activeFilters.precoMin !== '') {
+      matches = matches && imovel.preco >= parseFloat(activeFilters.precoMin);
+    }
+    
+    if (activeFilters.precoMax && activeFilters.precoMax !== '') {
+      matches = matches && imovel.preco <= parseFloat(activeFilters.precoMax);
+    }
+    
+    if (activeFilters.areaMin && activeFilters.areaMin !== '') {
+      matches = matches && imovel.area >= parseFloat(activeFilters.areaMin);
+    }
+    
+    if (activeFilters.areaMax && activeFilters.areaMax !== '') {
+      matches = matches && imovel.area <= parseFloat(activeFilters.areaMax);
+    }
+    
+    if (activeFilters.dormitorios > 0) {
+      matches = matches && (imovel.quartos || 0) >= activeFilters.dormitorios;
+    }
+    
+    return matches;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -128,12 +169,26 @@ export const Imoveis: React.FC = () => {
               />
             </div>
           </div>
-          <Button variant="secondary">
+          <Button 
+            variant="secondary"
+            onClick={() => setIsFiltersModalOpen(true)}
+          >
             <Filter className="w-4 h-4 mr-2" />
             Filtros
           </Button>
         </div>
       </Card>
+
+      {/* Modal de Filtros */}
+      <FiltersModal
+        isOpen={isFiltersModalOpen}
+        onClose={() => setIsFiltersModalOpen(false)}
+        onApplyFilters={(filters) => {
+          setActiveFilters(filters);
+          setIsFiltersModalOpen(false);
+        }}
+        totalImoveis={filteredImoveis.length}
+      />
 
       {/* Properties Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
