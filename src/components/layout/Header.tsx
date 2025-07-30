@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, Search, LogOut } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface HeaderProps {
   sidebarCollapsed: boolean;
@@ -10,10 +11,17 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
   const navigate = useNavigate();
+  const { logout, user } = useAuth();
   
-  const handleLogout = () => {
-    // Aqui poderia ter lógica adicional de logout como limpar tokens, etc.
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Mesmo com erro, redirecionar para login
+      navigate('/login');
+    }
   };
   return (
     <header className={`
@@ -46,10 +54,10 @@ export const Header: React.FC<HeaderProps> = ({ sidebarCollapsed }) => {
 
           {/* User menu */}
           <div className="flex items-center space-x-3">
-            <Avatar name="Dan" size="sm" />
+            <Avatar name={user?.name || 'Usuário'} size="sm" />
             <div className="hidden md:block">
-              <p className="text-sm font-medium text-neutral-black">Dan</p>
-              <p className="text-xs text-neutral-gray-medium">Administrador</p>
+              <p className="text-sm font-medium text-neutral-black">{user?.name || 'Usuário'}</p>
+              <p className="text-xs text-neutral-gray-medium">{user?.email || 'admin@mrcrm.com'}</p>
             </div>
             <Button variant="secondary" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4" />
