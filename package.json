@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:static": "vite build",
     "build:prod": "vite build --mode production",
+    "deploy": "vite build --mode production && node deploy.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
