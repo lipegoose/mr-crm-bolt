@@ -72,6 +72,12 @@ const refreshToken = async (): Promise<boolean> => {
   }
 };
 
+// Evitar redirecionar em rotas de autenticação
+const isAuthRoute = (url?: string): boolean => {
+  if (!url) return false;
+  return url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/refresh');
+};
+
 // Interceptor para adicionar token de autenticação
 api.interceptors.request.use(
   async (config) => {
@@ -82,12 +88,16 @@ api.interceptors.request.use(
       if (isTokenExpiringSoon()) {
         const refreshed = await refreshToken();
         if (!refreshed) {
-          // Se não conseguiu renovar, limpar tokens e redirecionar
+          // Se não conseguiu renovar, limpar tokens e redirecionar somente se houver token e não estiver no /login
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('token_expiry');
           localStorage.removeItem('user');
-          window.location.href = '/login';
+          const onLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
+          if (!onLoginPage) {
+            // Evitar recarregar a página se já estiver na tela de login
+            // Apenas rejeitar a request e deixar a UI lidar
+          }
           return Promise.reject(new Error('Token expired and refresh failed'));
         }
       }
@@ -113,6 +123,12 @@ api.interceptors.response.use(
   },
   async (error: AxiosError<ApiError>) => {
     const originalRequest = error.config;
+    const requestUrl = originalRequest?.url;
+
+    // Se o erro veio de uma rota de autenticação (ex.: /auth/login), não tentar refresh nem redirecionar
+    if (error.response?.status === 401 && isAuthRoute(requestUrl)) {
+      return Promise.reject(error);
+    }
     
     // Se recebeu 401 e não é uma tentativa de refresh
     if (error.response?.status === 401 && originalRequest) {
@@ -134,21 +150,29 @@ api.interceptors.response.use(
           }
           return api(originalRequest);
         } else {
-          // Se não conseguiu renovar, limpar tokens e redirecionar
+          // Se não conseguiu renovar, limpar tokens e redirecionar apenas se houver token e não estiver na tela de login
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('token_expiry');
           localStorage.removeItem('user');
+          const hasToken = !!getToken();
+          const onLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
+          if (hasToken && !onLoginPage) {
+            window.location.href = '/login';
+          }
+        }
+      } catch {
+        // Se houve erro no refresh, limpar tokens e redirecionar apenas se houver token e não estiver na tela de login
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('token_expiry');
+        localStorage.removeItem('user');
+        const hasToken = !!getToken();
+        const onLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
+        if (hasToken && !onLoginPage) {
           window.location.href = '/login';
         }
-             } catch {
-         // Se houve erro no refresh, limpar tokens e redirecionar
-         localStorage.removeItem('access_token');
-         localStorage.removeItem('refresh_token');
-         localStorage.removeItem('token_expiry');
-         localStorage.removeItem('user');
-         window.location.href = '/login';
-       }
+      }
     }
     
     // Tratamento de outros erros

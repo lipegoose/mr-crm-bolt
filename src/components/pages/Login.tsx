@@ -10,6 +10,8 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isAuthenticated, isLoading, error, clearError } = useAuth();
@@ -17,36 +19,40 @@ export const Login: React.FC = () => {
   // Redirecionar se já estiver autenticado
   useEffect(() => {
     if (isAuthenticated) {
-      const from = location.state?.from?.pathname || '/dashboard';
+      const from = (location.state as any)?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, navigate, location]);
-
-  // Limpar erro quando o componente montar
-  useEffect(() => {
-    clearError();
-  }, [clearError]);
 
   // Limpar erro quando o usuário começar a digitar
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
     if (error) clearError();
+    if (hasError) setHasError(false);
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
     if (error) clearError();
+    if (hasError) setHasError(false);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
+      setHasError(false);
+      setErrorMessage('');
       await login({ email, password, remember: rememberMe });
-      // O redirecionamento será feito pelo useEffect acima
-    } catch (error) {
-      // O erro será tratado pelo contexto de autenticação
-      console.error('Login failed:', error);
+      // Redirecionamento feito pelo useEffect acima
+    } catch (err: unknown) {
+      let message = 'Erro ao fazer login';
+      if (typeof err === 'object' && err !== null && 'message' in err && typeof (err as any).message === 'string') {
+        message = (err as any).message as string;
+      }
+      setHasError(true);
+      setErrorMessage(message);
+      return;
     }
   };
 
@@ -76,26 +82,12 @@ export const Login: React.FC = () => {
             </p>
           </div>
 
-          {/* Exibir erro se houver */}
-          {error && (
-            <div className="mb-4 p-3 bg-status-error-light border border-status-error rounded-default">
+          {/* Exibir erro com flags simples */}
+          {hasError && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-500 rounded-default text-red-700">
               <div className="flex items-start space-x-2">
-                <AlertCircle className="w-4 h-4 text-status-error flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  {error.includes('\n') ? (
-                    // Se há múltiplos erros (separados por \n), mostrar em lista
-                    <div className="text-sm text-status-error">
-                      {error.split('\n').map((errorLine, index) => (
-                        <div key={index} className="mb-1 last:mb-0">
-                          {errorLine}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    // Se é apenas uma mensagem, mostrar normalmente
-                    <p className="text-sm text-status-error">{error}</p>
-                  )}
-                </div>
+                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm font-medium">{errorMessage}</p>
               </div>
             </div>
           )}
@@ -114,7 +106,7 @@ export const Login: React.FC = () => {
             <div className="relative">
               <Input
                 label="Senha"
-                type={showPassword ? "text" : "password"}
+                type={showPassword ? 'text' : 'password'}
                 placeholder="Digite sua senha"
                 value={password}
                 onChange={handlePasswordChange}
@@ -161,7 +153,8 @@ export const Login: React.FC = () => {
               <strong>Credenciais de demonstração:</strong>
             </p>
             <p className="text-xs text-neutral-gray-medium">
-              E-mail: admin@mrcrm.com<br />
+              E-mail: admin@mrcrm.com
+              <br />
               Senha: 123456
             </p>
           </div>
