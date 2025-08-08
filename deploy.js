@@ -28,7 +28,7 @@ async function run() {
     
     // Adicionar remote (ignorando erro se já existir)
     try {
-      await execa('git', ['remote', 'add', 'origin', 'git@github.com:lipegoose/mr-crm-bolt.git'], { cwd: distPath });
+      await execa('git', ['remote', 'add', 'origin', 'git@github.com-lipegoose:lipegoose/mr-crm-bolt.git'], { cwd: distPath });
     } catch (e) {
       console.log('Remote já existe ou erro ao adicionar');
     }
