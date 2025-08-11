@@ -1,18 +1,43 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { RadioGroup } from '../ui/RadioGroup';
 import { ImovelService, TipoImovel, SubtipoImovel } from '../../services/ImovelService';
-import { useFormWithChanges } from '../../hooks/useFormWithChanges';
+import WizardStep from '../wizard/WizardStep';
+import logger from '../../utils/logger';
 
 interface InformacoesIniciaisProps {
   onUpdate: (data: Record<string, unknown>, hasChanges?: boolean) => void;
-  submitCallback?: (callback: () => void) => void; // Nova prop para expor submitChanges
+  submitCallback?: (callback: () => void) => void;
+}
+
+interface InformacoesForm extends Record<string, unknown> {
+  codigo_referencia: string;
+  isCondominio: string;
+  condominio: string;
+  proprietario: string;
+  tipo: string;
+  subtipo: string;
+  perfil: string;
+  situacao: string;
+  ano_construcao: string;
+  incorporacao: string;
+  posicaoSolar: string;
+  terreno: string;
+  averbado: string;
+  escriturado: string;
+  esquina: string;
+  mobiliado: string;
 }
 
 const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, submitCallback }) => {
-  
-  const initialFormData = {
+  // Estado para opções da API
+  const [tipos, setTipos] = useState<TipoImovel[]>([]);
+  const [subtipos, setSubtipos] = useState<SubtipoImovel[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+
+  // Dados iniciais do formulário
+  const initialFormData: InformacoesForm = {
     codigo_referencia: '',
     isCondominio: 'nao',
     condominio: '',
@@ -30,25 +55,6 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
     esquina: 'nao',
     mobiliado: 'nao',
   };
-
-  const {
-    formData,
-    handleChange: handleFormChange,
-    submitChanges
-  } = useFormWithChanges({
-    initialData: initialFormData,
-    onUpdate
-  });
-
-  // Memoizar submitChanges para evitar mudanças de referência
-  const memoizedSubmitChanges = useCallback(() => {
-    submitChanges();
-  }, [submitChanges]);
-
-  // Estados para opções da API
-  const [tipos, setTipos] = useState<TipoImovel[]>([]);
-  const [subtipos, setSubtipos] = useState<SubtipoImovel[]>([]);
-  const [loadingOptions, setLoadingOptions] = useState(true);
 
   // Lista de proprietários (simulação)
   const proprietarios = [
@@ -102,7 +108,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
         const tiposResponse = await ImovelService.getTipos();
         setTipos(tiposResponse.data);
       } catch (error) {
-        console.error('Erro ao carregar tipos:', error);
+        logger.error('Erro ao carregar tipos:', error);
       } finally {
         setLoadingOptions(false);
       }
@@ -112,242 +118,234 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
   }, []);
 
   // Carregar subtipos quando o tipo mudar
-  useEffect(() => {
-    if (formData.tipo) {
-      const loadSubtipos = async () => {
-        try {
-          const subtiposResponse = await ImovelService.getSubtipos(formData.tipo);
-          setSubtipos(subtiposResponse.data);
-        } catch (error) {
-          console.error('Erro ao carregar subtipos:', error);
-        }
-      };
-      
-      loadSubtipos();
-    } else {
+  const loadSubtipos = async (tipo: string) => {
+    if (!tipo) {
       setSubtipos([]);
+      return;
     }
-  }, [formData.tipo]);
-
-  // Expor submitChanges para o componente pai
-  useEffect(() => {
-    if (submitCallback) {
-      submitCallback(memoizedSubmitChanges);
+    
+    try {
+      const subtiposResponse = await ImovelService.getSubtipos(tipo);
+      setSubtipos(subtiposResponse.data);
+    } catch (error) {
+      logger.error('Erro ao carregar subtipos:', error);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submitCallback, memoizedSubmitChanges]);
-
-  // Removido useEffect problemático que causava loop infinito
-  // initialFormData é constante dentro do componente, não precisa de useEffect
-
-  // Função para atualizar os dados do formulário
-  const handleChange = (field: string, value: string) => {
-    handleFormChange(field as keyof typeof initialFormData, value);
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-title font-semibold mb-4">Informações iniciais</h2>
-      <p className="text-neutral-gray-medium mb-6">
-        Defina as informações com precisão para os seus clientes.
-      </p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <Input
-            label="Código de referência *"
-            placeholder="Digite o código de referência"
-            value={formData.codigo_referencia}
-            onChange={(e) => handleChange('codigo_referencia', e.target.value)}
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold mb-1">
-            Condomínio/empreendimento?
-          </label>
-          <div className="flex space-x-4">
-            <RadioGroup
-              name="isCondominio"
-              options={[
-                { label: 'Sim', value: 'sim' },
-                { label: 'Não', value: 'nao' }
-              ]}
-              value={formData.isCondominio}
-              onChange={(value) => handleChange('isCondominio', value)}
-            />
-          </div>
-        </div>
-
-        {formData.isCondominio === 'sim' && (
+    <WizardStep<InformacoesForm>
+      id="informacoes"
+      title="Informações iniciais"
+      description="Defina as informações com precisão para os seus clientes."
+      onUpdate={onUpdate}
+      submitCallback={submitCallback}
+      initialData={initialFormData}
+    >
+      {({ formData, handleChange }) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Input
-              label="Nome do Condomínio/empreendimento *"
-              placeholder="Digite o nome do condomínio"
-              value={formData.condominio}
-              onChange={(e) => handleChange('condominio', e.target.value)}
+              label="Código de referência *"
+              placeholder="Digite o código de referência"
+              value={formData.codigo_referencia}
+              onChange={(e) => handleChange('codigo_referencia', e.target.value)}
               required
             />
           </div>
-        )}
 
-        <div>
-          <Select
-            label="Proprietário * (privado)"
-            options={proprietarios}
-            value={formData.proprietario}
-            onChange={(e) => handleChange('proprietario', e.target.value)}
-            required
-          />
-        </div>
+          <div>
+            <label className="block text-sm font-semibold mb-1">
+              Condomínio/empreendimento?
+            </label>
+            <div className="flex space-x-4">
+              <RadioGroup
+                name="isCondominio"
+                options={[
+                  { label: 'Sim', value: 'sim' },
+                  { label: 'Não', value: 'nao' }
+                ]}
+                value={formData.isCondominio}
+                onChange={(value) => handleChange('isCondominio', value)}
+              />
+            </div>
+          </div>
 
-        <div>
-          <Select
-            label="Tipo *"
-            options={[
-              { value: '', label: 'Selecione' },
-              ...tipos.map(tipo => ({ value: tipo.nome, label: tipo.nome }))
-            ]}
-            value={formData.tipo}
-            onChange={(e) => handleChange('tipo', e.target.value)}
-            required
-            disabled={loadingOptions}
-          />
-        </div>
+          {formData.isCondominio === 'sim' && (
+            <div>
+              <Input
+                label="Nome do Condomínio/empreendimento *"
+                placeholder="Digite o nome do condomínio"
+                value={formData.condominio}
+                onChange={(e) => handleChange('condominio', e.target.value)}
+                required
+              />
+            </div>
+          )}
 
-        <div>
-          <Select
-            label="Subtipo *"
-            options={[
-              { value: '', label: 'Selecione' },
-              ...subtipos.map(subtipo => ({ value: subtipo.nome, label: subtipo.nome }))
-            ]}
-            value={formData.subtipo}
-            onChange={(e) => handleChange('subtipo', e.target.value)}
-            required
-            disabled={!formData.tipo || subtipos.length === 0}
-          />
-        </div>
-
-        <div>
-          <Select
-            label="Perfil do imóvel *"
-            options={perfis}
-            value={formData.perfil}
-            onChange={(e) => handleChange('perfil', e.target.value)}
-            required
-          />
-        </div>
-
-        <div>
-          <Select
-            label="Situação *"
-            options={situacoes}
-            value={formData.situacao}
-            onChange={(e) => handleChange('situacao', e.target.value)}
-            required
-          />
-        </div>
-
-        <div>
-          <Input
-            label="Ano da construção"
-            placeholder="Ex.: 2015"
-            type="number"
-            value={formData.ano_construcao}
-            onChange={(e) => handleChange('ano_construcao', e.target.value)}
-          />
-        </div>
-
-        <div>
-          <Input
-            label="Incorporação"
-            placeholder="Digite o número"
-            value={formData.incorporacao}
-            onChange={(e) => handleChange('incorporacao', e.target.value)}
-          />
-        </div>
-
-        <div>
-          <Select
-            label="Posição solar"
-            options={posicoesSolares}
-            value={formData.posicaoSolar}
-            onChange={(e) => handleChange('posicaoSolar', e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold mb-1">
-            Terreno
-          </label>
-          <div className="flex space-x-4">
-            <RadioGroup
-              name="terreno"
-              options={[
-                { label: 'Plano', value: 'plano' },
-                { label: 'Aclive', value: 'aclive' },
-                { label: 'Declive', value: 'declive' }
-              ]}
-              value={formData.terreno}
-              onChange={(value) => handleChange('terreno', value)}
+          <div>
+            <Select
+              label="Proprietário * (privado)"
+              options={proprietarios}
+              value={formData.proprietario}
+              onChange={(e) => handleChange('proprietario', e.target.value)}
+              required
             />
           </div>
-        </div>
 
-        <div>
-          <label className="block text-sm font-semibold mb-1">
-            Escriturado
-          </label>
-          <div className="flex space-x-4">
-            <RadioGroup
-              name="escriturado"
+          <div>
+            <Select
+              label="Tipo *"
               options={[
-                { label: 'Sim', value: 'sim' },
-                { label: 'Não', value: 'nao' }
+                { value: '', label: 'Selecione' },
+                ...tipos.map(tipo => ({ value: tipo.nome, label: tipo.nome }))
               ]}
-              value={formData.escriturado}
-              onChange={(value) => handleChange('escriturado', value)}
+              value={formData.tipo}
+              onChange={(e) => {
+                const tipoValue = e.target.value;
+                handleChange('tipo', tipoValue);
+                // Limpar subtipo quando tipo mudar
+                handleChange('subtipo', '');
+                // Carregar novos subtipos
+                loadSubtipos(tipoValue);
+              }}
+              required
+              disabled={loadingOptions}
             />
           </div>
-        </div>
 
-        <div>
-          <label className="block text-sm font-semibold mb-1">
-            Esquina
-          </label>
-          <div className="flex space-x-4">
-            <RadioGroup
-              name="esquina"
+          <div>
+            <Select
+              label="Subtipo *"
               options={[
-                { label: 'Sim', value: 'sim' },
-                { label: 'Não', value: 'nao' }
+                { value: '', label: 'Selecione' },
+                ...subtipos.map(subtipo => ({ value: subtipo.nome, label: subtipo.nome }))
               ]}
-              value={formData.esquina}
-              onChange={(value) => handleChange('esquina', value)}
+              value={formData.subtipo}
+              onChange={(e) => handleChange('subtipo', e.target.value)}
+              required
+              disabled={!formData.tipo || subtipos.length === 0}
             />
           </div>
-        </div>
 
-        <div>
-          <label className="block text-sm font-semibold mb-1">
-            Tem mobília
-          </label>
-          <div className="flex space-x-4">
-            <RadioGroup
-              name="mobiliado"
-              options={[
-                { label: 'Sim', value: 'sim' },
-                { label: 'Não', value: 'nao' }
-              ]}
-              value={formData.mobiliado}
-              onChange={(value) => handleChange('mobiliado', value)}
+          <div>
+            <Select
+              label="Perfil do imóvel *"
+              options={perfis}
+              value={formData.perfil}
+              onChange={(e) => handleChange('perfil', e.target.value)}
+              required
             />
           </div>
+
+          <div>
+            <Select
+              label="Situação *"
+              options={situacoes}
+              value={formData.situacao}
+              onChange={(e) => handleChange('situacao', e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <Input
+              label="Ano da construção"
+              placeholder="Ex.: 2015"
+              type="number"
+              value={formData.ano_construcao}
+              onChange={(e) => handleChange('ano_construcao', e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Input
+              label="Incorporação"
+              placeholder="Digite o número"
+              value={formData.incorporacao}
+              onChange={(e) => handleChange('incorporacao', e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Select
+              label="Posição solar"
+              options={posicoesSolares}
+              value={formData.posicaoSolar}
+              onChange={(e) => handleChange('posicaoSolar', e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold mb-1">
+              Terreno
+            </label>
+            <div className="flex space-x-4">
+              <RadioGroup
+                name="terreno"
+                options={[
+                  { label: 'Plano', value: 'plano' },
+                  { label: 'Aclive', value: 'aclive' },
+                  { label: 'Declive', value: 'declive' }
+                ]}
+                value={formData.terreno}
+                onChange={(value) => handleChange('terreno', value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold mb-1">
+              Escriturado
+            </label>
+            <div className="flex space-x-4">
+              <RadioGroup
+                name="escriturado"
+                options={[
+                  { label: 'Sim', value: 'sim' },
+                  { label: 'Não', value: 'nao' }
+                ]}
+                value={formData.escriturado}
+                onChange={(value) => handleChange('escriturado', value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold mb-1">
+              Esquina
+            </label>
+            <div className="flex space-x-4">
+              <RadioGroup
+                name="esquina"
+                options={[
+                  { label: 'Sim', value: 'sim' },
+                  { label: 'Não', value: 'nao' }
+                ]}
+                value={formData.esquina}
+                onChange={(value) => handleChange('esquina', value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold mb-1">
+              Tem mobília
+            </label>
+            <div className="flex space-x-4">
+              <RadioGroup
+                name="mobiliado"
+                options={[
+                  { label: 'Sim', value: 'sim' },
+                  { label: 'Não', value: 'nao' }
+                ]}
+                value={formData.mobiliado}
+                onChange={(value) => handleChange('mobiliado', value)}
+            />
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </WizardStep>
   );
 };
 

@@ -6,32 +6,32 @@ const isDebugEnabled = isDevelopment && (localStorage.getItem('debug') === 'true
 // const isDebugEnabled = false; // Força desativação de logs debug # NUNCA APAGAR ESTA LINHA.
 
 interface Logger {
-  debug: (message: string, ...args: any[]) => void;
-  info: (message: string, ...args: any[]) => void;
-  warn: (message: string, ...args: any[]) => void;
-  error: (message: string, ...args: any[]) => void;
+  debug: (message: string, ...args: unknown[]) => void;
+  info: (message: string, ...args: unknown[]) => void;
+  warn: (message: string, ...args: unknown[]) => void;
+  error: (message: string, ...args: unknown[]) => void;
   enableDebug: () => void;
   disableDebug: () => void;
 }
 
 const logger: Logger = {
-  debug: (message: string, ...args: any[]) => {
+  debug: (message: string, ...args: unknown[]) => {
     if (isDebugEnabled) {
       console.debug(`[DEBUG] ${message}`, ...args);
     }
   },
   
-  info: (message: string, ...args: any[]) => {
+  info: (message: string, ...args: unknown[]) => {
     if (isDevelopment) {
       console.info(`[INFO] ${message}`, ...args);
     }
   },
   
-  warn: (message: string, ...args: any[]) => {
+  warn: (message: string, ...args: unknown[]) => {
     console.warn(`[WARN] ${message}`, ...args);
-  },
+    },
   
-  error: (message: string, ...args: any[]) => {
+  error: (message: string, ...args: unknown[]) => {
     console.error(`[ERROR] ${message}`, ...args);
   },
   
