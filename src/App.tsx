@@ -28,7 +28,7 @@ const AppLayout: React.FC = () => {
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/clientes/novo" element={<ClienteCadastroCompleto />} />
             <Route path="/imoveis" element={<Imoveis />} />
-            <Route path="/imoveis/novo" element={<ImovelCadastro />} />
+            <Route path="/imoveis/:id" element={<ImovelCadastro />} />
             <Route path="/contratos" element={<Contratos />} />
             <Route path="/relatorios" element={<Relatorios />} />
             <Route path="/configuracoes" element={<Configuracoes />} />

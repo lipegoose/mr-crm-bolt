@@ -1,15 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TextArea } from '../ui/TextArea';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { RadioGroup } from '../ui/RadioGroup';
+import { Button } from '../ui/Button';
+
+interface DadosPrivativosFormData {
+  matricula: string;
+  inscricaoMunicipal: string;
+  inscricaoEstadual: string;
+  valorComissao: string;
+  tipoComissao: string;
+  corretorResponsavel: string;
+  exclusividade: string;
+  dataInicioExclusividade: string;
+  dataFimExclusividade: string;
+  observacoesPrivadas: string;
+}
 
 interface DadosPrivativosProps {
-  onUpdate: (data: any) => void;
+  onUpdate: (data: DadosPrivativosFormData, hasChanges?: boolean) => void;
 }
 
 const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate }) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<DadosPrivativosFormData>({
     matricula: '',
     inscricaoMunicipal: '',
     inscricaoEstadual: '',
@@ -22,6 +36,10 @@ const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate }) => {
     observacoesPrivadas: '',
   });
 
+  // Estado para controlar se o formulário foi modificado pelo usuário
+  const [formChanged, setFormChanged] = useState(false);
+  const [initialData, setInitialData] = useState<DadosPrivativosFormData>(formData);
+
   // Lista de corretores (simulação)
   const corretores = [
     { value: '', label: 'Selecione' },
@@ -32,13 +50,25 @@ const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate }) => {
     { value: 'pedro', label: 'Pedro Henrique' },
   ];
 
-  // Atualiza os dados do formulário quando há mudanças
-  // Removemos onUpdate da lista de dependências para evitar o loop infinito
+  // Armazena dados iniciais quando o componente é montado
   useEffect(() => {
-    // Chamamos onUpdate apenas quando formData mudar
-    onUpdate(formData);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setInitialData(formData);
   }, [formData]);
+
+  // Verifica se há mudanças reais comparando com os dados iniciais
+  const hasRealChanges = useCallback(() => {
+    return Object.keys(formData).some(key => 
+      formData[key as keyof DadosPrivativosFormData] !== initialData[key as keyof DadosPrivativosFormData]
+    );
+  }, [formData, initialData]);
+
+  // Atualiza os dados do formulário quando há mudanças reais
+  useEffect(() => {
+    // Só chama onUpdate se o formulário foi modificado pelo usuário e há mudanças reais
+    if (formChanged && hasRealChanges()) {
+      onUpdate(formData, true);
+    }
+  }, [formData, formChanged, onUpdate, hasRealChanges]);
 
   // Função para atualizar os dados do formulário
   const handleChange = (field: string, value: string) => {
@@ -46,6 +76,15 @@ const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate }) => {
       ...prev,
       [field]: value
     }));
+    
+    // Marca o formulário como modificado
+    setFormChanged(true);
+  };
+
+  // Função para resetar o formulário aos dados iniciais
+  const resetForm = () => {
+    setFormData(initialData);
+    setFormChanged(false);
   };
 
   return (
@@ -166,6 +205,17 @@ const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate }) => {
           <p className="text-xs text-neutral-gray-medium mt-1">
             Estas observações são apenas para uso interno e não serão exibidas no site.
           </p>
+        </div>
+
+        <div className="md:col-span-2 flex justify-end space-x-3 pt-4">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={resetForm}
+            disabled={!hasRealChanges()}
+          >
+            Resetar Formulário
+          </Button>
         </div>
       </div>
     </div>

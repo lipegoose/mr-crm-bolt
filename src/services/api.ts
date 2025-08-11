@@ -8,7 +8,17 @@ declare module 'axios' {
 }
 
 // Configuração da URL base baseada no ambiente
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+// Adiciona o prefixo /api se não estiver presente na URL
+const getApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) {
+    // Se a URL do ambiente termina com /api, não adiciona novamente
+    return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
+  }
+  return 'http://localhost:8080/api';
+};
+
+const API_URL = getApiUrl();
 
 
 

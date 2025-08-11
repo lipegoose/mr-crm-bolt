@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Plus, Search, Filter, Edit, Trash2, MapPin, DollarSign, Home } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, MapPin, DollarSign, Home, Loader2 } from 'lucide-react';
 import FiltersModal from '../imoveis/FiltersModal';
+import { ImovelService } from '../../services/ImovelService';
 
 interface Imovel {
   id: number;
@@ -60,7 +61,30 @@ export const Imoveis: React.FC = () => {
   const [imoveis] = useState<Imovel[]>(mockImoveis);
   const [searchTerm, setSearchTerm] = useState('');
   const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
-  const [activeFilters, setActiveFilters] = useState<any>(null);
+  const [activeFilters, setActiveFilters] = useState<{
+    tipoSubtipo?: string;
+    precoMin?: string;
+    precoMax?: string;
+    areaMin?: string;
+    areaMax?: string;
+    dormitorios?: number;
+  } | null>(null);
+  const [creatingImovel, setCreatingImovel] = useState(false);
+
+  // Função para criar novo imóvel
+  const handleNovoImovel = async () => {
+    setCreatingImovel(true);
+    try {
+      const response = await ImovelService.iniciarCadastro();
+      navigate(`/imoveis/${response.imovel.id}`);
+    } catch (error) {
+      console.error('Erro ao criar novo imóvel:', error);
+      // Aqui você pode adicionar um toast de erro se tiver implementado
+      alert('Erro ao criar novo imóvel. Tente novamente.');
+    } finally {
+      setCreatingImovel(false);
+    }
+  };
 
   const filteredImoveis = imoveis.filter(imovel => {
     if (searchTerm) {
@@ -98,7 +122,7 @@ export const Imoveis: React.FC = () => {
       matches = matches && imovel.area <= parseFloat(activeFilters.areaMax);
     }
     
-    if (activeFilters.dormitorios > 0) {
+    if (activeFilters.dormitorios && activeFilters.dormitorios > 0) {
       matches = matches && (imovel.quartos || 0) >= activeFilters.dormitorios;
     }
     
@@ -148,9 +172,13 @@ export const Imoveis: React.FC = () => {
           <h1 className="text-3xl font-title font-bold text-neutral-black">Imóveis</h1>
           <p className="text-neutral-gray-medium mt-1">Gerencie seu portfólio de imóveis</p>
         </div>
-        <Button onClick={() => navigate('/imoveis/novo')}>
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Imóvel
+        <Button onClick={handleNovoImovel} disabled={creatingImovel}>
+          {creatingImovel ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Plus className="w-4 h-4 mr-2" />
+          )}
+          {creatingImovel ? 'Criando...' : 'Novo Imóvel'}
         </Button>
       </div>
 

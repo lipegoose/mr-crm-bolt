@@ -1,0 +1,474 @@
+import api from './api';
+
+// Interfaces principais
+export interface Imovel {
+  id: number;
+  codigo_referencia: string;
+  tipo: string;
+  subtipo: string;
+  perfil: string;
+  status: string;
+  endereco: Endereco;
+  caracteristicas_fisicas: CaracteristicasFisicas;
+  valores: Valores;
+  publicacao: Publicacao;
+  negociacao: Negociacao;
+  created_at: string;
+  updated_at: string;
+  imagem_principal?: ImagemImovel | null;
+}
+
+export interface Endereco {
+  cep: string | null;
+  uf: string | null;
+  cidade: string | null;
+  bairro: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  complemento: string | null;
+  mostrar_endereco_site: boolean;
+  endereco_formatado: string;
+}
+
+export interface CaracteristicasFisicas {
+  area_total: number | null;
+  area_privativa: number | null;
+  quartos: number | null;
+  banheiros: number | null;
+  suites: number | null;
+  vagas: number | null;
+}
+
+export interface Valores {
+  valor_venda: number | null;
+  valor_locacao: number | null;
+  valor_condominio: number | null;
+  valor_iptu: number | null;
+  mostrar_valores_site: boolean;
+  valor_venda_formatado: string | null;
+  valor_locacao_formatado: string | null;
+  valor_condominio_formatado: string | null;
+  valor_iptu_formatado: string | null;
+}
+
+export interface Publicacao {
+  publicar_site: boolean;
+  destaque_site: boolean;
+}
+
+export interface Negociacao {
+  aceita_financiamento: boolean;
+  aceita_permuta: boolean;
+}
+
+export interface ImagemImovel {
+  id: number;
+  imovel_id: number;
+  caminho: string;
+  url_completa: string;
+  titulo: string | null;
+  principal: boolean;
+  ordem: number;
+}
+
+// Interfaces para etapas específicas
+export interface InformacoesIniciais {
+  id: number;
+  codigo_referencia: string;
+  tipo: string;
+  subtipo: string;
+  perfil: string;
+  finalidade: string | null;
+  tipo_negocio: string;
+  status: string;
+  data_captacao: string | null;
+  data_disponibilidade: string | null;
+  ano_construcao: number | null;
+  ocupacao: string | null;
+  mobiliado: boolean;
+  reformado: boolean;
+  ano_reforma: number | null;
+  condominio_id: number | null;
+  condominio: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Comodos {
+  id: number;
+  quartos: number | null;
+  banheiros: number | null;
+  suites: number | null;
+  salas: number | null;
+  cozinhas: number | null;
+  varandas: number | null;
+  sacadas: number | null;
+  lavabos: number | null;
+  escritorios: number | null;
+  closets: number | null;
+  despensas: number | null;
+  area_servico: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Medidas {
+  id: number;
+  area_total: number | null;
+  area_privativa: number | null;
+  area_construida: number | null;
+  area_terreno: number | null;
+  frente: number | null;
+  fundos: number | null;
+  lateral_direita: number | null;
+  lateral_esquerda: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Preco {
+  id: number;
+  valor_venda: number | null;
+  valor_locacao: number | null;
+  valor_condominio: number | null;
+  valor_iptu: number | null;
+  mostrar_valores_site: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CaracteristicasImovel {
+  id: number;
+  caracteristicas: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CaracteristicasCondominio {
+  id: number;
+  caracteristicas: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Localizacao {
+  id: number;
+  cep: string | null;
+  uf: string | null;
+  cidade: string | null;
+  bairro: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  complemento: string | null;
+  mostrar_endereco_site: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Proximidades {
+  id: number;
+  proximidades: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Descricao {
+  id: number;
+  titulo: string | null;
+  descricao: string | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Complementos {
+  id: number;
+  complementos: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DadosPrivativos {
+  id: number;
+  proprietario_id: number | null;
+  proprietario: Record<string, unknown> | null;
+  corretor_id: number | null;
+  corretor: Record<string, unknown> | null;
+  data_captacao: string | null;
+  data_disponibilidade: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicacaoEtapa {
+  id: number;
+  publicar_site: boolean;
+  destaque_site: boolean;
+  aceita_financiamento: boolean;
+  aceita_permuta: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Interfaces para opções
+export interface TipoImovel {
+  id: number;
+  nome: string;
+  subtipos: SubtipoImovel[];
+}
+
+export interface SubtipoImovel {
+  id: number;
+  nome: string;
+  tipo_id: number;
+}
+
+export interface Caracteristica {
+  id: number;
+  nome: string;
+  escopo: 'IMOVEL' | 'CONDOMINIO';
+}
+
+export interface Proximidade {
+  id: number;
+  nome: string;
+  categoria: string;
+}
+
+// Interfaces para respostas da API
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
+
+export interface IniciarCadastroResponse {
+  message: string;
+  imovel: Imovel;
+}
+
+export interface CodigoReferenciaResponse {
+  disponivel: boolean;
+  sugestao?: string;
+}
+
+export class ImovelService {
+  // Método principal para iniciar cadastro
+  static async iniciarCadastro(): Promise<IniciarCadastroResponse> {
+    const response = await api.post('/imoveis/iniciar');
+    return response.data;
+  }
+
+  // Obter imóvel por ID
+  static async getImovel(id: number): Promise<ApiResponse<Imovel>> {
+    const response = await api.get(`/imoveis/${id}`);
+    return response.data;
+  }
+
+  // Atualizar imóvel geral
+  static async updateImovel(id: number, data: Partial<Imovel>): Promise<ApiResponse<Imovel>> {
+    const response = await api.put(`/imoveis/${id}`, data);
+    return response.data;
+  }
+
+  // Métodos para etapas específicas - GET
+  static async getEtapaInformacoes(id: number): Promise<ApiResponse<InformacoesIniciais>> {
+    const response = await api.get(`/imoveis/${id}/etapas/informacoes`);
+    return response.data;
+  }
+
+  static async getEtapaComodos(id: number): Promise<ApiResponse<Comodos>> {
+    const response = await api.get(`/imoveis/${id}/etapas/comodos`);
+    return response.data;
+  }
+
+  static async getEtapaMedidas(id: number): Promise<ApiResponse<Medidas>> {
+    const response = await api.get(`/imoveis/${id}/etapas/medidas`);
+    return response.data;
+  }
+
+  static async getEtapaPreco(id: number): Promise<ApiResponse<Preco>> {
+    const response = await api.get(`/imoveis/${id}/etapas/preco`);
+    return response.data;
+  }
+
+  static async getEtapaCaracteristicas(id: number): Promise<ApiResponse<CaracteristicasImovel>> {
+    const response = await api.get(`/imoveis/${id}/etapas/caracteristicas`);
+    return response.data;
+  }
+
+  static async getEtapaCaracteristicasCondominio(id: number): Promise<ApiResponse<CaracteristicasCondominio>> {
+    const response = await api.get(`/imoveis/${id}/etapas/caracteristicas-condominio`);
+    return response.data;
+  }
+
+  static async getEtapaLocalizacao(id: number): Promise<ApiResponse<Localizacao>> {
+    const response = await api.get(`/imoveis/${id}/etapas/localizacao`);
+    return response.data;
+  }
+
+  static async getEtapaProximidades(id: number): Promise<ApiResponse<Proximidades>> {
+    const response = await api.get(`/imoveis/${id}/etapas/proximidades`);
+    return response.data;
+  }
+
+  static async getEtapaDescricao(id: number): Promise<ApiResponse<Descricao>> {
+    const response = await api.get(`/imoveis/${id}/etapas/descricao`);
+    return response.data;
+  }
+
+  static async getEtapaComplementos(id: number): Promise<ApiResponse<Complementos>> {
+    const response = await api.get(`/imoveis/${id}/etapas/complementos`);
+    return response.data;
+  }
+
+  static async getEtapaDadosPrivativos(id: number): Promise<ApiResponse<DadosPrivativos>> {
+    const response = await api.get(`/imoveis/${id}/etapas/dados-privativos`);
+    return response.data;
+  }
+
+  static async getEtapaPublicacao(id: number): Promise<ApiResponse<PublicacaoEtapa>> {
+    const response = await api.get(`/imoveis/${id}/etapas/publicacao`);
+    return response.data;
+  }
+
+  // Métodos para etapas específicas - PUT
+  static async updateEtapaInformacoes(id: number, data: Partial<InformacoesIniciais>): Promise<ApiResponse<InformacoesIniciais>> {
+    const response = await api.put(`/imoveis/${id}/etapas/informacoes`, data);
+    return response.data;
+  }
+
+  static async updateEtapaComodos(id: number, data: Partial<Comodos>): Promise<ApiResponse<Comodos>> {
+    const response = await api.put(`/imoveis/${id}/etapas/comodos`, data);
+    return response.data;
+  }
+
+  static async updateEtapaMedidas(id: number, data: Partial<Medidas>): Promise<ApiResponse<Medidas>> {
+    const response = await api.put(`/imoveis/${id}/etapas/medidas`, data);
+    return response.data;
+  }
+
+  static async updateEtapaPreco(id: number, data: Partial<Preco>): Promise<ApiResponse<Preco>> {
+    const response = await api.put(`/imoveis/${id}/etapas/preco`, data);
+    return response.data;
+  }
+
+  static async updateEtapaCaracteristicas(id: number, data: Partial<CaracteristicasImovel>): Promise<ApiResponse<CaracteristicasImovel>> {
+    const response = await api.put(`/imoveis/${id}/etapas/caracteristicas`, data);
+    return response.data;
+  }
+
+  static async updateEtapaCaracteristicasCondominio(id: number, data: Partial<CaracteristicasCondominio>): Promise<ApiResponse<CaracteristicasCondominio>> {
+    const response = await api.put(`/imoveis/${id}/etapas/caracteristicas-condominio`, data);
+    return response.data;
+  }
+
+  static async updateEtapaLocalizacao(id: number, data: Partial<Localizacao>): Promise<ApiResponse<Localizacao>> {
+    const response = await api.put(`/imoveis/${id}/etapas/localizacao`, data);
+    return response.data;
+  }
+
+  static async updateEtapaProximidades(id: number, data: Partial<Proximidades>): Promise<ApiResponse<Proximidades>> {
+    const response = await api.put(`/imoveis/${id}/etapas/proximidades`, data);
+    return response.data;
+  }
+
+  static async updateEtapaDescricao(id: number, data: Partial<Descricao>): Promise<ApiResponse<Descricao>> {
+    const response = await api.put(`/imoveis/${id}/etapas/descricao`, data);
+    return response.data;
+  }
+
+  static async updateEtapaComplementos(id: number, data: Partial<Complementos>): Promise<ApiResponse<Complementos>> {
+    const response = await api.put(`/imoveis/${id}/etapas/complementos`, data);
+    return response.data;
+  }
+
+  static async updateEtapaDadosPrivativos(id: number, data: Partial<DadosPrivativos>): Promise<ApiResponse<DadosPrivativos>> {
+    const response = await api.put(`/imoveis/${id}/etapas/dados-privativos`, data);
+    return response.data;
+  }
+
+  static async updateEtapaPublicacao(id: number, data: Partial<PublicacaoEtapa>): Promise<ApiResponse<PublicacaoEtapa>> {
+    const response = await api.put(`/imoveis/${id}/etapas/publicacao`, data);
+    return response.data;
+  }
+
+  // Métodos para código de referência
+  static async validarCodigoReferencia(codigo: string, imovelId?: number): Promise<CodigoReferenciaResponse> {
+    const url = imovelId 
+      ? `/imoveis/codigo-referencia/${codigo}/${imovelId}`
+      : `/imoveis/codigo-referencia/${codigo}`;
+    const response = await api.get(url);
+    return response.data;
+  }
+
+  static async updateCodigoReferencia(id: number, codigo: string): Promise<ApiResponse<Imovel>> {
+    const response = await api.put(`/imoveis/${id}/codigo-referencia`, { codigo_referencia: codigo });
+    return response.data;
+  }
+
+  // Métodos para imagens
+  static async uploadImagem(id: number, file: File): Promise<ApiResponse<ImagemImovel>> {
+    const formData = new FormData();
+    formData.append('imagem', file);
+    const response = await api.post(`/imoveis/${id}/imagens`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  static async reordenarImagens(id: number, imagens: { id: number; ordem: number }[]): Promise<ApiResponse<ImagemImovel[]>> {
+    const response = await api.put(`/imoveis/${id}/imagens/reordenar`, { imagens });
+    return response.data;
+  }
+
+  static async definirImagemPrincipal(id: number, imagemId: number): Promise<ApiResponse<ImagemImovel>> {
+    const response = await api.put(`/imoveis/${id}/imagens/${imagemId}/principal`);
+    return response.data;
+  }
+
+  static async deletarImagem(id: number, imagemId: number): Promise<ApiResponse<void>> {
+    const response = await api.delete(`/imoveis/${id}/imagens/${imagemId}`);
+    return response.data;
+  }
+
+  // Métodos para opções
+  static async getTipos(): Promise<ApiResponse<TipoImovel[]>> {
+    const response = await api.get('/imoveis/opcoes/tipos');
+    return response.data;
+  }
+
+  static async getSubtipos(tipo: string): Promise<ApiResponse<SubtipoImovel[]>> {
+    const response = await api.get(`/imoveis/opcoes/subtipos/${tipo}`);
+    return response.data;
+  }
+
+  static async getTiposNegocio(): Promise<ApiResponse<string[]>> {
+    const response = await api.get('/imoveis/opcoes/tipos-negocio');
+    return response.data;
+  }
+
+  static async getCaracteristicas(escopo: 'IMOVEL' | 'CONDOMINIO'): Promise<ApiResponse<Caracteristica[]>> {
+    const response = await api.get(`/imoveis/opcoes/caracteristicas/${escopo}`);
+    return response.data;
+  }
+
+  static async getProximidades(): Promise<ApiResponse<Proximidade[]>> {
+    const response = await api.get('/imoveis/opcoes/proximidades');
+    return response.data;
+  }
+
+  // Método para finalizar cadastro (ativar imóvel)
+  static async finalizarCadastro(id: number): Promise<ApiResponse<Imovel>> {
+    const response = await api.put(`/imoveis/${id}`, { status: 'ATIVO' });
+    return response.data;
+  }
+
+  // Método para verificar completude das etapas
+  static async getCompletude(id: number): Promise<ApiResponse<{ [key: string]: boolean }>> {
+    const response = await api.get(`/imoveis/${id}/etapas/completude`);
+    return response.data;
+  }
+}

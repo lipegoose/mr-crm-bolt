@@ -1,30 +1,58 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { RadioGroup } from '../ui/RadioGroup';
+import { ImovelService, TipoImovel, SubtipoImovel } from '../../services/ImovelService';
+import { useFormWithChanges } from '../../hooks/useFormWithChanges';
 
 interface InformacoesIniciaisProps {
-  onUpdate: (data: any) => void;
+  onUpdate: (data: Record<string, unknown>, hasChanges?: boolean) => void;
+  submitCallback?: (callback: () => void) => void; // Nova prop para expor submitChanges
 }
 
-const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate }) => {
-  const [formData, setFormData] = useState({
-    codigoReferencia: '',
+const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, submitCallback }) => {
+  console.log("Renderizando InformacoesIniciais");
+  const renderCount = React.useRef(0);
+  renderCount.current++;
+  console.log("Contagem de renderizações:", renderCount.current);
+  
+  const initialFormData = {
+    codigo_referencia: '',
     isCondominio: 'nao',
     condominio: '',
     proprietario: '',
     tipo: '',
+    subtipo: '',
     perfil: '',
     situacao: '',
-    anoConstrucao: '',
+    ano_construcao: '',
     incorporacao: '',
     posicaoSolar: '',
     terreno: 'plano',
     averbado: 'nao',
     escriturado: 'nao',
     esquina: 'nao',
-    temMobilia: 'nao',
+    mobiliado: 'nao',
+  };
+
+  const {
+    formData,
+    handleChange: handleFormChange,
+    submitChanges
+  } = useFormWithChanges({
+    initialData: initialFormData,
+    onUpdate
   });
+
+  // Memoizar submitChanges para evitar mudanças de referência
+  const memoizedSubmitChanges = useCallback(() => {
+    submitChanges();
+  }, [submitChanges]);
+
+  // Estados para opções da API
+  const [tipos, setTipos] = useState<TipoImovel[]>([]);
+  const [subtipos, setSubtipos] = useState<SubtipoImovel[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
 
   // Lista de proprietários (simulação)
   const proprietarios = [
@@ -32,23 +60,6 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate }) =
     { value: 'joao', label: 'João Silva' },
     { value: 'maria', label: 'Maria Souza' },
     { value: 'carlos', label: 'Carlos Oliveira' },
-  ];
-
-  // Lista de tipos/subtipos
-  const tipos = [
-    { value: '', label: 'Selecione' },
-    { value: 'apartamento', label: 'Apartamento' },
-    { value: 'apartamento-cobertura', label: 'Apartamento - Cobertura' },
-    { value: 'apartamento-duplex', label: 'Apartamento - Duplex' },
-    { value: 'casa', label: 'Casa' },
-    { value: 'casa-condominio', label: 'Casa em Condomínio' },
-    { value: 'chacara', label: 'Chácara' },
-    { value: 'comercial-loja', label: 'Comercial - Loja' },
-    { value: 'comercial-sala', label: 'Comercial - Sala' },
-    { value: 'comercial-galpao', label: 'Comercial - Galpão' },
-    { value: 'terreno', label: 'Terreno' },
-    { value: 'fazenda', label: 'Fazenda' },
-    { value: 'sitio', label: 'Sítio' },
   ];
 
   // Lista de perfis
@@ -87,20 +98,58 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate }) =
     { value: 'sol-manha-tarde', label: 'Sol da manhã e tarde' },
   ];
 
-  // Atualiza os dados do formulário quando há mudanças
-  // Removemos onUpdate da lista de dependências para evitar o loop infinito
+  // Carregar opções da API
   useEffect(() => {
-    // Chamamos onUpdate apenas quando formData mudar
-    onUpdate(formData);
+    const loadOptions = async () => {
+      setLoadingOptions(true);
+      try {
+        const tiposResponse = await ImovelService.getTipos();
+        setTipos(tiposResponse.data);
+      } catch (error) {
+        console.error('Erro ao carregar tipos:', error);
+      } finally {
+        setLoadingOptions(false);
+      }
+    };
+    
+    loadOptions();
+  }, []);
+
+  // Carregar subtipos quando o tipo mudar
+  useEffect(() => {
+    if (formData.tipo) {
+      const loadSubtipos = async () => {
+        try {
+          const subtiposResponse = await ImovelService.getSubtipos(formData.tipo);
+          setSubtipos(subtiposResponse.data);
+        } catch (error) {
+          console.error('Erro ao carregar subtipos:', error);
+        }
+      };
+      
+      loadSubtipos();
+    } else {
+      setSubtipos([]);
+    }
+  }, [formData.tipo]);
+
+  // Expor submitChanges para o componente pai
+  useEffect(() => {
+    console.log("useEffect do submitCallback executando");
+    if (submitCallback) {
+      console.log("Registrando submitChanges no componente pai");
+      submitCallback(memoizedSubmitChanges);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData]);
+  }, [submitCallback, memoizedSubmitChanges]);
+
+  // Removido useEffect problemático que causava loop infinito
+  // initialFormData é constante dentro do componente, não precisa de useEffect
 
   // Função para atualizar os dados do formulário
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    console.log(`handleChange chamado: ${field} = ${value}`);
+    handleFormChange(field as keyof typeof initialFormData, value);
   };
 
   return (
@@ -115,8 +164,8 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate }) =
           <Input
             label="Código de referência *"
             placeholder="Digite o código de referência"
-            value={formData.codigoReferencia}
-            onChange={(e) => handleChange('codigoReferencia', e.target.value)}
+            value={formData.codigo_referencia}
+            onChange={(e) => handleChange('codigo_referencia', e.target.value)}
             required
           />
         </div>
@@ -162,11 +211,29 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate }) =
 
         <div>
           <Select
-            label="Tipo/Subtipo *"
-            options={tipos}
+            label="Tipo *"
+            options={[
+              { value: '', label: 'Selecione' },
+              ...tipos.map(tipo => ({ value: tipo.nome, label: tipo.nome }))
+            ]}
             value={formData.tipo}
             onChange={(e) => handleChange('tipo', e.target.value)}
             required
+            disabled={loadingOptions}
+          />
+        </div>
+
+        <div>
+          <Select
+            label="Subtipo *"
+            options={[
+              { value: '', label: 'Selecione' },
+              ...subtipos.map(subtipo => ({ value: subtipo.nome, label: subtipo.nome }))
+            ]}
+            value={formData.subtipo}
+            onChange={(e) => handleChange('subtipo', e.target.value)}
+            required
+            disabled={!formData.tipo || subtipos.length === 0}
           />
         </div>
 
@@ -195,8 +262,8 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate }) =
             label="Ano da construção"
             placeholder="Ex.: 2015"
             type="number"
-            value={formData.anoConstrucao}
-            onChange={(e) => handleChange('anoConstrucao', e.target.value)}
+            value={formData.ano_construcao}
+            onChange={(e) => handleChange('ano_construcao', e.target.value)}
           />
         </div>
 
@@ -276,13 +343,13 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate }) =
           </label>
           <div className="flex space-x-4">
             <RadioGroup
-              name="temMobilia"
+              name="mobiliado"
               options={[
                 { label: 'Sim', value: 'sim' },
                 { label: 'Não', value: 'nao' }
               ]}
-              value={formData.temMobilia}
-              onChange={(value) => handleChange('temMobilia', value)}
+              value={formData.mobiliado}
+              onChange={(value) => handleChange('mobiliado', value)}
             />
           </div>
         </div>

@@ -1,12 +1,13 @@
-import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Info, Home, Ruler, DollarSign, CheckSquare, Building, MapPin, 
-  Store, FileText, Plus, Image, Eye, Lock, Save, ArrowLeft 
+  Store, FileText, Plus, Image, Eye, Lock, Save, ArrowLeft, Loader2 
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 // import { Card } from '../ui/Card'; // Removido pois não está sendo usado
 import { Step, StepNavigation } from '../ui/StepNavigation';
+import { ImovelService } from '../../services/ImovelService';
 
 // Importando os componentes de passos que serão criados
 import InformacoesIniciais from '../imoveis/InformacoesIniciais';
@@ -25,9 +26,25 @@ import Publicacao from '../imoveis/Publicacao';
 
 const ImovelCadastro: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const [activeStep, setActiveStep] = useState('informacoes');
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [stepsCompleted, setStepsCompleted] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  // Refs para acessar métodos dos componentes de etapas (não causa re-renderização)
+  const stepSubmitCallbacks = useRef<Record<string, (() => void) | null>>({});
+
+  // Função estável para registrar callbacks de etapas
+  const handleSubmitCallback = useCallback((stepId: string, callback: () => void) => {
+    console.log(`Registrando callback para etapa: ${stepId}`);
+    // Não causa re-renderização pois usa .current
+    stepSubmitCallbacks.current = {
+      ...stepSubmitCallbacks.current,
+      [stepId]: callback
+    };
+  }, []);
 
   // Define os passos do cadastro
   const steps: Step[] = [
@@ -46,24 +63,187 @@ const ImovelCadastro: React.FC = () => {
     { id: 'publicacao', label: 'Publicação', icon: <Eye size={16} />, completed: stepsCompleted.includes('publicacao') },
   ];
 
-  // Função para atualizar os dados do formulário
-  const handleUpdateFormData = useCallback((stepId: string, data: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [stepId]: data
-    }));
+  // Estado para controlar etapas já carregadas
+  const [loadedSteps, setLoadedSteps] = useState<Set<string>>(new Set());
+  const [stepLoading, setStepLoading] = useState<string | null>(null);
+
+  // Mapeamento entre IDs de etapas e métodos do ImovelService
+  const stepServiceMap: Record<string, (id: number) => Promise<any>> = {
+    'informacoes': ImovelService.getEtapaInformacoes,
+    'comodos': ImovelService.getEtapaComodos,
+    'medidas': ImovelService.getEtapaMedidas,
+    'preco': ImovelService.getEtapaPreco,
+    'caracteristicas-imovel': ImovelService.getEtapaCaracteristicas,
+    'caracteristicas-condominio': ImovelService.getEtapaCaracteristicasCondominio,
+    'localizacao': ImovelService.getEtapaLocalizacao,
+    'proximidades': ImovelService.getEtapaProximidades,
+    'descricao': ImovelService.getEtapaDescricao,
+    'complementos': ImovelService.getEtapaComplementos,
+    'dados-privativos': ImovelService.getEtapaDadosPrivativos,
+    'publicacao': ImovelService.getEtapaPublicacao,
+  };
+
+  // Função para carregar uma etapa específica
+  const loadStepData = async (stepId: string) => {
+    if (!id || loadedSteps.has(stepId)) return;
     
-    // Marca o passo como concluído
-    if (!stepsCompleted.includes(stepId)) {
-      setStepsCompleted(prev => [...prev, stepId]);
+    const serviceMethod = stepServiceMap[stepId];
+    if (!serviceMethod) {
+      console.warn(`Método não encontrado para etapa: ${stepId}`);
+      return;
     }
-  }, [stepsCompleted]);
+
+    setStepLoading(stepId);
+    try {
+      const response = await serviceMethod(Number(id));
+      if (response?.data) {
+        setFormData(prev => ({
+          ...prev,
+          [stepId]: response.data
+        }));
+        
+        // Marcar como concluída se tiver dados
+        if (Object.keys(response.data).length > 0) {
+          setStepsCompleted(prev => 
+            prev.includes(stepId) ? prev : [...prev, stepId]
+          );
+        }
+      }
+      setLoadedSteps(prev => new Set([...prev, stepId]));
+    } catch (error) {
+      console.log(`Etapa ${stepId} não encontrada, será criada`);
+      setLoadedSteps(prev => new Set([...prev, stepId]));
+    } finally {
+      setStepLoading(null);
+    }
+  };
+
+  // Carregar dados básicos do imóvel e estado de completude
+  useEffect(() => {
+    const loadImovelBasico = async () => {
+      if (!id) return;
+      
+      console.log("loadImovelBasico executando, id:", id);
+      setLoading(true);
+      try {
+        await ImovelService.getImovel(Number(id));
+        
+        // Carregar estado de completude das etapas
+        try {
+          const completude = await ImovelService.getCompletude(Number(id));
+          if (completude?.data && typeof completude.data === 'object') {
+            const etapasCompletas = Object.entries(completude.data)
+              .filter(([_, completa]) => completa === true)
+              .map(([etapa]) => etapa);
+            setStepsCompleted(etapasCompletas);
+          }
+        } catch (error) {
+          console.error('Erro ao verificar completude das etapas:', error);
+        }
+        
+        // Carregar dados da primeira etapa automaticamente
+        loadStepData('informacoes');
+        
+      } catch (error) {
+        console.error('Erro ao carregar imóvel:', error);
+        alert('Erro ao carregar dados do imóvel. Tente novamente.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (id) {
+      loadImovelBasico();
+    }
+  }, [id]);
+
+  // Função para atualizar os dados do formulário
+  const handleUpdateFormData = useCallback(async (stepId: string, data: Record<string, unknown>, hasChanges = false) => {
+    if (!id) return;
+    
+    // Se não houve alterações, não faz chamada à API
+    if (!hasChanges) {
+      console.log(`Etapa ${stepId}: Nenhuma alteração detectada, pulando atualização`);
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      // Salvar dados na API de acordo com a etapa
+      switch (stepId) {
+        case 'informacoes':
+          await ImovelService.updateEtapaInformacoes(Number(id), data);
+          break;
+        case 'comodos':
+          await ImovelService.updateEtapaComodos(Number(id), data);
+          break;
+        case 'medidas':
+          await ImovelService.updateEtapaMedidas(Number(id), data);
+          break;
+        case 'preco':
+          await ImovelService.updateEtapaPreco(Number(id), data);
+          break;
+        case 'caracteristicas-imovel':
+          await ImovelService.updateEtapaCaracteristicas(Number(id), data);
+          break;
+        case 'caracteristicas-condominio':
+          await ImovelService.updateEtapaCaracteristicasCondominio(Number(id), data);
+          break;
+        case 'localizacao':
+          await ImovelService.updateEtapaLocalizacao(Number(id), data);
+          break;
+        case 'proximidades':
+          await ImovelService.updateEtapaProximidades(Number(id), data);
+          break;
+        case 'descricao':
+          await ImovelService.updateEtapaDescricao(Number(id), data);
+          break;
+        case 'complementos':
+          await ImovelService.updateEtapaComplementos(Number(id), data);
+          break;
+        case 'dados-privativos':
+          await ImovelService.updateEtapaDadosPrivativos(Number(id), data);
+          break;
+        case 'publicacao':
+          await ImovelService.updateEtapaPublicacao(Number(id), data);
+          break;
+        default:
+          console.warn('Etapa não reconhecida:', stepId);
+      }
+      
+      // Atualizar estado local
+      setFormData(prev => ({
+        ...prev,
+        [stepId]: data
+      }));
+      
+      // Marca o passo como concluído
+      if (!stepsCompleted.includes(stepId)) {
+        setStepsCompleted(prev => [...prev, stepId]);
+      }
+      
+    } catch (error) {
+      console.error(`Erro ao salvar etapa ${stepId}:`, error);
+      alert(`Erro ao salvar dados da etapa ${stepId}. Tente novamente.`);
+    } finally {
+      setSaving(false);
+    }
+  }, [id, stepsCompleted]);
 
   // Função para avançar para o próximo passo
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
+    // Se houver um callback de submit para a etapa atual, executá-lo antes de avançar
+    const currentSubmitCallback = stepSubmitCallbacks.current[activeStep];
+    if (currentSubmitCallback) {
+      currentSubmitCallback();
+    }
+    
     const currentIndex = steps.findIndex(step => step.id === activeStep);
     if (currentIndex < steps.length - 1) {
-      setActiveStep(steps[currentIndex + 1].id);
+      const nextStepId = steps[currentIndex + 1].id;
+      setActiveStep(nextStepId);
+      // Carregar dados da próxima etapa se necessário
+      loadStepData(nextStepId);
     }
   };
 
@@ -71,51 +251,231 @@ const ImovelCadastro: React.FC = () => {
   const handlePreviousStep = () => {
     const currentIndex = steps.findIndex(step => step.id === activeStep);
     if (currentIndex > 0) {
-      setActiveStep(steps[currentIndex - 1].id);
+      const prevStepId = steps[currentIndex - 1].id;
+      setActiveStep(prevStepId);
+      // Carregar dados da etapa anterior se necessário
+      loadStepData(prevStepId);
     }
   };
 
+  // Função para mudar de etapa diretamente
+  const handleStepChange = async (stepId: string) => {
+    console.log("Mudando para etapa:", stepId);
+    // Se houver um callback de submit para a etapa atual, executá-lo antes de mudar
+    const currentSubmitCallback = stepSubmitCallbacks.current[activeStep];
+    if (currentSubmitCallback) {
+      currentSubmitCallback();
+    }
+    
+    setActiveStep(stepId);
+    // Carregar dados da etapa se necessário
+    loadStepData(stepId);
+  };
+
   // Função para salvar o formulário
-  const handleSave = () => {
-    // Aqui seria implementada a lógica para salvar os dados no backend
-    console.log('Dados do formulário:', formData);
-    alert('Imóvel cadastrado com sucesso!');
-    navigate('/imoveis');
+  const handleSave = async () => {
+    if (!id) return;
+    
+    setSaving(true);
+    try {
+      // Finalizar cadastro (ativar imóvel)
+      await ImovelService.finalizarCadastro(Number(id));
+      alert('Imóvel cadastrado com sucesso!');
+      navigate('/imoveis');
+    } catch (error) {
+      console.error('Erro ao finalizar cadastro:', error);
+      alert('Erro ao finalizar cadastro. Tente novamente.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Função auxiliar para verificar se há dados salvos para uma etapa
+  const hasStepData = (stepId: string): boolean => {
+    const stepData = formData[stepId];
+    if (!stepData || typeof stepData !== 'object' || stepData === null) {
+      return false;
+    }
+    return Object.keys(stepData as Record<string, unknown>).length > 0;
   };
 
   // Renderiza o componente de acordo com o passo ativo
   const renderStepContent = () => {
+    // Mostrar loading específico da etapa se estiver carregando
+    if (stepLoading === activeStep) {
+      return (
+        <div className="flex items-center justify-center min-h-[200px]">
+          <div className="text-center">
+            <Loader2 className="w-6 h-6 animate-spin mx-auto mb-3 text-primary-orange" />
+            <p className="text-neutral-gray-medium">Carregando dados da etapa...</p>
+          </div>
+        </div>
+      );
+    }
+
     switch (activeStep) {
       case 'informacoes':
-        return <InformacoesIniciais onUpdate={(data) => handleUpdateFormData('informacoes', data)} />;
+        return (
+          <div>
+            {hasStepData('informacoes') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <InformacoesIniciais 
+              onUpdate={(data, hasChanges) => handleUpdateFormData('informacoes', data, hasChanges)}
+              submitCallback={(callback) => handleSubmitCallback('informacoes', callback)}
+            />
+          </div>
+        );
       case 'comodos':
-        return <Comodos onUpdate={(data) => handleUpdateFormData('comodos', data)} />;
+        return (
+          <div>
+            {hasStepData('comodos') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <Comodos onUpdate={(data) => handleUpdateFormData('comodos', data)} />
+          </div>
+        );
       case 'medidas':
-        return <Medidas onUpdate={(data) => handleUpdateFormData('medidas', data)} />;
+        return (
+          <div>
+            {hasStepData('medidas') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <Medidas onUpdate={(data) => handleUpdateFormData('medidas', data)} />
+          </div>
+        );
       case 'preco':
-        return <Preco onUpdate={(data) => handleUpdateFormData('preco', data)} />;
+        return (
+          <div>
+            {hasStepData('preco') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <Preco onUpdate={(data) => handleUpdateFormData('preco', data)} />
+          </div>
+        );
       case 'caracteristicas-imovel':
-        return <CaracteristicasImovel onUpdate={(data) => handleUpdateFormData('caracteristicas-imovel', data)} />;
+        return (
+          <div>
+            {hasStepData('caracteristicas-imovel') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <CaracteristicasImovel onUpdate={(data) => handleUpdateFormData('caracteristicas-imovel', data)} />
+          </div>
+        );
       case 'caracteristicas-condominio':
-        return <CaracteristicasCondominio onUpdate={(data) => handleUpdateFormData('caracteristicas-condominio', data)} />;
+        return (
+          <div>
+            {hasStepData('caracteristicas-condominio') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <CaracteristicasCondominio onUpdate={(data) => handleUpdateFormData('caracteristicas-condominio', data)} />
+          </div>
+        );
       case 'localizacao':
-        return <Localizacao onUpdate={(data) => handleUpdateFormData('localizacao', data)} />;
+        return (
+          <div>
+            {hasStepData('localizacao') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <Localizacao onUpdate={(data) => handleUpdateFormData('localizacao', data)} />
+          </div>
+        );
       case 'proximidades':
-        return <Proximidades onUpdate={(data) => handleUpdateFormData('proximidades', data)} />;
+        return (
+          <div>
+            {hasStepData('proximidades') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <Proximidades onUpdate={(data) => handleUpdateFormData('proximidades', data)} />
+          </div>
+        );
       case 'descricao':
-        return <Descricao onUpdate={(data) => handleUpdateFormData('descricao', data)} />;
+        return (
+          <div>
+            {hasStepData('descricao') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <Descricao onUpdate={(data) => handleUpdateFormData('descricao', data)} />
+          </div>
+        );
       case 'complementos':
-        return <Complementos onUpdate={(data) => handleUpdateFormData('complementos', data)} />;
+        return (
+          <div>
+            {hasStepData('complementos') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <Complementos onUpdate={(data) => handleUpdateFormData('complementos', data)} />
+          </div>
+        );
       case 'dados-privativos':
-        return <DadosPrivativos onUpdate={(data) => handleUpdateFormData('dados-privativos', data)} />;
+        return (
+          <div>
+            {hasStepData('dados-privativos') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <DadosPrivativos onUpdate={(data, hasChanges) => handleUpdateFormData('dados-privativos', { ...data }, hasChanges)} />
+          </div>
+        );
       case 'imagens':
-        return <ImagensImovel onUpdate={(data) => handleUpdateFormData('imagens', data)} />;
+        return (
+          <div>
+            {hasStepData('imagens') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <ImagensImovel onUpdate={(data) => handleUpdateFormData('imagens', data)} />
+          </div>
+        );
       case 'publicacao':
-        return <Publicacao onUpdate={(data) => handleUpdateFormData('publicacao', data)} />;
+        return (
+          <div>
+            {hasStepData('publicacao') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <Publicacao onUpdate={(data) => handleUpdateFormData('publicacao', data)} />
+          </div>
+        );
       default:
         return <div>Passo não encontrado</div>;
     }
   };
+
+  // Mostrar loading enquanto carrega
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary-orange" />
+          <p className="text-neutral-gray-medium">Carregando dados do imóvel...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -135,10 +495,15 @@ const ImovelCadastro: React.FC = () => {
           </Button>
           <Button 
             onClick={handleSave}
+            disabled={saving}
             className="flex items-center"
           >
-            <Save size={16} className="mr-2" />
-            Salvar Imóvel
+            {saving ? (
+              <Loader2 size={16} className="mr-2 animate-spin" />
+            ) : (
+              <Save size={16} className="mr-2" />
+            )}
+            {saving ? 'Salvando...' : 'Salvar Imóvel'}
           </Button>
         </div>
       </div>
@@ -147,7 +512,7 @@ const ImovelCadastro: React.FC = () => {
         <StepNavigation 
           steps={steps} 
           activeStep={activeStep} 
-          onStepChange={setActiveStep} 
+          onStepChange={handleStepChange} 
         />
         
         <div className="flex-1 p-6">
@@ -157,19 +522,33 @@ const ImovelCadastro: React.FC = () => {
             <Button 
               variant="secondary" 
               onClick={handlePreviousStep}
-              disabled={activeStep === steps[0].id}
+              disabled={activeStep === steps[0].id || saving}
             >
               Anterior
             </Button>
             
             <div className="flex space-x-3">
               {activeStep !== steps[steps.length - 1].id ? (
-                <Button onClick={handleNextStep}>
-                  Próximo
+                <Button onClick={() => handleNextStep()} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 size={16} className="mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Próximo'
+                  )}
                 </Button>
               ) : (
-                <Button onClick={handleSave}>
-                  Finalizar
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 size={16} className="mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Finalizar'
+                  )}
                 </Button>
               )}
             </div>
