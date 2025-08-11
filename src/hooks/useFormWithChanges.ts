@@ -15,7 +15,6 @@ export function useFormWithChanges<T extends Record<string, unknown>>({
 
   // Armazena dados iniciais apenas na montagem do componente
   useEffect(() => {
-    console.log("useFormWithChanges - inicializando dados iniciais");
     setInitialDataState(initialData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Array de dependências vazio para evitar loop infinito
@@ -47,9 +46,7 @@ export function useFormWithChanges<T extends Record<string, unknown>>({
 
   // Função para submeter alterações explicitamente
   const submitChanges = () => {
-    console.log("submitChanges chamado, formChanged:", formChanged);
     if (formChanged) {
-      console.log("Chamando onUpdate com dados modificados");
       onUpdate(formData, true);
       setFormChanged(false); // Reset do estado de mudança após envio
     }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Info, Home, Ruler, DollarSign, CheckSquare, Building, MapPin, 
@@ -8,6 +8,7 @@ import { Button } from '../ui/Button';
 // import { Card } from '../ui/Card'; // Removido pois não está sendo usado
 import { Step, StepNavigation } from '../ui/StepNavigation';
 import { ImovelService } from '../../services/ImovelService';
+import { useStepCallbacks } from '../../hooks/useStepCallbacks';
 
 // Importando os componentes de passos que serão criados
 import InformacoesIniciais from '../imoveis/InformacoesIniciais';
@@ -33,18 +34,8 @@ const ImovelCadastro: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // Refs para acessar métodos dos componentes de etapas (não causa re-renderização)
-  const stepSubmitCallbacks = useRef<Record<string, (() => void) | null>>({});
-
-  // Função estável para registrar callbacks de etapas
-  const handleSubmitCallback = useCallback((stepId: string, callback: () => void) => {
-    console.log(`Registrando callback para etapa: ${stepId}`);
-    // Não causa re-renderização pois usa .current
-    stepSubmitCallbacks.current = {
-      ...stepSubmitCallbacks.current,
-      [stepId]: callback
-    };
-  }, []);
+  // Hook para gerenciar callbacks de etapas
+  const { registerCallback, executeCallback } = useStepCallbacks();
 
   // Define os passos do cadastro
   const steps: Step[] = [
@@ -123,7 +114,7 @@ const ImovelCadastro: React.FC = () => {
     const loadImovelBasico = async () => {
       if (!id) return;
       
-      console.log("loadImovelBasico executando, id:", id);
+
       setLoading(true);
       try {
         await ImovelService.getImovel(Number(id));
@@ -233,10 +224,7 @@ const ImovelCadastro: React.FC = () => {
   // Função para avançar para o próximo passo
   const handleNextStep = async () => {
     // Se houver um callback de submit para a etapa atual, executá-lo antes de avançar
-    const currentSubmitCallback = stepSubmitCallbacks.current[activeStep];
-    if (currentSubmitCallback) {
-      currentSubmitCallback();
-    }
+    executeCallback(activeStep);
     
     const currentIndex = steps.findIndex(step => step.id === activeStep);
     if (currentIndex < steps.length - 1) {
@@ -260,12 +248,8 @@ const ImovelCadastro: React.FC = () => {
 
   // Função para mudar de etapa diretamente
   const handleStepChange = async (stepId: string) => {
-    console.log("Mudando para etapa:", stepId);
     // Se houver um callback de submit para a etapa atual, executá-lo antes de mudar
-    const currentSubmitCallback = stepSubmitCallbacks.current[activeStep];
-    if (currentSubmitCallback) {
-      currentSubmitCallback();
-    }
+    executeCallback(activeStep);
     
     setActiveStep(stepId);
     // Carregar dados da etapa se necessário
@@ -324,7 +308,7 @@ const ImovelCadastro: React.FC = () => {
             )}
             <InformacoesIniciais 
               onUpdate={(data, hasChanges) => handleUpdateFormData('informacoes', data, hasChanges)}
-              submitCallback={(callback) => handleSubmitCallback('informacoes', callback)}
+              submitCallback={(callback) => registerCallback('informacoes', callback)}
             />
           </div>
         );

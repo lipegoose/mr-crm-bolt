@@ -11,10 +11,6 @@ interface InformacoesIniciaisProps {
 }
 
 const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, submitCallback }) => {
-  console.log("Renderizando InformacoesIniciais");
-  const renderCount = React.useRef(0);
-  renderCount.current++;
-  console.log("Contagem de renderizações:", renderCount.current);
   
   const initialFormData = {
     codigo_referencia: '',
@@ -135,9 +131,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
 
   // Expor submitChanges para o componente pai
   useEffect(() => {
-    console.log("useEffect do submitCallback executando");
     if (submitCallback) {
-      console.log("Registrando submitChanges no componente pai");
       submitCallback(memoizedSubmitChanges);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,7 +142,6 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
 
   // Função para atualizar os dados do formulário
   const handleChange = (field: string, value: string) => {
-    console.log(`handleChange chamado: ${field} = ${value}`);
     handleFormChange(field as keyof typeof initialFormData, value);
   };
 
