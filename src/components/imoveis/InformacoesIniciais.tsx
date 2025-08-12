@@ -48,6 +48,11 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
   const [codigoDisponivel, setCodigoDisponivel] = useState<boolean | null>(null);
   const [erroValidacao, setErroValidacao] = useState<string | null>(null);
   
+  // Estados para salvamento automático
+  const [salvandoCodigo, setSalvandoCodigo] = useState(false);
+  const [codigoSalvo, setCodigoSalvo] = useState(false);
+  const [erroSalvamento, setErroSalvamento] = useState<string | null>(null);
+  
   // Ref para controlar se os logs já foram exibidos
   const logsExibidosRef = useRef(false);
   
@@ -256,6 +261,41 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
     }
   }, [imovelId]);
 
+  // Função para salvar código de referência automaticamente
+  const salvarCodigoReferencia = useCallback(async (codigo: string, editadoManualmente: boolean): Promise<boolean> => {
+    if (!codigo || !imovelId) {
+      return false;
+    }
+
+    setSalvandoCodigo(true);
+    setErroSalvamento(null);
+    setCodigoSalvo(false);
+    
+    try {
+      logger.info(`Salvando código de referência: ${codigo} (editado_manualmente: ${editadoManualmente}) para imóvel ID: ${imovelId}`);
+      
+      await ImovelService.updateCodigoReferencia(imovelId, codigo, editadoManualmente);
+      
+      // A API retorna sucesso diretamente, sem propriedade 'success'
+      // Se chegou aqui sem erro, significa que foi bem-sucedido
+      logger.info('Código de referência salvo com sucesso');
+      setCodigoSalvo(true);
+      
+      // Reset do estado de sucesso após 3 segundos
+      setTimeout(() => {
+        setCodigoSalvo(false);
+      }, 3000);
+      
+      return true;
+    } catch (error) {
+      logger.error('Erro ao salvar código de referência:', error);
+      setErroSalvamento('Erro ao salvar código de referência. Tente novamente.');
+      return false;
+    } finally {
+      setSalvandoCodigo(false);
+    }
+  }, [imovelId]);
+
   // Função para atualizar código de referência automaticamente
   const atualizarCodigoReferencia = useCallback(async (tipo: string, codigoAtual: string) => {
     if (!tipo || codigoEditadoManualmente) {
@@ -274,24 +314,34 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
       const novaSigla = gerarSiglaTipo(tipo);
       const novoCodigo = `${id}-${novaSigla}`;
 
-              // Verificar se o novo código está disponível
-        const validacao = await ImovelService.validarCodigoReferencia(novoCodigo, imovelId);
+      // Verificar se o novo código está disponível
+      const validacao = await ImovelService.validarCodigoReferencia(novoCodigo, imovelId);
+      
+      if (validacao.disponivel) {
+        logger.info(`Código de referência atualizado automaticamente: ${codigoAtual} → ${novoCodigo}`);
         
-        if (validacao.disponivel) {
-          logger.info(`Código de referência atualizado automaticamente: ${codigoAtual} → ${novoCodigo}`);
+        // Salvar automaticamente o novo código (editado_manualmente: false)
+        const salvou = await salvarCodigoReferencia(novoCodigo, false);
+        if (salvou) {
           return novoCodigo;
-        } else if (validacao.sugestao) {
-          logger.info(`Usando sugestão da API para código: ${validacao.sugestao}`);
-          return validacao.sugestao;
-        } else {
-          logger.warn('Não foi possível gerar um código de referência válido automaticamente');
-          return codigoAtual;
         }
-      } catch (error) {
-        logger.error('Erro ao atualizar código de referência automaticamente:', error);
+      } else if (validacao.sugestao) {
+        logger.info(`Usando sugestão da API para código: ${validacao.sugestao}`);
+        
+        // Salvar automaticamente a sugestão da API (editado_manualmente: false)
+        const salvou = await salvarCodigoReferencia(validacao.sugestao, false);
+        if (salvou) {
+          return validacao.sugestao;
+        }
+      } else {
+        logger.warn('Não foi possível gerar um código de referência válido automaticamente');
         return codigoAtual;
       }
-    }, [codigoEditadoManualmente, gerarSiglaTipo, imovelId]);
+    } catch (error) {
+      logger.error('Erro ao atualizar código de referência automaticamente:', error);
+      return codigoAtual;
+    }
+  }, [codigoEditadoManualmente, gerarSiglaTipo, imovelId, salvarCodigoReferencia]);
 
   // Handler para mudança do tipo de imóvel
   const handleTipoChange = useCallback(async (tipoValue: string, formData: InformacoesForm, handleChange: (field: string, value: unknown) => void) => {
@@ -324,9 +374,11 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
       logger.info('Código de referência marcado como editado manualmente pelo usuário');
     }
     
-    // Limpar estados de validação anteriores
+    // Limpar estados de validação e salvamento anteriores
     setCodigoDisponivel(null);
     setErroValidacao(null);
+    setCodigoSalvo(false);
+    setErroSalvamento(null);
     
     // Limpar timeout anterior se existir
     if (validacaoTimeoutRef.current) {
@@ -336,11 +388,16 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
     // Validar código se houver valor e imovelId
     if (value && imovelId) {
       // Debounce para evitar muitas chamadas à API
-      validacaoTimeoutRef.current = setTimeout(() => {
-        validarCodigoReferencia(value);
+      validacaoTimeoutRef.current = setTimeout(async () => {
+        const disponivel = await validarCodigoReferencia(value);
+        
+        // Se o código estiver disponível, salvar automaticamente (editado_manualmente: true)
+        if (disponivel) {
+          await salvarCodigoReferencia(value, true);
+        }
       }, 500);
     }
-  }, [codigoEditadoManualmente, imovelId, validarCodigoReferencia]);
+  }, [codigoEditadoManualmente, imovelId, validarCodigoReferencia, salvarCodigoReferencia]);
 
   return (
     <WizardStep<InformacoesForm>
@@ -392,6 +449,26 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
             {erroValidacao && !validandoCodigo && (
               <p className="text-xs text-red-600 mt-1">
                 ⚠ {erroValidacao}
+              </p>
+            )}
+            
+            {/* Indicadores de salvamento */}
+            {salvandoCodigo && (
+              <p className="text-xs text-blue-600 mt-1 flex items-center">
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                Salvando código...
+              </p>
+            )}
+            
+            {codigoSalvo && !salvandoCodigo && (
+              <p className="text-xs text-green-600 mt-1 flex items-center">
+                ✓ Código salvo com sucesso
+              </p>
+            )}
+            
+            {erroSalvamento && !salvandoCodigo && (
+              <p className="text-xs text-red-600 mt-1">
+                ⚠ {erroSalvamento}
               </p>
             )}
             

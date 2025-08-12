@@ -402,8 +402,11 @@ export class ImovelService {
     return response.data;
   }
 
-  static async updateCodigoReferencia(id: number, codigo: string): Promise<ApiResponse<Imovel>> {
-    const response = await api.put(`/imoveis/${id}/codigo-referencia`, { codigo_referencia: codigo });
+  static async updateCodigoReferencia(id: number, codigo: string, editadoManualmente: boolean = false): Promise<ApiResponse<Imovel>> {
+    const response = await api.put(`/imoveis/${id}/codigo-referencia`, { 
+      codigo_referencia: codigo,
+      editado_manualmente: editadoManualmente
+    });
     return response.data;
   }
 
