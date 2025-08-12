@@ -93,7 +93,8 @@ export interface InformacoesIniciais {
   proprietario_id: number | null;
   // Campos adicionais para compatibilidade com o formulário
   incorporacao?: string | null;
-  posicaoSolar?: string | null;
+  posicaoSolar?: string | null; // Campo usado no frontend
+  posicao_solar?: string | null; // Campo usado no backend
   terreno?: string | null;
   averbado?: boolean | null;
   escriturado?: boolean | null;

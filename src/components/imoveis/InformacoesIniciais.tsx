@@ -73,21 +73,29 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
   // Dados iniciais do formulário
   const initialFormData: InformacoesForm = {
     codigo_referencia: initialData?.codigo_referencia as string || '',
-    isCondominio: initialData?.isCondominio as string || 'nao',
-    condominio: initialData?.condominio as string || '',
-    proprietario: initialData?.proprietario as number | null || null,
+    // Verificar se o imóvel está em condomínio baseado no campo condominio_id ou condominio
+    isCondominio: initialData?.condominio_id || initialData?.condominio ? 'sim' : 'nao',
+    // Extrair o nome do condomínio se existir
+    condominio: initialData?.condominio && typeof initialData.condominio === 'object' ? 
+      (initialData.condominio as Record<string, unknown>).nome as string || '' : '',
+    // Mapear o proprietario_id para o campo proprietario
+    proprietario: initialData?.proprietario_id as number | null || null,
     tipo: initialData?.tipo as string || '',
     subtipo: initialData?.subtipo as string || '',
     perfil: initialData?.perfil as string || '',
     situacao: initialData?.situacao as string || '',
-    ano_construcao: initialData?.ano_construcao as string || '',
+    // Converter ano_construcao de number para string
+    ano_construcao: initialData?.ano_construcao ? String(initialData.ano_construcao) : '',
     incorporacao: initialData?.incorporacao as string || '',
-    posicaoSolar: initialData?.posicaoSolar as string || '',
-    terreno: initialData?.terreno as string || 'plano',
-    averbado: initialData?.averbado as string || 'nao',
-    escriturado: initialData?.escriturado as string || 'nao',
-    esquina: initialData?.esquina as string || 'nao',
-    mobiliado: initialData?.mobiliado as string || 'nao',
+    // Mapear posicao_solar (snake_case da API) para posicaoSolar (camelCase do formulário)
+    posicaoSolar: initialData?.posicao_solar as string || '',
+    // Mapear o campo terreno (converter para minúsculas pois a API retorna em maiúsculas)
+    terreno: initialData?.terreno ? (initialData.terreno as string).toLowerCase() : 'plano',
+    // Converter valores booleanos para strings 'sim'/'nao'
+    averbado: initialData?.averbado === true ? 'sim' : 'nao',
+    escriturado: initialData?.escriturado === true ? 'sim' : 'nao',
+    esquina: initialData?.esquina === true ? 'sim' : 'nao',
+    mobiliado: initialData?.mobiliado === true ? 'sim' : 'nao',
   };
 
 
@@ -438,7 +446,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
         // Mapear campos adicionais do formulário para campos da API
         condominio: formData.isCondominio === 'sim' ? { nome: formData.condominio as string } : null,
         incorporacao: formData.incorporacao as string || null,
-        posicaoSolar: formData.posicaoSolar as string || null,
+        posicao_solar: formData.posicaoSolar as string || null,
         terreno: formData.terreno as string || null,
         averbado: formData.averbado === 'sim', // Converter string para boolean
         escriturado: formData.escriturado === 'sim', // Converter string para boolean
