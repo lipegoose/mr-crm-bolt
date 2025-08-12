@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { RadioGroup } from '../ui/RadioGroup';
@@ -32,16 +32,25 @@ interface InformacoesForm extends Record<string, unknown> {
 }
 
 const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, submitCallback, initialData }) => {
+  // Estado para opções da API
+  const [tipos, setTipos] = useState<string[]>([]);
+  const [subtipos, setSubtipos] = useState<string[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+  
   // Log dos dados iniciais para debug
   useEffect(() => {
     if (initialData) {
       logger.info('Dados iniciais recebidos:', initialData);
     }
   }, [initialData]);
-  // Estado para opções da API
-  const [tipos, setTipos] = useState<string[]>([]);
-  const [subtipos, setSubtipos] = useState<string[]>([]);
-  const [loadingOptions, setLoadingOptions] = useState(true);
+  
+  // Carregar subtipos automaticamente quando há dados iniciais com tipo
+  useEffect(() => {
+    if (initialData?.tipo && !subtipos.length) {
+      logger.info(`Carregando subtipos automaticamente para tipo: ${initialData.tipo}`);
+      loadSubtipos(initialData.tipo as string);
+    }
+  }, [initialData?.tipo, subtipos.length]);
 
   // Dados iniciais do formulário
   const initialFormData: InformacoesForm = {
@@ -140,19 +149,21 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
   }, []);
 
   // Carregar subtipos quando o tipo mudar
-  const loadSubtipos = async (tipo: string) => {
+  const loadSubtipos = useCallback(async (tipo: string) => {
     if (!tipo) {
       setSubtipos([]);
       return;
     }
     
     try {
+      logger.info(`Carregando subtipos para tipo: ${tipo}`);
       const subtiposResponse = await ImovelService.getSubtipos(tipo);
       setSubtipos(subtiposResponse.data);
+      logger.info(`Subtipos carregados: ${subtiposResponse.data.join(', ')}`);
     } catch (error) {
       logger.error('Erro ao carregar subtipos:', error);
     }
-  };
+  }, []);
 
   return (
     <WizardStep<InformacoesForm>
@@ -245,7 +256,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               value={formData.subtipo}
               onChange={(e) => handleChange('subtipo', e.target.value)}
               required
-              disabled={!formData.tipo || subtipos.length === 0}
+              disabled={!formData.tipo}
             />
           </div>
 
