@@ -440,10 +440,10 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
         incorporacao: formData.incorporacao as string || null,
         posicaoSolar: formData.posicaoSolar as string || null,
         terreno: formData.terreno as string || null,
-        averbado: formData.averbado as string || null,
-        escriturado: formData.escriturado as string || null,
-        esquina: formData.esquina as string || null,
-        mobiliado: formData.mobiliado === 'sim',
+        averbado: formData.averbado === 'sim', // Converter string para boolean
+        escriturado: formData.escriturado === 'sim', // Converter string para boolean
+        esquina: formData.esquina === 'sim', // Converter string para boolean
+        mobiliado: formData.mobiliado === 'sim', // Converter string para boolean
         // Campos que não existem na interface da API serão ignorados
         // mas mantemos os campos principais para compatibilidade
       };
@@ -459,11 +459,13 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
       });
 
       logger.info('🧹 [DEBUG] Dados limpos para API:', dadosParaAPI);
-      logger.info('🌐 [DEBUG] Chamando ImovelService.updateEtapaInformacoes...');
-
-      await ImovelService.updateEtapaInformacoes(imovelId, dadosParaAPI);
       
-      logger.info('✅ [DEBUG] Etapa "Informações Iniciais" salva com sucesso na API!');
+      // Não chamar a API diretamente aqui para evitar chamada duplicada
+      // Apenas notificar o componente pai com os dados já formatados corretamente
+      logger.info('📤 [DEBUG] Notificando componente pai via onUpdate com dados formatados...');
+      onUpdate(dadosParaAPI, true);
+      
+      logger.info('🎉 [DEBUG] submitForm concluída com sucesso!');
       setEtapaSalva(true);
       
       // Reset do estado de sucesso após 3 segundos
@@ -471,15 +473,10 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
         setEtapaSalva(false);
       }, 3000);
       
-      logger.info('📤 [DEBUG] Notificando componente pai via onUpdate...');
-      // Notificar o componente pai sobre a atualização
-      onUpdate(formData, true);
-      
-      logger.info('🎉 [DEBUG] submitForm concluída com sucesso!');
       return true;
     } catch (error) {
-      logger.error('❌ [DEBUG] Erro ao salvar etapa na mudança de aba:', error);
-      setErroSalvamentoEtapa('Erro ao salvar dados. Tente novamente.');
+      logger.error('❌ [DEBUG] Erro ao preparar dados para salvamento:', error);
+      setErroSalvamentoEtapa('Erro ao preparar dados. Tente novamente.');
       return false;
     } finally {
       logger.info('🏁 [DEBUG] Finalizando submitForm, setSalvandoEtapa(false)');
@@ -748,6 +745,23 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                 ]}
                 value={formData.terreno}
                 onChange={(value) => handleFieldChangeSimple('terreno', value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold mb-1">
+              Averbado
+            </label>
+            <div className="flex space-x-4">
+              <RadioGroup
+                name="averbado"
+                options={[
+                  { label: 'Sim', value: 'sim' },
+                  { label: 'Não', value: 'nao' }
+                ]}
+                value={formData.averbado}
+                onChange={(value) => handleFieldChangeSimple('averbado', value)}
               />
             </div>
           </div>

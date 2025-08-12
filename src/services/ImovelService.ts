@@ -95,9 +95,9 @@ export interface InformacoesIniciais {
   incorporacao?: string | null;
   posicaoSolar?: string | null;
   terreno?: string | null;
-  averbado?: string | null;
-  escriturado?: string | null;
-  esquina?: string | null;
+  averbado?: boolean | null;
+  escriturado?: boolean | null;
+  esquina?: boolean | null;
   created_at: string;
   updated_at: string;
 }
