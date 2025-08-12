@@ -20,9 +20,10 @@ interface DadosPrivativosFormData {
 
 interface DadosPrivativosProps {
   onUpdate: (data: DadosPrivativosFormData, hasChanges?: boolean) => void;
+  onFieldChange?: () => void;
 }
 
-const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate }) => {
+const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate, onFieldChange }) => {
   const [formData, setFormData] = useState<DadosPrivativosFormData>({
     matricula: '',
     inscricaoMunicipal: '',
@@ -79,6 +80,8 @@ const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate }) => {
     
     // Marca o formulário como modificado
     setFormChanged(true);
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   // Função para resetar o formulário aos dados iniciais

@@ -35,6 +35,9 @@ const ImovelCadastro: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
+  // Estado para controlar mudanças não salvas em cada etapa
+  const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set());
+  
   // Hook para gerenciar callbacks de etapas
   const { registerCallback, executeCallback } = useStepCallbacks();
 
@@ -230,6 +233,13 @@ const ImovelCadastro: React.FC = () => {
         setStepsCompleted(prev => [...prev, stepId]);
       }
       
+      // Remove a etapa da lista de mudanças não salvas
+      setUnsavedChanges(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(stepId);
+        return newSet;
+      });
+      
     } catch (error) {
       logger.error(`Erro ao salvar etapa ${stepId}:`, error);
       alert(`Erro ao salvar dados da etapa ${stepId}. Tente novamente.`);
@@ -300,6 +310,17 @@ const ImovelCadastro: React.FC = () => {
     return Object.keys(stepData as Record<string, unknown>).length > 0;
   }, [formData]);
 
+  // Função para marcar uma etapa como tendo mudanças não salvas
+  const markStepAsChanged = useCallback((stepId: string) => {
+    setUnsavedChanges(prev => new Set([...prev, stepId]));
+  }, []);
+
+  // Função para verificar se deve mostrar a mensagem "Dados já salvos"
+  const shouldShowSavedMessage = useCallback((stepId: string): boolean => {
+    // Só mostra a mensagem se há dados salvos E não há mudanças não salvas
+    return hasStepData(stepId) && !unsavedChanges.has(stepId);
+  }, [hasStepData, unsavedChanges]);
+
   // Renderiza o componente de acordo com o passo ativo
   const renderStepContent = () => {
     // Mostrar loading específico da etapa se estiver carregando
@@ -318,7 +339,7 @@ const ImovelCadastro: React.FC = () => {
       case 'informacoes':
         return (
           <div>
-            {hasStepData('informacoes') && (
+            {shouldShowSavedMessage('informacoes') && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
               </div>
@@ -327,6 +348,7 @@ const ImovelCadastro: React.FC = () => {
               onUpdate={(data, hasChanges) => handleUpdateFormData('informacoes', data, hasChanges)}
               submitCallback={(callback) => registerCallback('informacoes', callback)}
               initialData={formData['informacoes'] as Record<string, unknown>}
+              onFieldChange={() => markStepAsChanged('informacoes')}
             />
           </div>
         );
@@ -335,127 +357,161 @@ const ImovelCadastro: React.FC = () => {
           <Comodos 
             onUpdate={(data, hasChanges) => handleUpdateFormData('comodos', data, hasChanges)}
             submitCallback={(callback) => registerCallback('comodos', callback)}
+            onFieldChange={() => markStepAsChanged('comodos')}
           />
         );
       case 'medidas':
         return (
           <div>
-            {hasStepData('medidas') && (
+            {shouldShowSavedMessage('medidas') && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
               </div>
             )}
-            <Medidas onUpdate={(data) => handleUpdateFormData('medidas', data)} />
+            <Medidas 
+              onUpdate={(data) => handleUpdateFormData('medidas', data)} 
+              onFieldChange={() => markStepAsChanged('medidas')}
+            />
           </div>
         );
       case 'preco':
         return (
           <div>
-            {hasStepData('preco') && (
+            {shouldShowSavedMessage('preco') && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
               </div>
             )}
-            <Preco onUpdate={(data) => handleUpdateFormData('preco', data)} />
+            <Preco 
+              onUpdate={(data) => handleUpdateFormData('preco', data)} 
+              onFieldChange={() => markStepAsChanged('preco')}
+            />
           </div>
         );
       case 'caracteristicas-imovel':
         return (
           <div>
-            {hasStepData('caracteristicas-imovel') && (
+            {shouldShowSavedMessage('caracteristicas-imovel') && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
               </div>
             )}
-            <CaracteristicasImovel onUpdate={(data) => handleUpdateFormData('caracteristicas-imovel', data)} />
+            <CaracteristicasImovel 
+              onUpdate={(data) => handleUpdateFormData('caracteristicas-imovel', data)} 
+              onFieldChange={() => markStepAsChanged('caracteristicas-imovel')}
+            />
           </div>
         );
       case 'caracteristicas-condominio':
         return (
           <div>
-            {hasStepData('caracteristicas-condominio') && (
+            {shouldShowSavedMessage('caracteristicas-condominio') && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
               </div>
             )}
-            <CaracteristicasCondominio onUpdate={(data) => handleUpdateFormData('caracteristicas-condominio', data)} />
+            <CaracteristicasCondominio 
+              onUpdate={(data) => handleUpdateFormData('caracteristicas-condominio', data)} 
+              onFieldChange={() => markStepAsChanged('caracteristicas-condominio')}
+            />
           </div>
         );
       case 'localizacao':
         return (
           <div>
-            {hasStepData('localizacao') && (
+            {shouldShowSavedMessage('localizacao') && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
               </div>
             )}
-            <Localizacao onUpdate={(data) => handleUpdateFormData('localizacao', data)} />
+            <Localizacao 
+              onUpdate={(data) => handleUpdateFormData('localizacao', data)} 
+              onFieldChange={() => markStepAsChanged('localizacao')}
+            />
           </div>
         );
       case 'proximidades':
         return (
           <div>
-            {hasStepData('proximidades') && (
+            {shouldShowSavedMessage('proximidades') && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
               </div>
             )}
-            <Proximidades onUpdate={(data) => handleUpdateFormData('proximidades', data)} />
+            <Proximidades 
+              onUpdate={(data) => handleUpdateFormData('proximidades', data)} 
+              onFieldChange={() => markStepAsChanged('proximidades')}
+            />
           </div>
         );
       case 'descricao':
         return (
           <div>
-            {hasStepData('descricao') && (
+            {shouldShowSavedMessage('descricao') && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
               </div>
             )}
-            <Descricao onUpdate={(data) => handleUpdateFormData('descricao', data)} />
+            <Descricao 
+              onUpdate={(data) => handleUpdateFormData('descricao', data)} 
+              onFieldChange={() => markStepAsChanged('descricao')}
+            />
           </div>
         );
       case 'complementos':
         return (
           <div>
-            {hasStepData('complementos') && (
+            {shouldShowSavedMessage('complementos') && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
               </div>
             )}
-            <Complementos onUpdate={(data) => handleUpdateFormData('complementos', data)} />
+            <Complementos 
+              onUpdate={(data) => handleUpdateFormData('complementos', data)} 
+              onFieldChange={() => markStepAsChanged('complementos')}
+            />
           </div>
         );
       case 'dados-privativos':
         return (
           <div>
-            {hasStepData('dados-privativos') && (
+            {shouldShowSavedMessage('dados-privativos') && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
               </div>
             )}
-            <DadosPrivativos onUpdate={(data, hasChanges) => handleUpdateFormData('dados-privativos', { ...data }, hasChanges)} />
+            <DadosPrivativos 
+              onUpdate={(data, hasChanges) => handleUpdateFormData('dados-privativos', { ...data }, hasChanges)} 
+              onFieldChange={() => markStepAsChanged('dados-privativos')}
+            />
           </div>
         );
       case 'imagens':
         return (
           <div>
-            {hasStepData('imagens') && (
+            {shouldShowSavedMessage('imagens') && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
               </div>
             )}
-            <ImagensImovel onUpdate={(data) => handleUpdateFormData('imagens', data)} />
+            <ImagensImovel 
+              onUpdate={(data) => handleUpdateFormData('imagens', data)} 
+              onFieldChange={() => markStepAsChanged('imagens')}
+            />
           </div>
         );
       case 'publicacao':
         return (
           <div>
-            {hasStepData('publicacao') && (
+            {shouldShowSavedMessage('publicacao') && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
               </div>
             )}
-            <Publicacao onUpdate={(data) => handleUpdateFormData('publicacao', data)} />
+            <Publicacao 
+              onUpdate={(data) => handleUpdateFormData('publicacao', data)} 
+              onFieldChange={() => markStepAsChanged('publicacao')}
+            />
           </div>
         );
       default:

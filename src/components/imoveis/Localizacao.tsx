@@ -7,9 +7,10 @@ import { Button } from '../ui/Button';
 
 interface LocalizacaoProps {
   onUpdate: (data: any) => void;
+  onFieldChange?: () => void;
 }
 
-const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate }) => {
+const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange }) => {
   const [formData, setFormData] = useState({
     cep: '',
     estado: '',
@@ -101,6 +102,8 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate }) => {
       ...prev,
       [field]: value
     }));
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   // Função para buscar CEP (simulação)

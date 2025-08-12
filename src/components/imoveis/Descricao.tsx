@@ -7,9 +7,10 @@ import { Button } from '../ui/Button';
 
 interface DescricaoProps {
   onUpdate: (data: any) => void;
+  onFieldChange?: () => void;
 }
 
-const Descricao: React.FC<DescricaoProps> = ({ onUpdate }) => {
+const Descricao: React.FC<DescricaoProps> = ({ onUpdate, onFieldChange }) => {
   const [formData, setFormData] = useState({
     titulo: '',
     descricao: '',
@@ -32,6 +33,8 @@ const Descricao: React.FC<DescricaoProps> = ({ onUpdate }) => {
       ...prev,
       [field]: value
     }));
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   // Função para gerar descrição automática (simulação)
@@ -43,6 +46,8 @@ const Descricao: React.FC<DescricaoProps> = ({ onUpdate }) => {
       ...prev,
       descricao: descricaoGerada
     }));
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   // Função para gerar título automático (simulação)
@@ -54,6 +59,8 @@ const Descricao: React.FC<DescricaoProps> = ({ onUpdate }) => {
       ...prev,
       titulo: tituloGerado
     }));
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   return (

@@ -5,9 +5,10 @@ import { Input } from '../ui/Input';
 
 interface PublicacaoProps {
   onUpdate: (data: any) => void;
+  onFieldChange?: () => void;
 }
 
-const Publicacao: React.FC<PublicacaoProps> = ({ onUpdate }) => {
+const Publicacao: React.FC<PublicacaoProps> = ({ onUpdate, onFieldChange }) => {
   const [formData, setFormData] = useState({
     publicarNoSite: 'sim',
     publicarPortais: 'sim',
@@ -41,6 +42,8 @@ const Publicacao: React.FC<PublicacaoProps> = ({ onUpdate }) => {
       ...prev,
       [field]: value
     }));
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   return (

@@ -5,9 +5,10 @@ import { Input } from '../ui/Input';
 
 interface ProximidadesProps {
   onUpdate: (data: any) => void;
+  onFieldChange?: () => void;
 }
 
-const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate }) => {
+const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate, onFieldChange }) => {
   const [proximidadesSelecionadas, setProximidadesSelecionadas] = useState<string[]>([]);
   const [novaProximidade, setNovaProximidade] = useState('');
   const [showNovaProximidadeForm, setShowNovaProximidadeForm] = useState(false);
@@ -43,6 +44,8 @@ const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate }) => {
     } else {
       setProximidadesSelecionadas(prev => [...prev, proximidade]);
     }
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   // Função para adicionar uma nova proximidade
@@ -51,6 +54,8 @@ const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate }) => {
       setProximidadesSelecionadas(prev => [...prev, novaProximidade]);
       setNovaProximidade('');
       setShowNovaProximidadeForm(false);
+      // Notificar que houve mudança no campo
+      onFieldChange?.();
     }
   };
 
@@ -60,12 +65,16 @@ const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate }) => {
       setCustomProximidades(prev => [...prev, novaCustomProximidade]);
       setNovaCustomProximidade({nome: '', distancia: ''});
       setShowNovaCustomProximidadeForm(false);
+      // Notificar que houve mudança no campo
+      onFieldChange?.();
     }
   };
 
   // Função para remover uma proximidade personalizada
   const removerCustomProximidade = (index: number) => {
     setCustomProximidades(prev => prev.filter((_, i) => i !== index));
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   return (

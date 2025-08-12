@@ -5,9 +5,10 @@ import { Input } from '../ui/Input';
 
 interface ImagensImovelProps {
   onUpdate: (data: any) => void;
+  onFieldChange?: () => void;
 }
 
-const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate }) => {
+const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange }) => {
   const [imagens, setImagens] = useState<Array<{
     id: string;
     url: string;
@@ -44,6 +45,9 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate }) => {
     
     // Limpa o input para permitir selecionar os mesmos arquivos novamente
     event.target.value = '';
+    
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   // Função para remover uma imagem
@@ -58,6 +62,9 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate }) => {
       
       return novasImagens;
     });
+    
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   // Função para definir uma imagem como principal
@@ -66,6 +73,9 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate }) => {
       ...img,
       principal: img.id === id
     })));
+    
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   // Função para atualizar o título da imagem
@@ -73,6 +83,9 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate }) => {
     setImagens(prev => prev.map(img => 
       img.id === id ? { ...img, titulo } : img
     ));
+    
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   // Funções para reordenar imagens
@@ -86,6 +99,9 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate }) => {
       novasImagens[index - 1] = temp;
       return novasImagens;
     });
+    
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   const moverParaBaixo = (index: number) => {
@@ -98,6 +114,9 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate }) => {
       novasImagens[index + 1] = temp;
       return novasImagens;
     });
+    
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   // Funções para drag and drop

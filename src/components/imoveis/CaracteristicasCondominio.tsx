@@ -4,9 +4,10 @@ import { Button } from '../ui/Button';
 
 interface CaracteristicasCondominioProps {
   onUpdate: (data: any) => void;
+  onFieldChange?: () => void;
 }
 
-const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ onUpdate }) => {
+const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ onUpdate, onFieldChange }) => {
   const [caracteristicasSelecionadas, setCaracteristicasSelecionadas] = useState<string[]>([]);
   const [novaCaracteristica, setNovaCaracteristica] = useState('');
   const [showNovaCaracteristicaForm, setShowNovaCaracteristicaForm] = useState(false);
@@ -40,6 +41,8 @@ const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ o
     } else {
       setCaracteristicasSelecionadas(prev => [...prev, caracteristica]);
     }
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   // Função para adicionar uma nova característica
@@ -48,6 +51,8 @@ const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ o
       setCaracteristicasSelecionadas(prev => [...prev, novaCaracteristica]);
       setNovaCaracteristica('');
       setShowNovaCaracteristicaForm(false);
+      // Notificar que houve mudança no campo
+      onFieldChange?.();
     }
   };
 

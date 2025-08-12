@@ -6,9 +6,10 @@ import { TextArea } from '../ui/TextArea';
 
 interface PrecoProps {
   onUpdate: (data: any) => void;
+  onFieldChange?: () => void;
 }
 
-const Preco: React.FC<PrecoProps> = ({ onUpdate }) => {
+const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange }) => {
   const [formData, setFormData] = useState({
     tipoNegocio: 'venda',
     precoImovel: '',
@@ -63,6 +64,8 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate }) => {
       ...prev,
       [field]: value
     }));
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   return (

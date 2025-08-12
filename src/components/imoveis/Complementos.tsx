@@ -6,9 +6,10 @@ import { Button } from '../ui/Button';
 
 interface ComplementosProps {
   onUpdate: (data: any) => void;
+  onFieldChange?: () => void;
 }
 
-const Complementos: React.FC<ComplementosProps> = ({ onUpdate }) => {
+const Complementos: React.FC<ComplementosProps> = ({ onUpdate, onFieldChange }) => {
   const [formData, setFormData] = useState({
     observacoes: '',
     videos: [] as { titulo: string; url: string }[],
@@ -35,6 +36,8 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate }) => {
         videos: [...prev.videos, novoVideo]
       }));
       setNovoVideo({ titulo: '', url: '' });
+      // Notificar que houve mudança no campo
+      onFieldChange?.();
     }
   };
 
@@ -44,6 +47,8 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate }) => {
       ...prev,
       videos: prev.videos.filter((_, i) => i !== index)
     }));
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   // Função para adicionar uma nova planta
@@ -54,6 +59,8 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate }) => {
         plantas: [...prev.plantas, novaPlanta]
       }));
       setNovaPlanta({ titulo: '', url: '' });
+      // Notificar que houve mudança no campo
+      onFieldChange?.();
     }
   };
 
@@ -63,6 +70,8 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate }) => {
       ...prev,
       plantas: prev.plantas.filter((_, i) => i !== index)
     }));
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   return (
@@ -78,7 +87,10 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate }) => {
             label="Observações internas (não aparece no site)"
             placeholder="Adicione observações internas sobre o imóvel..."
             value={formData.observacoes}
-            onChange={(e) => setFormData(prev => ({ ...prev, observacoes: e.target.value }))}
+            onChange={(e) => {
+              setFormData(prev => ({ ...prev, observacoes: e.target.value }));
+              onFieldChange?.();
+            }}
             rows={4}
           />
         </div>
@@ -91,13 +103,19 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate }) => {
                 label="Título do vídeo"
                 placeholder="Ex: Tour pelo imóvel"
                 value={novoVideo.titulo}
-                onChange={(e) => setNovoVideo(prev => ({ ...prev, titulo: e.target.value }))}
+                onChange={(e) => {
+                  setNovoVideo(prev => ({ ...prev, titulo: e.target.value }));
+                  onFieldChange?.();
+                }}
               />
               <Input
                 label="URL do vídeo (YouTube, Vimeo, etc.)"
                 placeholder="https://..."
                 value={novoVideo.url}
-                onChange={(e) => setNovoVideo(prev => ({ ...prev, url: e.target.value }))}
+                onChange={(e) => {
+                  setNovoVideo(prev => ({ ...prev, url: e.target.value }));
+                  onFieldChange?.();
+                }}
               />
             </div>
             <Button 
@@ -154,13 +172,19 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate }) => {
                 label="Título da planta"
                 placeholder="Ex: Planta baixa - 1° andar"
                 value={novaPlanta.titulo}
-                onChange={(e) => setNovaPlanta(prev => ({ ...prev, titulo: e.target.value }))}
+                onChange={(e) => {
+                  setNovaPlanta(prev => ({ ...prev, titulo: e.target.value }));
+                  onFieldChange?.();
+                }}
               />
               <Input
                 label="URL da imagem da planta"
                 placeholder="https://..."
                 value={novaPlanta.url}
-                onChange={(e) => setNovaPlanta(prev => ({ ...prev, url: e.target.value }))}
+                onChange={(e) => {
+                  setNovaPlanta(prev => ({ ...prev, url: e.target.value }));
+                  onFieldChange?.();
+                }}
               />
             </div>
             <Button 

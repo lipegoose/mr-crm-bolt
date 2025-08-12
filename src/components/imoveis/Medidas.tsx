@@ -4,9 +4,10 @@ import { Select } from '../ui/Select';
 
 interface MedidasProps {
   onUpdate: (data: any) => void;
+  onFieldChange?: () => void;
 }
 
-const Medidas: React.FC<MedidasProps> = ({ onUpdate }) => {
+const Medidas: React.FC<MedidasProps> = ({ onUpdate, onFieldChange }) => {
   const [formData, setFormData] = useState({
     areaConstruida: '',
     unidadeAreaConstruida: 'm²',
@@ -36,6 +37,8 @@ const Medidas: React.FC<MedidasProps> = ({ onUpdate }) => {
       ...prev,
       [field]: value
     }));
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
   };
 
   return (

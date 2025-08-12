@@ -6,6 +6,7 @@ import WizardStep from '../wizard/WizardStep';
 interface ComodosProps {
   onUpdate: (data: Record<string, unknown>, hasChanges?: boolean) => void;
   submitCallback?: (callback: () => void) => void;
+  onFieldChange?: () => void;
 }
 
 interface ComodosForm extends Record<string, unknown> {
@@ -27,7 +28,7 @@ interface ComodosForm extends Record<string, unknown> {
   copa: string;
 }
 
-const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
+const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback, onFieldChange }) => {
   // Dados iniciais do formulário
   const initialFormData: ComodosForm = {
     dormitorio: '0',
@@ -57,7 +58,14 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
       submitCallback={submitCallback}
       initialData={initialFormData}
     >
-      {({ formData, handleChange }) => (
+      {({ formData, handleChange }) => {
+        // Função wrapper para handleChange que também chama onFieldChange
+        const handleFieldChange = (field: string, value: unknown) => {
+          handleChange(field, value);
+          onFieldChange?.();
+        };
+
+        return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Input
@@ -66,7 +74,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.dormitorio}
-              onChange={(e) => handleChange('dormitorio', e.target.value)}
+              onChange={(e) => handleFieldChange('dormitorio', e.target.value)}
             />
           </div>
 
@@ -77,7 +85,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.suite}
-              onChange={(e) => handleChange('suite', e.target.value)}
+              onChange={(e) => handleFieldChange('suite', e.target.value)}
             />
           </div>
 
@@ -88,7 +96,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.banheiro}
-              onChange={(e) => handleChange('banheiro', e.target.value)}
+              onChange={(e) => handleFieldChange('banheiro', e.target.value)}
             />
           </div>
 
@@ -99,7 +107,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.garagem}
-              onChange={(e) => handleChange('garagem', e.target.value)}
+              onChange={(e) => handleFieldChange('garagem', e.target.value)}
             />
           </div>
 
@@ -115,7 +123,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
                   { label: 'Não', value: 'nao' }
                 ]}
                 value={formData.garagemCoberta}
-                onChange={(value) => handleChange('garagemCoberta', value)}
+                onChange={(value) => handleFieldChange('garagemCoberta', value)}
               />
             </div>
           </div>
@@ -132,7 +140,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
                   { label: 'Não', value: 'nao' }
                 ]}
                 value={formData.possuiBoxGaragem}
-                onChange={(value) => handleChange('possuiBoxGaragem', value)}
+                onChange={(value) => handleFieldChange('possuiBoxGaragem', value)}
               />
             </div>
           </div>
@@ -144,7 +152,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.salaTV}
-              onChange={(e) => handleChange('salaTV', e.target.value)}
+              onChange={(e) => handleFieldChange('salaTV', e.target.value)}
             />
           </div>
 
@@ -155,7 +163,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.salaJantar}
-              onChange={(e) => handleChange('salaJantar', e.target.value)}
+              onChange={(e) => handleFieldChange('salaJantar', e.target.value)}
             />
           </div>
 
@@ -166,7 +174,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.salaEstar}
-              onChange={(e) => handleChange('salaEstar', e.target.value)}
+              onChange={(e) => handleFieldChange('salaEstar', e.target.value)}
             />
           </div>
 
@@ -177,7 +185,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.lavabo}
-              onChange={(e) => handleChange('lavabo', e.target.value)}
+              onChange={(e) => handleFieldChange('lavabo', e.target.value)}
             />
           </div>
 
@@ -188,7 +196,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.areaServico}
-              onChange={(e) => handleChange('areaServico', e.target.value)}
+              onChange={(e) => handleFieldChange('areaServico', e.target.value)}
             />
           </div>
 
@@ -199,7 +207,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.cozinha}
-              onChange={(e) => handleChange('cozinha', e.target.value)}
+              onChange={(e) => handleFieldChange('cozinha', e.target.value)}
             />
           </div>
 
@@ -210,7 +218,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.closet}
-              onChange={(e) => handleChange('closet', e.target.value)}
+              onChange={(e) => handleFieldChange('closet', e.target.value)}
             />
           </div>
 
@@ -221,7 +229,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.escritorio}
-              onChange={(e) => handleChange('escritorio', e.target.value)}
+              onChange={(e) => handleFieldChange('escritorio', e.target.value)}
             />
           </div>
 
@@ -232,7 +240,7 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.dependenciaServico}
-              onChange={(e) => handleChange('dependenciaServico', e.target.value)}
+              onChange={(e) => handleFieldChange('dependenciaServico', e.target.value)}
             />
           </div>
 
@@ -243,11 +251,12 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback }) => {
               type="number"
               min="0"
               value={formData.copa}
-              onChange={(e) => handleChange('copa', e.target.value)}
+              onChange={(e) => handleFieldChange('copa', e.target.value)}
             />
           </div>
         </div>
-      )}
+        );
+      }}
     </WizardStep>
   );
 };

@@ -10,6 +10,7 @@ interface InformacoesIniciaisProps {
   onUpdate: (data: Record<string, unknown>, hasChanges?: boolean) => void;
   submitCallback?: (callback: () => void) => void;
   initialData?: Record<string, unknown>;
+  onFieldChange?: () => void;
 }
 
 interface InformacoesForm extends Record<string, unknown> {
@@ -31,7 +32,7 @@ interface InformacoesForm extends Record<string, unknown> {
   mobiliado: string;
 }
 
-const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, submitCallback, initialData }) => {
+const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, submitCallback, initialData, onFieldChange }) => {
   // Estado para opções da API
   const [tipos, setTipos] = useState<string[]>([]);
   const [subtipos, setSubtipos] = useState<string[]>([]);
@@ -182,14 +183,21 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
       submitCallback={submitCallback}
       initialData={initialFormData}
     >
-      {({ formData, handleChange }) => (
+      {({ formData, handleChange }) => {
+        // Função wrapper para handleChange que também chama onFieldChange
+        const handleFieldChange = (field: string, value: unknown) => {
+          handleChange(field, value);
+          onFieldChange?.();
+        };
+
+        return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Input
               label="Código de referência *"
               placeholder="Digite o código de referência"
               value={formData.codigo_referencia}
-              onChange={(e) => handleChange('codigo_referencia', e.target.value)}
+              onChange={(e) => handleFieldChange('codigo_referencia', e.target.value)}
               required
             />
           </div>
@@ -199,15 +207,15 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               Condomínio/empreendimento?
             </label>
             <div className="flex space-x-4">
-              <RadioGroup
-                name="isCondominio"
-                options={[
-                  { label: 'Sim', value: 'sim' },
-                  { label: 'Não', value: 'nao' }
-                ]}
-                value={formData.isCondominio}
-                onChange={(value) => handleChange('isCondominio', value)}
-              />
+                          <RadioGroup
+              name="isCondominio"
+              options={[
+                { label: 'Sim', value: 'sim' },
+                { label: 'Não', value: 'nao' }
+              ]}
+              value={formData.isCondominio}
+              onChange={(value) => handleFieldChange('isCondominio', value)}
+            />
             </div>
           </div>
 
@@ -217,7 +225,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                 label="Nome do Condomínio/empreendimento *"
                 placeholder="Digite o nome do condomínio"
                 value={formData.condominio}
-                onChange={(e) => handleChange('condominio', e.target.value)}
+                onChange={(e) => handleFieldChange('condominio', e.target.value)}
                 required
               />
             </div>
@@ -228,7 +236,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               label="Proprietário * (privado)"
               options={proprietarios}
               value={formData.proprietario}
-              onChange={(e) => handleChange('proprietario', e.target.value)}
+              onChange={(e) => handleFieldChange('proprietario', e.target.value)}
               required
             />
           </div>
@@ -243,9 +251,9 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               value={formData.tipo}
               onChange={(e) => {
                 const tipoValue = e.target.value;
-                handleChange('tipo', tipoValue);
+                handleFieldChange('tipo', tipoValue);
                 // Limpar subtipo quando tipo mudar
-                handleChange('subtipo', '');
+                handleFieldChange('subtipo', '');
                 // Carregar novos subtipos
                 loadSubtipos(tipoValue);
               }}
@@ -262,7 +270,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                 ...subtipos.map(subtipo => ({ value: subtipo, label: subtipo }))
               ]}
               value={formData.subtipo}
-              onChange={(e) => handleChange('subtipo', e.target.value)}
+              onChange={(e) => handleFieldChange('subtipo', e.target.value)}
               required
               disabled={!formData.tipo}
             />
@@ -273,7 +281,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               label="Perfil do imóvel *"
               options={perfis}
               value={formData.perfil}
-              onChange={(e) => handleChange('perfil', e.target.value)}
+              onChange={(e) => handleFieldChange('perfil', e.target.value)}
               required
             />
           </div>
@@ -283,7 +291,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               label="Situação *"
               options={situacoes}
               value={formData.situacao}
-              onChange={(e) => handleChange('situacao', e.target.value)}
+              onChange={(e) => handleFieldChange('situacao', e.target.value)}
               required
             />
           </div>
@@ -294,7 +302,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               placeholder="Ex.: 2015"
               type="number"
               value={formData.ano_construcao}
-              onChange={(e) => handleChange('ano_construcao', e.target.value)}
+              onChange={(e) => handleFieldChange('ano_construcao', e.target.value)}
             />
           </div>
 
@@ -303,7 +311,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               label="Incorporação"
               placeholder="Digite o número"
               value={formData.incorporacao}
-              onChange={(e) => handleChange('incorporacao', e.target.value)}
+              onChange={(e) => handleFieldChange('incorporacao', e.target.value)}
             />
           </div>
 
@@ -312,7 +320,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               label="Posição solar"
               options={posicoesSolares}
               value={formData.posicaoSolar}
-              onChange={(e) => handleChange('posicaoSolar', e.target.value)}
+              onChange={(e) => handleFieldChange('posicaoSolar', e.target.value)}
             />
           </div>
 
@@ -329,7 +337,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                   { label: 'Declive', value: 'declive' }
                 ]}
                 value={formData.terreno}
-                onChange={(value) => handleChange('terreno', value)}
+                onChange={(value) => handleFieldChange('terreno', value)}
               />
             </div>
           </div>
@@ -346,7 +354,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                   { label: 'Não', value: 'nao' }
                 ]}
                 value={formData.escriturado}
-                onChange={(value) => handleChange('escriturado', value)}
+                onChange={(value) => handleFieldChange('escriturado', value)}
               />
             </div>
           </div>
@@ -363,7 +371,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                   { label: 'Não', value: 'nao' }
                 ]}
                 value={formData.esquina}
-                onChange={(value) => handleChange('esquina', value)}
+                onChange={(value) => handleFieldChange('esquina', value)}
               />
             </div>
           </div>
@@ -380,12 +388,13 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                   { label: 'Não', value: 'nao' }
                 ]}
                 value={formData.mobiliado}
-                onChange={(value) => handleChange('mobiliado', value)}
-            />
+                onChange={(value) => handleFieldChange('mobiliado', value)}
+              />
             </div>
           </div>
         </div>
-      )}
+        );
+      }}
     </WizardStep>
   );
 };
