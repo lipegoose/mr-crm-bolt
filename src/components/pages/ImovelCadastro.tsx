@@ -317,10 +317,18 @@ const ImovelCadastro: React.FC = () => {
     switch (activeStep) {
       case 'informacoes':
         return (
-          <InformacoesIniciais 
-            onUpdate={(data, hasChanges) => handleUpdateFormData('informacoes', data, hasChanges)}
-            submitCallback={(callback) => registerCallback('informacoes', callback)}
-          />
+          <div>
+            {hasStepData('informacoes') && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
+              </div>
+            )}
+            <InformacoesIniciais 
+              onUpdate={(data, hasChanges) => handleUpdateFormData('informacoes', data, hasChanges)}
+              submitCallback={(callback) => registerCallback('informacoes', callback)}
+              initialData={formData['informacoes'] as Record<string, unknown>}
+            />
+          </div>
         );
       case 'comodos':
         return (

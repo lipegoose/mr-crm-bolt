@@ -9,6 +9,7 @@ import logger from '../../utils/logger';
 interface InformacoesIniciaisProps {
   onUpdate: (data: Record<string, unknown>, hasChanges?: boolean) => void;
   submitCallback?: (callback: () => void) => void;
+  initialData?: Record<string, unknown>;
 }
 
 interface InformacoesForm extends Record<string, unknown> {
@@ -30,7 +31,13 @@ interface InformacoesForm extends Record<string, unknown> {
   mobiliado: string;
 }
 
-const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, submitCallback }) => {
+const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, submitCallback, initialData }) => {
+  // Log dos dados iniciais para debug
+  useEffect(() => {
+    if (initialData) {
+      logger.info('Dados iniciais recebidos:', initialData);
+    }
+  }, [initialData]);
   // Estado para opções da API
   const [tipos, setTipos] = useState<string[]>([]);
   const [subtipos, setSubtipos] = useState<string[]>([]);
@@ -38,22 +45,22 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
 
   // Dados iniciais do formulário
   const initialFormData: InformacoesForm = {
-    codigo_referencia: '',
-    isCondominio: 'nao',
-    condominio: '',
-    proprietario: '',
-    tipo: '',
-    subtipo: '',
-    perfil: '',
-    situacao: '',
-    ano_construcao: '',
-    incorporacao: '',
-    posicaoSolar: '',
-    terreno: 'plano',
-    averbado: 'nao',
-    escriturado: 'nao',
-    esquina: 'nao',
-    mobiliado: 'nao',
+    codigo_referencia: initialData?.codigo_referencia as string || '',
+    isCondominio: initialData?.isCondominio as string || 'nao',
+    condominio: initialData?.condominio as string || '',
+    proprietario: initialData?.proprietario as string || '',
+    tipo: initialData?.tipo as string || '',
+    subtipo: initialData?.subtipo as string || '',
+    perfil: initialData?.perfil as string || '',
+    situacao: initialData?.situacao as string || '',
+    ano_construcao: initialData?.ano_construcao as string || '',
+    incorporacao: initialData?.incorporacao as string || '',
+    posicaoSolar: initialData?.posicaoSolar as string || '',
+    terreno: initialData?.terreno as string || 'plano',
+    averbado: initialData?.averbado as string || 'nao',
+    escriturado: initialData?.escriturado as string || 'nao',
+    esquina: initialData?.esquina as string || 'nao',
+    mobiliado: initialData?.mobiliado as string || 'nao',
   };
 
   // Lista de proprietários (simulação)
