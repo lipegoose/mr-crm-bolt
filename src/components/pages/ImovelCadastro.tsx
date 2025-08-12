@@ -120,20 +120,16 @@ const ImovelCadastro: React.FC = () => {
     }
   }, [id]); // Removidas dependências que podem causar re-execução
 
-  // Carregar dados básicos do imóvel e estado de completude
+  // Carregar dados do imóvel quando o ID estiver disponível
   useEffect(() => {
-    // Evitar execução dupla em Strict Mode
     if (!id || hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
     
     logger.info(`Iniciando carregamento do imóvel ${id}`);
-    hasLoadedRef.current = true;
     setLoading(true);
     
     const loadImovelBasico = async () => {
       try {
-        logger.info(`Carregando dados básicos do imóvel ${id}`);
-        await ImovelService.getImovel(Number(id));
-        
         // Carregar estado de completude das etapas
         try {
           logger.info(`Verificando completude das etapas do imóvel ${id}`);
@@ -150,8 +146,9 @@ const ImovelCadastro: React.FC = () => {
         }
         
         // Carregar dados da primeira etapa automaticamente
+        // Esta chamada já retorna todos os dados necessários para a primeira etapa
         logger.info(`Carregando dados da primeira etapa (informacoes)`);
-        loadStepData('informacoes');
+        await loadStepData('informacoes');
         
       } catch (error) {
         logger.error('Erro ao carregar imóvel:', error);
@@ -163,7 +160,7 @@ const ImovelCadastro: React.FC = () => {
     };
     
     loadImovelBasico();
-  }, [id]); // Removidas dependências que podem causar re-execução
+  }, [id, loadStepData]); // Adicionado loadStepData como dependência
 
   // Função para atualizar os dados do formulário
   const handleUpdateFormData = useCallback(async (stepId: string, data: Record<string, unknown>, hasChanges = false) => {
