@@ -5,12 +5,14 @@ import { RadioGroup } from '../ui/RadioGroup';
 import { ImovelService } from '../../services/ImovelService';
 import WizardStep from '../wizard/WizardStep';
 import logger from '../../utils/logger';
+import { Loader2 } from 'lucide-react';
 
 interface InformacoesIniciaisProps {
   onUpdate: (data: Record<string, unknown>, hasChanges?: boolean) => void;
   submitCallback?: (callback: () => void) => void;
   initialData?: Record<string, unknown>;
   onFieldChange?: () => void;
+  imovelId?: number; // ID do imóvel para validação do código de referência
 }
 
 interface InformacoesForm extends Record<string, unknown> {
@@ -32,11 +34,19 @@ interface InformacoesForm extends Record<string, unknown> {
   mobiliado: string;
 }
 
-const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, submitCallback, initialData, onFieldChange }) => {
+const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, submitCallback, initialData, onFieldChange, imovelId }) => {
   // Estado para opções da API
   const [tipos, setTipos] = useState<string[]>([]);
   const [subtipos, setSubtipos] = useState<string[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
+  
+  // Estado para rastrear se o código foi editado manualmente
+  const [codigoEditadoManualmente, setCodigoEditadoManualmente] = useState(false);
+  
+  // Estados para validação do código de referência
+  const [validandoCodigo, setValidandoCodigo] = useState(false);
+  const [codigoDisponivel, setCodigoDisponivel] = useState<boolean | null>(null);
+  const [erroValidacao, setErroValidacao] = useState<string | null>(null);
   
   // Ref para controlar se os logs já foram exibidos
   const logsExibidosRef = useRef(false);
@@ -49,18 +59,12 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
     }
   }, [initialData]);
   
-  // Ref para controlar se os subtipos já foram carregados automaticamente
+    // Ref para controlar se os subtipos já foram carregados automaticamente
   const subtiposAutoLoadedRef = useRef(false);
   
-  // Carregar subtipos automaticamente quando há dados iniciais com tipo
-  useEffect(() => {
-    if (initialData?.tipo && !subtipos.length && !subtiposAutoLoadedRef.current) {
-      logger.info(`Carregando subtipos automaticamente para tipo: ${initialData.tipo}`);
-      subtiposAutoLoadedRef.current = true;
-      loadSubtipos(initialData.tipo as string);
-    }
-  }, [initialData?.tipo, subtipos.length]);
-
+  // Ref para controlar o timeout de validação
+  const validacaoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Dados iniciais do formulário
   const initialFormData: InformacoesForm = {
     codigo_referencia: initialData?.codigo_referencia as string || '',
@@ -174,6 +178,170 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
     }
   }, []);
 
+  // Carregar subtipos automaticamente quando há dados iniciais com tipo
+  useEffect(() => {
+    if (initialData?.tipo && !subtipos.length && !subtiposAutoLoadedRef.current) {
+      logger.info(`Carregando subtipos automaticamente para tipo: ${initialData.tipo}`);
+      subtiposAutoLoadedRef.current = true;
+      loadSubtipos(initialData.tipo as string);
+    }
+  }, [initialData?.tipo, subtipos.length, loadSubtipos]);
+
+  // Cleanup do timeout de validação quando componente for desmontado
+  useEffect(() => {
+    return () => {
+      if (validacaoTimeoutRef.current) {
+        clearTimeout(validacaoTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Função para gerar sigla do tipo de imóvel
+  const gerarSiglaTipo = useCallback((tipo: string): string => {
+    const siglas: Record<string, string> = {
+      'Apartamento': 'AP',
+      'Casa': 'CA',
+      'Cobertura': 'CO',
+      'Flat': 'FL',
+      'Kitnet': 'KI',
+      'Loft': 'LO',
+      'Sobrado': 'SO',
+      'Studio': 'ST',
+      'Terreno': 'TE',
+      'Sala Comercial': 'SC',
+      'Loja': 'LJ',
+      'Galpão': 'GA',
+      'Sítio': 'SI',
+      'Chácara': 'CH',
+      'Fazenda': 'FA',
+      'Casa de Temporada': 'CT',
+      'Pousada': 'PO',
+      'Hotel': 'HO'
+    };
+    
+    return siglas[tipo] || tipo.substring(0, 2).toUpperCase();
+  }, []);
+
+  // Função para validar código de referência
+  const validarCodigoReferencia = useCallback(async (codigo: string): Promise<boolean> => {
+    if (!codigo || !imovelId) {
+      return true; // Não validar se não há código ou imovelId
+    }
+
+    setValidandoCodigo(true);
+    setErroValidacao(null);
+    
+    try {
+      logger.info(`Validando código de referência: ${codigo} para imóvel ID: ${imovelId}`);
+      const validacao = await ImovelService.validarCodigoReferencia(codigo, imovelId);
+      
+      const disponivel = validacao.disponivel;
+      setCodigoDisponivel(disponivel);
+      
+      if (disponivel) {
+        logger.info(`Código de referência ${codigo} está disponível`);
+      } else {
+        logger.warn(`Código de referência ${codigo} já está em uso por outro imóvel`);
+        setErroValidacao('Este código de referência já está em uso por outro imóvel');
+      }
+      
+      return disponivel;
+    } catch (error) {
+      logger.error('Erro ao validar código de referência:', error);
+      setErroValidacao('Erro ao validar código de referência. Tente novamente.');
+      setCodigoDisponivel(null);
+      return false;
+    } finally {
+      setValidandoCodigo(false);
+    }
+  }, [imovelId]);
+
+  // Função para atualizar código de referência automaticamente
+  const atualizarCodigoReferencia = useCallback(async (tipo: string, codigoAtual: string) => {
+    if (!tipo || codigoEditadoManualmente) {
+      return;
+    }
+
+    try {
+      // Extrair ID do código atual (formato: "ID-SIGLA")
+      const partes = codigoAtual.split('-');
+      if (partes.length !== 2) {
+        logger.warn('Formato de código de referência inválido, não será atualizado automaticamente');
+        return;
+      }
+
+      const id = partes[0];
+      const novaSigla = gerarSiglaTipo(tipo);
+      const novoCodigo = `${id}-${novaSigla}`;
+
+              // Verificar se o novo código está disponível
+        const validacao = await ImovelService.validarCodigoReferencia(novoCodigo, imovelId);
+        
+        if (validacao.disponivel) {
+          logger.info(`Código de referência atualizado automaticamente: ${codigoAtual} → ${novoCodigo}`);
+          return novoCodigo;
+        } else if (validacao.sugestao) {
+          logger.info(`Usando sugestão da API para código: ${validacao.sugestao}`);
+          return validacao.sugestao;
+        } else {
+          logger.warn('Não foi possível gerar um código de referência válido automaticamente');
+          return codigoAtual;
+        }
+      } catch (error) {
+        logger.error('Erro ao atualizar código de referência automaticamente:', error);
+        return codigoAtual;
+      }
+    }, [codigoEditadoManualmente, gerarSiglaTipo, imovelId]);
+
+  // Handler para mudança do tipo de imóvel
+  const handleTipoChange = useCallback(async (tipoValue: string, formData: InformacoesForm, handleChange: (field: string, value: unknown) => void) => {
+    // Atualizar tipo
+    handleChange('tipo', tipoValue);
+    
+    // Limpar subtipo quando tipo mudar
+    handleChange('subtipo', '');
+    
+    // Carregar novos subtipos
+    loadSubtipos(tipoValue);
+    
+    // Atualizar código de referência automaticamente se não foi editado manualmente
+    if (tipoValue && formData.codigo_referencia && !codigoEditadoManualmente) {
+      const novoCodigo = await atualizarCodigoReferencia(tipoValue, formData.codigo_referencia as string);
+      if (novoCodigo && novoCodigo !== formData.codigo_referencia) {
+        handleChange('codigo_referencia', novoCodigo);
+        logger.info('Código de referência atualizado automaticamente após mudança de tipo');
+      }
+    }
+  }, [loadSubtipos, atualizarCodigoReferencia, codigoEditadoManualmente]);
+
+  // Handler para mudança do código de referência
+  const handleCodigoReferenciaChange = useCallback((value: string, handleChange: (field: string, value: unknown) => void) => {
+    handleChange('codigo_referencia', value);
+    
+    // Marcar como editado manualmente se o usuário alterar o código
+    if (!codigoEditadoManualmente) {
+      setCodigoEditadoManualmente(true);
+      logger.info('Código de referência marcado como editado manualmente pelo usuário');
+    }
+    
+    // Limpar estados de validação anteriores
+    setCodigoDisponivel(null);
+    setErroValidacao(null);
+    
+    // Limpar timeout anterior se existir
+    if (validacaoTimeoutRef.current) {
+      clearTimeout(validacaoTimeoutRef.current);
+    }
+    
+    // Validar código se houver valor e imovelId
+    if (value && imovelId) {
+      // Debounce para evitar muitas chamadas à API
+      validacaoTimeoutRef.current = setTimeout(() => {
+        validarCodigoReferencia(value);
+      }, 500);
+    }
+  }, [codigoEditadoManualmente, imovelId, validarCodigoReferencia]);
+
   return (
     <WizardStep<InformacoesForm>
       id="informacoes"
@@ -197,9 +365,48 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               label="Código de referência *"
               placeholder="Digite o código de referência"
               value={formData.codigo_referencia}
-              onChange={(e) => handleFieldChange('codigo_referencia', e.target.value)}
+              onChange={(e) => handleCodigoReferenciaChange(e.target.value, handleFieldChange)}
               required
             />
+            
+            {/* Indicadores de validação */}
+            {validandoCodigo && (
+              <p className="text-xs text-blue-600 mt-1 flex items-center">
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                Validando código...
+              </p>
+            )}
+            
+            {codigoDisponivel === true && !validandoCodigo && (
+              <p className="text-xs text-green-600 mt-1 flex items-center">
+                ✓ Código disponível
+              </p>
+            )}
+            
+            {codigoDisponivel === false && !validandoCodigo && (
+              <p className="text-xs text-red-600 mt-1 flex items-center">
+                ✗ Código já está em uso
+              </p>
+            )}
+            
+            {erroValidacao && !validandoCodigo && (
+              <p className="text-xs text-red-600 mt-1">
+                ⚠ {erroValidacao}
+              </p>
+            )}
+            
+            {/* Indicadores de comportamento automático */}
+            {!codigoEditadoManualmente && formData.tipo && !validandoCodigo && codigoDisponivel !== false && (
+              <p className="text-xs text-blue-600 mt-1">
+                ⓘ O código será atualizado automaticamente quando o tipo for alterado
+              </p>
+            )}
+            
+            {codigoEditadoManualmente && !validandoCodigo && codigoDisponivel !== false && (
+              <p className="text-xs text-orange-600 mt-1">
+                ⚠ O código foi editado manualmente e não será alterado automaticamente
+              </p>
+            )}
           </div>
 
           <div>
@@ -249,14 +456,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                 ...tipos.map(tipo => ({ value: tipo, label: tipo }))
               ]}
               value={formData.tipo}
-              onChange={(e) => {
-                const tipoValue = e.target.value;
-                handleFieldChange('tipo', tipoValue);
-                // Limpar subtipo quando tipo mudar
-                handleFieldChange('subtipo', '');
-                // Carregar novos subtipos
-                loadSubtipos(tipoValue);
-              }}
+              onChange={(e) => handleTipoChange(e.target.value, formData, handleFieldChange)}
               required
               disabled={loadingOptions}
             />

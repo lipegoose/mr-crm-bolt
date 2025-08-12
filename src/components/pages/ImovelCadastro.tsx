@@ -349,6 +349,7 @@ const ImovelCadastro: React.FC = () => {
               submitCallback={(callback) => registerCallback('informacoes', callback)}
               initialData={formData['informacoes'] as Record<string, unknown>}
               onFieldChange={() => markStepAsChanged('informacoes')}
+              imovelId={id ? Number(id) : undefined}
             />
           </div>
         );
