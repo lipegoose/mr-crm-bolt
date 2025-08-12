@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { RadioGroup } from '../ui/RadioGroup';
@@ -100,15 +100,30 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
     { value: 'sol-manha-tarde', label: 'Sol da manhã e tarde' },
   ];
 
+  // Ref para controlar se as opções já foram carregadas
+  const optionsLoadedRef = useRef(false);
+
   // Carregar opções da API
   useEffect(() => {
+    // Evitar chamadas duplicadas no React Strict Mode
+    if (optionsLoadedRef.current) return;
+    
     const loadOptions = async () => {
+      // Verificação adicional para evitar chamadas simultâneas
+      if (optionsLoadedRef.current) return;
+      
+      optionsLoadedRef.current = true;
       setLoadingOptions(true);
+      
       try {
+        logger.info('Carregando tipos de imóveis da API');
         const tiposResponse = await ImovelService.getTipos();
         setTipos(tiposResponse.data);
+        logger.info('Tipos de imóveis carregados com sucesso');
       } catch (error) {
         logger.error('Erro ao carregar tipos:', error);
+        // Reset do ref em caso de erro para permitir nova tentativa
+        optionsLoadedRef.current = false;
       } finally {
         setLoadingOptions(false);
       }

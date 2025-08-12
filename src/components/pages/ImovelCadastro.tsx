@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Info, Home, Ruler, DollarSign, CheckSquare, Building, MapPin, 
@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 import { Step, StepNavigation } from '../ui/StepNavigation';
 import { ImovelService } from '../../services/ImovelService';
 import { useStepCallbacks } from '../../hooks/useStepCallbacks';
+import logger from '../../utils/logger';
 
 // Importando os componentes de passos que serão criados
 import InformacoesIniciais from '../imoveis/InformacoesIniciais';
@@ -57,6 +58,9 @@ const ImovelCadastro: React.FC = () => {
   // Estado para controlar etapas já carregadas
   const [loadedSteps, setLoadedSteps] = useState<Set<string>>(new Set());
   const [stepLoading, setStepLoading] = useState<string | null>(null);
+  
+  // Ref para controlar se já foi carregado
+  const hasLoadedRef = useRef(false);
 
   // Mapeamento entre IDs de etapas e métodos do ImovelService
   const stepServiceMap: Record<string, (id: number) => Promise<any>> = {
@@ -75,12 +79,14 @@ const ImovelCadastro: React.FC = () => {
   };
 
   // Função para carregar uma etapa específica
-  const loadStepData = async (stepId: string) => {
+  const loadStepData = useCallback(async (stepId: string) => {
     if (!id || loadedSteps.has(stepId)) return;
+    
+    logger.info(`Carregando dados da etapa: ${stepId}`);
     
     const serviceMethod = stepServiceMap[stepId];
     if (!serviceMethod) {
-      console.warn(`Método não encontrado para etapa: ${stepId}`);
+      logger.warn(`Método não encontrado para etapa: ${stepId}`);
       return;
     }
 
@@ -88,6 +94,7 @@ const ImovelCadastro: React.FC = () => {
     try {
       const response = await serviceMethod(Number(id));
       if (response?.data) {
+        logger.info(`Dados recebidos para etapa ${stepId}:`, response.data);
         setFormData(prev => ({
           ...prev,
           [stepId]: response.data
@@ -101,52 +108,59 @@ const ImovelCadastro: React.FC = () => {
         }
       }
       setLoadedSteps(prev => new Set([...prev, stepId]));
+      logger.info(`Etapa ${stepId} carregada com sucesso`);
     } catch (error) {
-      console.log(`Etapa ${stepId} não encontrada, será criada`);
+      logger.info(`Etapa ${stepId} não encontrada, será criada`);
       setLoadedSteps(prev => new Set([...prev, stepId]));
     } finally {
       setStepLoading(null);
     }
-  };
+  }, [id]); // Removidas dependências que podem causar re-execução
 
   // Carregar dados básicos do imóvel e estado de completude
   useEffect(() => {
+    // Evitar execução dupla em Strict Mode
+    if (!id || hasLoadedRef.current) return;
+    
+    logger.info(`Iniciando carregamento do imóvel ${id}`);
+    hasLoadedRef.current = true;
+    setLoading(true);
+    
     const loadImovelBasico = async () => {
-      if (!id) return;
-      
-
-      setLoading(true);
       try {
+        logger.info(`Carregando dados básicos do imóvel ${id}`);
         await ImovelService.getImovel(Number(id));
         
         // Carregar estado de completude das etapas
         try {
+          logger.info(`Verificando completude das etapas do imóvel ${id}`);
           const completude = await ImovelService.getCompletude(Number(id));
           if (completude?.data && typeof completude.data === 'object') {
             const etapasCompletas = Object.entries(completude.data)
               .filter(([_, completa]) => completa === true)
               .map(([etapa]) => etapa);
             setStepsCompleted(etapasCompletas);
+            logger.info(`Etapas completas: ${etapasCompletas.join(', ')}`);
           }
         } catch (error) {
-          console.error('Erro ao verificar completude das etapas:', error);
+          logger.error('Erro ao verificar completude das etapas:', error);
         }
         
         // Carregar dados da primeira etapa automaticamente
+        logger.info(`Carregando dados da primeira etapa (informacoes)`);
         loadStepData('informacoes');
         
       } catch (error) {
-        console.error('Erro ao carregar imóvel:', error);
+        logger.error('Erro ao carregar imóvel:', error);
         alert('Erro ao carregar dados do imóvel. Tente novamente.');
       } finally {
         setLoading(false);
+        logger.info(`Carregamento do imóvel ${id} finalizado`);
       }
     };
     
-    if (id) {
-      loadImovelBasico();
-    }
-  }, [id]);
+    loadImovelBasico();
+  }, [id]); // Removidas dependências que podem causar re-execução
 
   // Função para atualizar os dados do formulário
   const handleUpdateFormData = useCallback(async (stepId: string, data: Record<string, unknown>, hasChanges = false) => {
@@ -154,10 +168,11 @@ const ImovelCadastro: React.FC = () => {
     
     // Se não houve alterações, não faz chamada à API
     if (!hasChanges) {
-      console.log(`Etapa ${stepId}: Nenhuma alteração detectada, pulando atualização`);
+      logger.info(`Etapa ${stepId}: Nenhuma alteração detectada, pulando atualização`);
       return;
     }
     
+    logger.info(`Salvando dados da etapa ${stepId} na API`);
     setSaving(true);
     try {
       // Salvar dados na API de acordo com a etapa
@@ -199,8 +214,10 @@ const ImovelCadastro: React.FC = () => {
           await ImovelService.updateEtapaPublicacao(Number(id), data);
           break;
         default:
-          console.warn('Etapa não reconhecida:', stepId);
+          logger.warn('Etapa não reconhecida:', stepId);
       }
+      
+      logger.info(`Etapa ${stepId} salva com sucesso na API`);
       
       // Atualizar estado local
       setFormData(prev => ({
@@ -214,7 +231,7 @@ const ImovelCadastro: React.FC = () => {
       }
       
     } catch (error) {
-      console.error(`Erro ao salvar etapa ${stepId}:`, error);
+      logger.error(`Erro ao salvar etapa ${stepId}:`, error);
       alert(`Erro ao salvar dados da etapa ${stepId}. Tente novamente.`);
     } finally {
       setSaving(false);
@@ -267,7 +284,7 @@ const ImovelCadastro: React.FC = () => {
       alert('Imóvel cadastrado com sucesso!');
       navigate('/imoveis');
     } catch (error) {
-      console.error('Erro ao finalizar cadastro:', error);
+      logger.error('Erro ao finalizar cadastro:', error);
       alert('Erro ao finalizar cadastro. Tente novamente.');
     } finally {
       setSaving(false);

@@ -36,8 +36,7 @@ function WizardStep<T extends Record<string, unknown>>({
   const {
     formData,
     handleChange: handleFormChange,
-    submitChanges,
-    formChanged
+    submitChanges
   } = useFormWithChanges({
     initialData,
     onUpdate
@@ -54,17 +53,19 @@ function WizardStep<T extends Record<string, unknown>>({
   
   // Registrar callback no componente pai
   useEffect(() => {
-    if (submitCallback) {
+    if (submitCallback && memoizedSubmitChanges) {
       logger.debug(`Registrando submitChanges da etapa: ${id}`);
       submitCallback(memoizedSubmitChanges);
     }
   }, [submitCallback, memoizedSubmitChanges, id]);
   
-  // Função para atualizar campos do formulário
-  const handleChange = (field: string, value: unknown) => {
+  // Memoizar a função handleChange para evitar re-renderizações desnecessárias
+  const memoizedHandleChange = useCallback((field: string, value: unknown) => {
     logger.debug(`Campo alterado na etapa ${id}: ${field} = ${String(value)}`);
     handleFormChange(field as keyof T, value);
-  };
+  }, [handleFormChange, id]);
+  
+
   
   // Verificar se o formulário tem dados salvos
   // Considera que há dados salvos se pelo menos um campo não estiver vazio
@@ -92,7 +93,7 @@ function WizardStep<T extends Record<string, unknown>>({
       
       {children({
         formData: formData as T,
-        handleChange,
+        handleChange: memoizedHandleChange,
         hasDataSaved
       })}
     </div>

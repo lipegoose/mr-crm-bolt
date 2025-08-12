@@ -10,14 +10,22 @@ type CallbackFunction = () => void;
 export function useStepCallbacks() {
   // Ref para armazenar callbacks sem causar re-renderizações
   const stepCallbacks = useRef<Record<string, CallbackFunction | null>>({});
+  // Ref para controlar se o callback já foi registrado
+  const registeredSteps = useRef<Set<string>>(new Set());
   
   // Função estável para registrar um callback para uma etapa
   const registerCallback = useCallback((stepId: string, callback: CallbackFunction) => {
+    // Evitar registro duplicado
+    if (registeredSteps.current.has(stepId)) {
+      return;
+    }
+    
     logger.info(`Registrando callback para etapa: ${stepId}`);
     stepCallbacks.current = {
       ...stepCallbacks.current,
       [stepId]: callback
     };
+    registeredSteps.current.add(stepId);
   }, []);
   
   // Função estável para executar o callback de uma etapa
@@ -37,6 +45,7 @@ export function useStepCallbacks() {
   // Função para limpar todos os callbacks
   const clearCallbacks = useCallback(() => {
     stepCallbacks.current = {};
+    registeredSteps.current.clear();
   }, []);
   
   // Retorna as funções e o ref (caso seja necessário acesso direto)

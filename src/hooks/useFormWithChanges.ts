@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface UseFormWithChangesOptions<T> {
   initialData: T;
@@ -16,6 +16,7 @@ export function useFormWithChanges<T extends Record<string, unknown>>({
   // Armazena dados iniciais apenas na montagem do componente
   useEffect(() => {
     setInitialDataState(initialData);
+    setFormData(initialData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Array de dependências vazio para evitar loop infinito
 
@@ -45,12 +46,12 @@ export function useFormWithChanges<T extends Record<string, unknown>>({
   };
 
   // Função para submeter alterações explicitamente
-  const submitChanges = () => {
+  const submitChanges = useCallback(() => {
     if (formChanged) {
       onUpdate(formData, true);
       setFormChanged(false); // Reset do estado de mudança após envio
     }
-  };
+  }, [formChanged, formData, onUpdate]);
 
   // Função para resetar o formulário
   const resetForm = () => {
