@@ -80,7 +80,7 @@ export interface InformacoesIniciais {
   perfil: string;
   finalidade: string | null;
   tipo_negocio: string;
-  status: string;
+  situacao: string;
   data_captacao: string | null;
   data_disponibilidade: string | null;
   ano_construcao: number | null;
@@ -90,6 +90,14 @@ export interface InformacoesIniciais {
   ano_reforma: number | null;
   condominio_id: number | null;
   condominio: Record<string, unknown> | null;
+  proprietario_id: number | null;
+  // Campos adicionais para compatibilidade com o formulário
+  incorporacao?: string | null;
+  posicaoSolar?: string | null;
+  terreno?: string | null;
+  averbado?: string | null;
+  escriturado?: string | null;
+  esquina?: string | null;
   created_at: string;
   updated_at: string;
 }

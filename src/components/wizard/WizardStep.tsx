@@ -13,6 +13,7 @@ interface WizardStepProps<T extends Record<string, unknown>> {
     formData: T;
     handleChange: (field: string, value: unknown) => void;
     hasDataSaved: boolean;
+    registerCustomSubmitCallback?: (customCallback: () => void) => void;
   }) => React.ReactNode;
 }
 
@@ -42,6 +43,9 @@ function WizardStep<T extends Record<string, unknown>>({
     onUpdate
   });
   
+  // Ref para armazenar callback personalizado
+  const customSubmitCallbackRef = useRef<(() => void) | null>(null);
+  
   // Log de renderização
   logger.debug(`Renderizando etapa: ${id} (${++renderCount.current})`);
   
@@ -51,11 +55,27 @@ function WizardStep<T extends Record<string, unknown>>({
     submitChanges();
   }, [submitChanges, id]);
   
+  // Função para registrar callback personalizado
+  const registerCustomSubmitCallback = useCallback((customCallback: () => void) => {
+    logger.debug(`Registrando callback personalizado para etapa: ${id}`);
+    customSubmitCallbackRef.current = customCallback;
+  }, [id]);
+  
   // Registrar callback no componente pai
   useEffect(() => {
-    if (submitCallback && memoizedSubmitChanges) {
-      logger.debug(`Registrando submitChanges da etapa: ${id}`);
-      submitCallback(memoizedSubmitChanges);
+    if (submitCallback) {
+      logger.debug(`Registrando submitCallback para etapa: ${id}`);
+      
+      // Registrar uma função que verifica se há callback personalizado
+      submitCallback(() => {
+        if (customSubmitCallbackRef.current) {
+          logger.debug(`Executando callback personalizado para etapa: ${id}`);
+          return customSubmitCallbackRef.current();
+        } else {
+          logger.debug(`Executando callback padrão para etapa: ${id}`);
+          return memoizedSubmitChanges();
+        }
+      });
     }
   }, [submitCallback, memoizedSubmitChanges, id]);
   
@@ -85,12 +105,11 @@ function WizardStep<T extends Record<string, unknown>>({
         <p className="text-neutral-gray-medium mb-6">{description}</p>
       )}
       
-
-      
       {children({
         formData: formData as T,
         handleChange: memoizedHandleChange,
-        hasDataSaved
+        hasDataSaved,
+        registerCustomSubmitCallback
       })}
     </div>
   );

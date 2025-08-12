@@ -2,7 +2,8 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { RadioGroup } from '../ui/RadioGroup';
-import { ImovelService } from '../../services/ImovelService';
+import { ImovelService, InformacoesIniciais as InformacoesIniciaisInterface } from '../../services/ImovelService';
+import { ClienteService, ProprietarioOption } from '../../services/ClienteService';
 import WizardStep from '../wizard/WizardStep';
 import logger from '../../utils/logger';
 import { Loader2 } from 'lucide-react';
@@ -19,7 +20,7 @@ interface InformacoesForm extends Record<string, unknown> {
   codigo_referencia: string;
   isCondominio: string;
   condominio: string;
-  proprietario: string;
+  proprietario: number | null;
   tipo: string;
   subtipo: string;
   perfil: string;
@@ -38,7 +39,9 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
   // Estado para opções da API
   const [tipos, setTipos] = useState<string[]>([]);
   const [subtipos, setSubtipos] = useState<string[]>([]);
+  const [proprietarios, setProprietarios] = useState<ProprietarioOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
+  const [loadingProprietarios, setLoadingProprietarios] = useState(true);
   
   // Estado para rastrear se o código foi editado manualmente
   const [codigoEditadoManualmente, setCodigoEditadoManualmente] = useState(false);
@@ -48,23 +51,20 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
   const [codigoDisponivel, setCodigoDisponivel] = useState<boolean | null>(null);
   const [erroValidacao, setErroValidacao] = useState<string | null>(null);
   
-  // Estados para salvamento automático
+  // Estados para salvamento automático do código de referência
   const [salvandoCodigo, setSalvandoCodigo] = useState(false);
   const [codigoSalvo, setCodigoSalvo] = useState(false);
   const [erroSalvamento, setErroSalvamento] = useState<string | null>(null);
   
+  // Estados para salvamento da etapa na mudança de aba
+  const [salvandoEtapa, setSalvandoEtapa] = useState(false);
+  const [etapaSalva, setEtapaSalva] = useState(false);
+  const [erroSalvamentoEtapa, setErroSalvamentoEtapa] = useState<string | null>(null);
+  
   // Ref para controlar se os logs já foram exibidos
   const logsExibidosRef = useRef(false);
   
-  // Log dos dados iniciais para debug
-  useEffect(() => {
-    if (initialData && !logsExibidosRef.current) {
-      logger.info('Dados iniciais recebidos:', initialData);
-      logsExibidosRef.current = true;
-    }
-  }, [initialData]);
-  
-    // Ref para controlar se os subtipos já foram carregados automaticamente
+  // Ref para controlar se os subtipos já foram carregados automaticamente
   const subtiposAutoLoadedRef = useRef(false);
   
   // Ref para controlar o timeout de validação
@@ -75,7 +75,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
     codigo_referencia: initialData?.codigo_referencia as string || '',
     isCondominio: initialData?.isCondominio as string || 'nao',
     condominio: initialData?.condominio as string || '',
-    proprietario: initialData?.proprietario as string || '',
+    proprietario: initialData?.proprietario as number | null || null,
     tipo: initialData?.tipo as string || '',
     subtipo: initialData?.subtipo as string || '',
     perfil: initialData?.perfil as string || '',
@@ -90,52 +90,54 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
     mobiliado: initialData?.mobiliado as string || 'nao',
   };
 
-  // Lista de proprietários (simulação)
-  const proprietarios = [
-    { value: '', label: 'Selecione' },
-    { value: 'joao', label: 'João Silva' },
-    { value: 'maria', label: 'Maria Souza' },
-    { value: 'carlos', label: 'Carlos Oliveira' },
-  ];
+
 
   // Lista de perfis
   const perfis = [
     { value: '', label: 'Selecione' },
-    { value: 'residencial', label: 'Residencial' },
-    { value: 'comercial', label: 'Comercial' },
-    { value: 'residencial-comercial', label: 'Residencial/Comercial' },
-    { value: 'industrial', label: 'Industrial' },
-    { value: 'rural', label: 'Rural' },
-    { value: 'temporada', label: 'Temporada' },
+    { value: 'RESIDENCIAL', label: 'Residencial' },
+    { value: 'COMERCIAL', label: 'Comercial' },
+    { value: 'RESIDENCIAL-COMERCIAL', label: 'Residencial/Comercial' },
+    { value: 'INDUSTRIAL', label: 'Industrial' },
+    { value: 'RURAL', label: 'Rural' },
+    { value: 'TEMPORADA', label: 'Temporada' },
   ];
 
   // Lista de situações
   const situacoes = [
     { value: '', label: 'Selecione' },
-    { value: 'pronto', label: 'Pronto para morar' },
-    { value: 'construcao', label: 'Em construção' },
-    { value: 'planta', label: 'Na planta' },
-    { value: 'reforma', label: 'Em reforma' },
+    { value: 'PRONTO', label: 'Pronto para morar' },
+    { value: 'CONSTRUCAO', label: 'Em construção' },
+    { value: 'PLANTA', label: 'Na planta' },
+    { value: 'REFORMA', label: 'Em reforma' },
   ];
 
   // Lista de posições solares
   const posicoesSolares = [
     { value: '', label: 'Selecione' },
-    { value: 'leste', label: 'Leste' },
-    { value: 'oeste', label: 'Oeste' },
-    { value: 'norte', label: 'Norte' },
-    { value: 'sul', label: 'Sul' },
-    { value: 'nordeste', label: 'Nordeste' },
-    { value: 'sudeste', label: 'Sudeste' },
-    { value: 'sudoeste', label: 'Sudoeste' },
-    { value: 'noroeste', label: 'Noroeste' },
-    { value: 'sol-manha', label: 'Sol da manhã' },
-    { value: 'sol-tarde', label: 'Sol da tarde' },
-    { value: 'sol-manha-tarde', label: 'Sol da manhã e tarde' },
+    { value: 'LESTE', label: 'Leste' },
+    { value: 'OESTE', label: 'Oeste' },
+    { value: 'NORTE', label: 'Norte' },
+    { value: 'SUL', label: 'Sul' },
+    { value: 'NORDESTE', label: 'Nordeste' },
+    { value: 'SUDESTE', label: 'Sudeste' },
+    { value: 'SUDOESTE', label: 'Sudoeste' },
+    { value: 'NOROESTE', label: 'Noroeste' },
+    { value: 'SOL-MANHA', label: 'Sol da manhã' },
+    { value: 'SOL-TARDE', label: 'Sol da tarde' },
+    { value: 'SOL-MANHA-TARDE', label: 'Sol da manhã e tarde' },
   ];
 
   // Ref para controlar se as opções já foram carregadas
   const optionsLoadedRef = useRef(false);
+
+  // Log dos dados iniciais para debug
+  useEffect(() => {
+    if (initialData && !logsExibidosRef.current) {
+      logger.info('Dados iniciais recebidos:', initialData);
+      logsExibidosRef.current = true;
+    }
+  }, [initialData]);
 
   // Carregar opções da API
   useEffect(() => {
@@ -148,18 +150,25 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
       
       optionsLoadedRef.current = true;
       setLoadingOptions(true);
+      setLoadingProprietarios(true);
       
       try {
         logger.info('Carregando tipos de imóveis da API');
         const tiposResponse = await ImovelService.getTipos();
         setTipos(tiposResponse.data);
         logger.info('Tipos de imóveis carregados com sucesso');
+        
+        logger.info('Carregando proprietários da API');
+        const proprietariosResponse = await ClienteService.getProprietarios();
+        setProprietarios(proprietariosResponse);
+        logger.info('Proprietários carregados com sucesso');
       } catch (error) {
-        logger.error('Erro ao carregar tipos:', error);
+        logger.error('Erro ao carregar opções:', error);
         // Reset do ref em caso de erro para permitir nova tentativa
         optionsLoadedRef.current = false;
       } finally {
         setLoadingOptions(false);
+        setLoadingProprietarios(false);
       }
     };
     
@@ -399,6 +408,97 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
     }
   }, [codigoEditadoManualmente, imovelId, validarCodigoReferencia, salvarCodigoReferencia]);
 
+  // Função para submeter os dados quando mudar de etapa
+  const submitForm = useCallback(async (formData: InformacoesForm) => {
+    logger.info('🚀 [DEBUG] submitForm chamada com dados:', formData);
+    logger.info('🚀 [DEBUG] imovelId:', imovelId);
+    
+    if (!imovelId) {
+      logger.warn('❌ [DEBUG] Não é possível salvar etapa: imovelId não fornecido');
+      return false;
+    }
+
+    logger.info('✅ [DEBUG] Iniciando salvamento da etapa "Informações Iniciais"');
+    setSalvandoEtapa(true);
+    setErroSalvamentoEtapa(null);
+    setEtapaSalva(false);
+    
+    try {
+      logger.info('🔄 [DEBUG] Preparando dados para API...');
+      
+      // Mapear dados do formulário para formato da API
+      const dadosParaAPI: Partial<InformacoesIniciaisInterface> = {
+        codigo_referencia: formData.codigo_referencia as string,
+        tipo: formData.tipo as string,
+        subtipo: formData.subtipo as string,
+        perfil: formData.perfil as string,
+        situacao: formData.situacao as string,
+        ano_construcao: formData.ano_construcao ? Number(formData.ano_construcao) : null,
+        proprietario_id: formData.proprietario as number | null,
+        // Mapear campos adicionais do formulário para campos da API
+        condominio: formData.isCondominio === 'sim' ? { nome: formData.condominio as string } : null,
+        incorporacao: formData.incorporacao as string || null,
+        posicaoSolar: formData.posicaoSolar as string || null,
+        terreno: formData.terreno as string || null,
+        averbado: formData.averbado as string || null,
+        escriturado: formData.escriturado as string || null,
+        esquina: formData.esquina as string || null,
+        mobiliado: formData.mobiliado === 'sim',
+        // Campos que não existem na interface da API serão ignorados
+        // mas mantemos os campos principais para compatibilidade
+      };
+
+      logger.info('📊 [DEBUG] Dados mapeados para API:', dadosParaAPI);
+
+      // Remover campos undefined/null
+      Object.keys(dadosParaAPI).forEach(key => {
+        if (dadosParaAPI[key as keyof typeof dadosParaAPI] === undefined || 
+            dadosParaAPI[key as keyof typeof dadosParaAPI] === null) {
+          delete dadosParaAPI[key as keyof typeof dadosParaAPI];
+        }
+      });
+
+      logger.info('🧹 [DEBUG] Dados limpos para API:', dadosParaAPI);
+      logger.info('🌐 [DEBUG] Chamando ImovelService.updateEtapaInformacoes...');
+
+      await ImovelService.updateEtapaInformacoes(imovelId, dadosParaAPI);
+      
+      logger.info('✅ [DEBUG] Etapa "Informações Iniciais" salva com sucesso na API!');
+      setEtapaSalva(true);
+      
+      // Reset do estado de sucesso após 3 segundos
+      setTimeout(() => {
+        setEtapaSalva(false);
+      }, 3000);
+      
+      logger.info('📤 [DEBUG] Notificando componente pai via onUpdate...');
+      // Notificar o componente pai sobre a atualização
+      onUpdate(formData, true);
+      
+      logger.info('🎉 [DEBUG] submitForm concluída com sucesso!');
+      return true;
+    } catch (error) {
+      logger.error('❌ [DEBUG] Erro ao salvar etapa na mudança de aba:', error);
+      setErroSalvamentoEtapa('Erro ao salvar dados. Tente novamente.');
+      return false;
+    } finally {
+      logger.info('🏁 [DEBUG] Finalizando submitForm, setSalvandoEtapa(false)');
+      setSalvandoEtapa(false);
+    }
+  }, [imovelId, onUpdate]);
+
+  // Ref para armazenar os dados atuais do formulário
+  const formDataRef = useRef<InformacoesForm>(initialFormData);
+
+  logger.info('🏗️ [DEBUG] Componente InformacoesIniciais renderizando');
+  logger.info('🏗️ [DEBUG] Props recebidas:', { 
+    hasOnUpdate: !!onUpdate, 
+    hasSubmitCallback: !!submitCallback, 
+    hasInitialData: !!initialData, 
+    hasOnFieldChange: !!onFieldChange, 
+    imovelId 
+  });
+
   return (
     <WizardStep<InformacoesForm>
       id="informacoes"
@@ -408,9 +508,35 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
       submitCallback={submitCallback}
       initialData={initialFormData}
     >
-      {({ formData, handleChange }) => {
-        // Função wrapper para handleChange que também chama onFieldChange
-        const handleFieldChange = (field: string, value: unknown) => {
+      {({ formData, handleChange, registerCustomSubmitCallback }) => {
+        // Atualizar a ref com os dados atuais do formulário
+        formDataRef.current = formData;
+        
+        logger.info('🔄 [DEBUG] WizardStep renderizando com formData:', formData);
+        logger.info('🔄 [DEBUG] registerCustomSubmitCallback disponível?', !!registerCustomSubmitCallback);
+
+        // Registrar o callback personalizado diretamente no WizardStep
+        useEffect(() => {
+          if (registerCustomSubmitCallback) {
+            logger.info('📝 [DEBUG] Registrando callback personalizado via registerCustomSubmitCallback');
+            
+            const customCallback = async () => {
+              logger.info('🎯 [DEBUG] CALLBACK PERSONALIZADO EXECUTADO! Chamando submitForm...');
+              logger.info('🎯 [DEBUG] formDataRef.current:', formDataRef.current);
+              const result = await submitForm(formDataRef.current);
+              logger.info('🎯 [DEBUG] Resultado do submitForm:', result);
+              return result;
+            };
+            
+            registerCustomSubmitCallback(customCallback);
+            logger.info('✅ [DEBUG] Callback personalizado registrado com sucesso!');
+          } else {
+            logger.warn('⚠️ [DEBUG] registerCustomSubmitCallback não disponível!');
+          }
+        }, [registerCustomSubmitCallback, submitForm]);
+
+        // Função wrapper para handleChange que apenas chama onFieldChange (SEM salvamento automático)
+        const handleFieldChangeSimple = (field: string, value: unknown) => {
           handleChange(field, value);
           onFieldChange?.();
         };
@@ -422,7 +548,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               label="Código de referência *"
               placeholder="Digite o código de referência"
               value={formData.codigo_referencia}
-              onChange={(e) => handleCodigoReferenciaChange(e.target.value, handleFieldChange)}
+              onChange={(e) => handleCodigoReferenciaChange(e.target.value, handleFieldChangeSimple)}
               required
             />
             
@@ -491,15 +617,15 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               Condomínio/empreendimento?
             </label>
             <div className="flex space-x-4">
-                          <RadioGroup
-              name="isCondominio"
-              options={[
-                { label: 'Sim', value: 'sim' },
-                { label: 'Não', value: 'nao' }
-              ]}
-              value={formData.isCondominio}
-              onChange={(value) => handleFieldChange('isCondominio', value)}
-            />
+              <RadioGroup
+                name="isCondominio"
+                options={[
+                  { label: 'Sim', value: 'sim' },
+                  { label: 'Não', value: 'nao' }
+                ]}
+                value={formData.isCondominio}
+                onChange={(value) => handleFieldChangeSimple('isCondominio', value)}
+              />
             </div>
           </div>
 
@@ -509,7 +635,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                 label="Nome do Condomínio/empreendimento *"
                 placeholder="Digite o nome do condomínio"
                 value={formData.condominio}
-                onChange={(e) => handleFieldChange('condominio', e.target.value)}
+                onChange={(e) => handleFieldChangeSimple('condominio', e.target.value)}
                 required
               />
             </div>
@@ -519,10 +645,17 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
             <Select
               label="Proprietário * (privado)"
               options={proprietarios}
-              value={formData.proprietario}
-              onChange={(e) => handleFieldChange('proprietario', e.target.value)}
+              value={formData.proprietario?.toString() || ''}
+              onChange={(e) => handleFieldChangeSimple('proprietario', e.target.value ? Number(e.target.value) : null)}
               required
+              disabled={loadingProprietarios}
             />
+            {loadingProprietarios && (
+              <p className="text-xs text-blue-600 mt-1 flex items-center">
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                Carregando proprietários...
+              </p>
+            )}
           </div>
 
           <div>
@@ -533,7 +666,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                 ...tipos.map(tipo => ({ value: tipo, label: tipo }))
               ]}
               value={formData.tipo}
-              onChange={(e) => handleTipoChange(e.target.value, formData, handleFieldChange)}
+              onChange={(e) => handleTipoChange(e.target.value, formData, handleFieldChangeSimple)}
               required
               disabled={loadingOptions}
             />
@@ -547,7 +680,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                 ...subtipos.map(subtipo => ({ value: subtipo, label: subtipo }))
               ]}
               value={formData.subtipo}
-              onChange={(e) => handleFieldChange('subtipo', e.target.value)}
+              onChange={(e) => handleFieldChangeSimple('subtipo', e.target.value)}
               required
               disabled={!formData.tipo}
             />
@@ -558,7 +691,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               label="Perfil do imóvel *"
               options={perfis}
               value={formData.perfil}
-              onChange={(e) => handleFieldChange('perfil', e.target.value)}
+              onChange={(e) => handleFieldChangeSimple('perfil', e.target.value)}
               required
             />
           </div>
@@ -568,7 +701,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               label="Situação *"
               options={situacoes}
               value={formData.situacao}
-              onChange={(e) => handleFieldChange('situacao', e.target.value)}
+              onChange={(e) => handleFieldChangeSimple('situacao', e.target.value)}
               required
             />
           </div>
@@ -579,7 +712,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               placeholder="Ex.: 2015"
               type="number"
               value={formData.ano_construcao}
-              onChange={(e) => handleFieldChange('ano_construcao', e.target.value)}
+              onChange={(e) => handleFieldChangeSimple('ano_construcao', e.target.value)}
             />
           </div>
 
@@ -588,7 +721,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               label="Incorporação"
               placeholder="Digite o número"
               value={formData.incorporacao}
-              onChange={(e) => handleFieldChange('incorporacao', e.target.value)}
+              onChange={(e) => handleFieldChangeSimple('incorporacao', e.target.value)}
             />
           </div>
 
@@ -597,7 +730,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               label="Posição solar"
               options={posicoesSolares}
               value={formData.posicaoSolar}
-              onChange={(e) => handleFieldChange('posicaoSolar', e.target.value)}
+              onChange={(e) => handleFieldChangeSimple('posicaoSolar', e.target.value)}
             />
           </div>
 
@@ -614,7 +747,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                   { label: 'Declive', value: 'declive' }
                 ]}
                 value={formData.terreno}
-                onChange={(value) => handleFieldChange('terreno', value)}
+                onChange={(value) => handleFieldChangeSimple('terreno', value)}
               />
             </div>
           </div>
@@ -631,7 +764,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                   { label: 'Não', value: 'nao' }
                 ]}
                 value={formData.escriturado}
-                onChange={(value) => handleFieldChange('escriturado', value)}
+                onChange={(value) => handleFieldChangeSimple('escriturado', value)}
               />
             </div>
           </div>
@@ -648,7 +781,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                   { label: 'Não', value: 'nao' }
                 ]}
                 value={formData.esquina}
-                onChange={(value) => handleFieldChange('esquina', value)}
+                onChange={(value) => handleFieldChangeSimple('esquina', value)}
               />
             </div>
           </div>
@@ -665,10 +798,36 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                   { label: 'Não', value: 'nao' }
                 ]}
                 value={formData.mobiliado}
-                onChange={(value) => handleFieldChange('mobiliado', value)}
+                onChange={(value) => handleFieldChangeSimple('mobiliado', value)}
               />
             </div>
           </div>
+
+          {/* Indicadores de salvamento da etapa na mudança de aba */}
+          {salvandoEtapa && (
+            <div className="col-span-2 mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-blue-700 text-sm flex items-center">
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Salvando dados na mudança de etapa...
+              </p>
+            </div>
+          )}
+          
+          {etapaSalva && !salvandoEtapa && (
+            <div className="col-span-2 mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-green-700 text-sm flex items-center">
+                ✓ Dados salvos com sucesso na mudança de etapa
+              </p>
+            </div>
+          )}
+          
+          {erroSalvamentoEtapa && !salvandoEtapa && (
+            <div className="col-span-2 mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-red-700 text-sm flex items-center">
+                ⚠ {erroSalvamentoEtapa}
+              </p>
+            </div>
+          )}
         </div>
         );
       }}

@@ -250,34 +250,55 @@ const ImovelCadastro: React.FC = () => {
 
   // Função para avançar para o próximo passo
   const handleNextStep = async () => {
+    logger.info('🔄 [DEBUG] handleNextStep chamado');
+    logger.info('🔄 [DEBUG] Etapa atual:', activeStep);
+    logger.info('🔄 [DEBUG] Executando callback da etapa atual antes de avançar...');
+    
     // Se houver um callback de submit para a etapa atual, executá-lo antes de avançar
     executeCallback(activeStep);
+    
+    logger.info('🔄 [DEBUG] Callback executado, avançando para próxima etapa...');
     
     const currentIndex = steps.findIndex(step => step.id === activeStep);
     if (currentIndex < steps.length - 1) {
       const nextStepId = steps[currentIndex + 1].id;
+      logger.info('🔄 [DEBUG] Mudando de etapa:', activeStep, '→', nextStepId);
       setActiveStep(nextStepId);
       // Carregar dados da próxima etapa se necessário
       loadStepData(nextStepId);
+    } else {
+      logger.info('🔄 [DEBUG] Já na última etapa, não é possível avançar');
     }
   };
 
   // Função para voltar ao passo anterior
   const handlePreviousStep = () => {
+    logger.info('🔄 [DEBUG] handlePreviousStep chamado');
+    logger.info('🔄 [DEBUG] Etapa atual:', activeStep);
+    
     const currentIndex = steps.findIndex(step => step.id === activeStep);
     if (currentIndex > 0) {
       const prevStepId = steps[currentIndex - 1].id;
+      logger.info('🔄 [DEBUG] Mudando de etapa:', activeStep, '→', prevStepId);
       setActiveStep(prevStepId);
       // Carregar dados da etapa anterior se necessário
       loadStepData(prevStepId);
+    } else {
+      logger.info('🔄 [DEBUG] Já na primeira etapa, não é possível voltar');
     }
   };
 
   // Função para mudar de etapa diretamente
   const handleStepChange = async (stepId: string) => {
+    logger.info('🔄 [DEBUG] handleStepChange chamado');
+    logger.info('🔄 [DEBUG] Etapa atual:', activeStep);
+    logger.info('🔄 [DEBUG] Nova etapa solicitada:', stepId);
+    logger.info('🔄 [DEBUG] Executando callback da etapa atual antes de mudar...');
+    
     // Se houver um callback de submit para a etapa atual, executá-lo antes de mudar
     executeCallback(activeStep);
     
+    logger.info('🔄 [DEBUG] Callback executado, mudando para nova etapa...');
     setActiveStep(stepId);
     // Carregar dados da etapa se necessário
     loadStepData(stepId);
