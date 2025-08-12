@@ -37,17 +37,25 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
   const [subtipos, setSubtipos] = useState<string[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
   
+  // Ref para controlar se os logs já foram exibidos
+  const logsExibidosRef = useRef(false);
+  
   // Log dos dados iniciais para debug
   useEffect(() => {
-    if (initialData) {
+    if (initialData && !logsExibidosRef.current) {
       logger.info('Dados iniciais recebidos:', initialData);
+      logsExibidosRef.current = true;
     }
   }, [initialData]);
   
+  // Ref para controlar se os subtipos já foram carregados automaticamente
+  const subtiposAutoLoadedRef = useRef(false);
+  
   // Carregar subtipos automaticamente quando há dados iniciais com tipo
   useEffect(() => {
-    if (initialData?.tipo && !subtipos.length) {
+    if (initialData?.tipo && !subtipos.length && !subtiposAutoLoadedRef.current) {
       logger.info(`Carregando subtipos automaticamente para tipo: ${initialData.tipo}`);
+      subtiposAutoLoadedRef.current = true;
       loadSubtipos(initialData.tipo as string);
     }
   }, [initialData?.tipo, subtipos.length]);

@@ -85,11 +85,7 @@ function WizardStep<T extends Record<string, unknown>>({
         <p className="text-neutral-gray-medium mb-6">{description}</p>
       )}
       
-      {hasDataSaved && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
-          <p className="text-green-700 text-sm">✓ Dados já salvos para esta etapa</p>
-        </div>
-      )}
+
       
       {children({
         formData: formData as T,

@@ -292,13 +292,13 @@ const ImovelCadastro: React.FC = () => {
   };
 
   // Função auxiliar para verificar se há dados salvos para uma etapa
-  const hasStepData = (stepId: string): boolean => {
+  const hasStepData = useCallback((stepId: string): boolean => {
     const stepData = formData[stepId];
     if (!stepData || typeof stepData !== 'object' || stepData === null) {
       return false;
     }
     return Object.keys(stepData as Record<string, unknown>).length > 0;
-  };
+  }, [formData]);
 
   // Renderiza o componente de acordo com o passo ativo
   const renderStepContent = () => {
