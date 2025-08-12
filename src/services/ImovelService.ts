@@ -435,12 +435,12 @@ export class ImovelService {
   }
 
   // Métodos para opções
-  static async getTipos(): Promise<ApiResponse<TipoImovel[]>> {
+  static async getTipos(): Promise<ApiResponse<string[]>> {
     const response = await api.get('/imoveis/opcoes/tipos');
     return response.data;
   }
 
-  static async getSubtipos(tipo: string): Promise<ApiResponse<SubtipoImovel[]>> {
+  static async getSubtipos(tipo: string): Promise<ApiResponse<string[]>> {
     const response = await api.get(`/imoveis/opcoes/subtipos/${tipo}`);
     return response.data;
   }

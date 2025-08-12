@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { RadioGroup } from '../ui/RadioGroup';
-import { ImovelService, TipoImovel, SubtipoImovel } from '../../services/ImovelService';
+import { ImovelService } from '../../services/ImovelService';
 import WizardStep from '../wizard/WizardStep';
 import logger from '../../utils/logger';
 
@@ -32,8 +32,8 @@ interface InformacoesForm extends Record<string, unknown> {
 
 const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, submitCallback }) => {
   // Estado para opções da API
-  const [tipos, setTipos] = useState<TipoImovel[]>([]);
-  const [subtipos, setSubtipos] = useState<SubtipoImovel[]>([]);
+  const [tipos, setTipos] = useState<string[]>([]);
+  const [subtipos, setSubtipos] = useState<string[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
 
   // Dados iniciais do formulário
@@ -212,7 +212,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               label="Tipo *"
               options={[
                 { value: '', label: 'Selecione' },
-                ...tipos.map(tipo => ({ value: tipo.nome, label: tipo.nome }))
+                ...tipos.map(tipo => ({ value: tipo, label: tipo }))
               ]}
               value={formData.tipo}
               onChange={(e) => {
@@ -233,7 +233,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               label="Subtipo *"
               options={[
                 { value: '', label: 'Selecione' },
-                ...subtipos.map(subtipo => ({ value: subtipo.nome, label: subtipo.nome }))
+                ...subtipos.map(subtipo => ({ value: subtipo, label: subtipo }))
               ]}
               value={formData.subtipo}
               onChange={(e) => handleChange('subtipo', e.target.value)}
