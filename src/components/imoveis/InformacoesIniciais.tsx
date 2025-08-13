@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { RadioGroup } from '../ui/RadioGroup';
-import { ImovelService, InformacoesIniciais as InformacoesIniciaisInterface } from '../../services/ImovelService';
+import { ImovelService } from '../../services/ImovelService';
 import { ClienteService, ProprietarioOption } from '../../services/ClienteService';
 import api from '../../services/api';
 import WizardStep from '../wizard/WizardStep';
@@ -71,10 +71,8 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
   const [codigoSalvo, setCodigoSalvo] = useState(false);
   const [erroSalvamento, setErroSalvamento] = useState<string | null>(null);
   
-  // Estados para salvamento da etapa na mudança de aba
-  const [salvandoEtapa, setSalvandoEtapa] = useState(false);
-  const [etapaSalva, setEtapaSalva] = useState(false);
-  const [erroSalvamentoEtapa, setErroSalvamentoEtapa] = useState<string | null>(null);
+  // Removidos estados de salvamento da etapa que não são mais necessários
+  // já que cada campo é salvo individualmente
   
   // Removido ref de controle de logs
   
@@ -451,76 +449,8 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
           await salvarCodigoReferencia(value, true);
         }
       }, 500);
-
-// Removida função gerarSiglaTipo não utilizada
     }
-
-    setSalvandoEtapa(true);
-    setErroSalvamentoEtapa(null);
-    setEtapaSalva(false);
-    
-    try {
-      
-      // Mapear dados do formulário para formato da API
-      const dadosParaAPI: Partial<InformacoesIniciaisInterface> = {
-        codigo_referencia: formDataRef.current.codigo_referencia as string,
-        tipo: formDataRef.current.tipo as string,
-        subtipo: formDataRef.current.subtipo as string,
-        perfil: formDataRef.current.perfil as string,
-        situacao: formDataRef.current.situacao as string,
-        ano_construcao: formDataRef.current.ano_construcao ? Number(formDataRef.current.ano_construcao) : null,
-        proprietario_id: formDataRef.current.proprietario as number | null,
-        // Mapear campos adicionais do formulário para campos da API
-        // Nova abordagem: Não enviar condominio_id no payload de mudança de aba
-        // O condominio_id agora é atualizado imediatamente quando o usuário seleciona um valor
-        // ou quando muda isCondominio para "nao"
-        // condominio_id: removido do payload,
-        incorporacao: formDataRef.current.incorporacao as string || null,
-        posicao_solar: formDataRef.current.posicaoSolar as string || null,
-        terreno: formDataRef.current.terreno as string || null,
-        averbado: formDataRef.current.averbado === 'sim', // Converter string para boolean
-        escriturado: formDataRef.current.escriturado === 'sim', // Converter string para boolean
-        esquina: formDataRef.current.esquina === 'sim', // Converter string para boolean
-        mobiliado: formDataRef.current.mobiliado === 'sim', // Converter string para boolean
-        // Campos que não existem na interface da API serão ignorados
-        // mas mantemos os campos principais para compatibilidade
-      };
-
-      // Nova abordagem: Não enviar is_condominio no payload de mudança de aba
-      // O is_condominio agora é atualizado implicitamente quando o usuário seleciona um condomínio
-      // ou quando muda isCondominio para "nao"
-      
-      // Log para confirmar que não estamos enviando dados de condomínio
-
-      
-      // Remover campos undefined/null do payload
-      Object.keys(dadosParaAPI).forEach(key => {
-        // Remover campos undefined/null
-        if (dadosParaAPI[key as keyof typeof dadosParaAPI] === undefined || dadosParaAPI[key as keyof typeof dadosParaAPI] === null) {
-          delete dadosParaAPI[key as keyof typeof dadosParaAPI];
-        }
-      });
-      
-      // Não chamar a API diretamente aqui para evitar chamada duplicada
-      // Apenas notificar o componente pai com os dados já formatados corretamente
-      onUpdate(dadosParaAPI, true);
-      
-      setEtapaSalva(true);
-      
-      // Reset do estado de sucesso após 3 segundos
-      setTimeout(() => {
-        setEtapaSalva(false);
-      }, 3000);
-      
-      return true;
-    } catch (error) {
-      // Tratar erro sem log detalhado
-      setErroSalvamentoEtapa('Erro ao preparar dados. Tente novamente.');
-      return false;
-    } finally {
-      setSalvandoEtapa(false);
-    }
-  }, [imovelId, onUpdate]);
+  }, [codigoEditadoManualmente, validarCodigoReferencia, salvarCodigoReferencia, imovelId]);
 
   // Ref para armazenar os dados atuais do formulário
   const formDataRef = useRef<InformacoesForm>(initialFormData);
@@ -554,71 +484,47 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
 
 
 
-        // Registrar o callback personalizado diretamente no WizardStep
+        // Registrar o callback personalizado simplificado no WizardStep
         useEffect(() => {
           if (registerCustomSubmitCallback) {
-            // Criamos uma função que vai capturar os dados mais recentes no momento da execução
+            // Callback simplificado - não precisa mais salvar os dados, apenas garantir
+            // que os dados estão atualizados para o componente pai
             const customCallback = async () => {
               try {
-                // Obter os dados mais recentes do formulário diretamente do DOM
+                // Verificar o estado atual do radio isCondominio diretamente do DOM
+                // para garantir que temos o valor mais recente
                 const radioSim = document.querySelector('input[name="isCondominio"][value="sim"]') as HTMLInputElement;
                 const radioNao = document.querySelector('input[name="isCondominio"][value="nao"]') as HTMLInputElement;
                 
                 // Determinar o valor atual do isCondominio baseado no estado do DOM
                 const isCondominioAtual = radioSim?.checked ? 'sim' : (radioNao?.checked ? 'nao' : formDataRef.current.isCondominio);
                 
-                // Criar uma cópia atualizada dos dados do formulário
-                const currentFormData = {
-                  ...formDataRef.current,
-                  isCondominio: isCondominioAtual
-                };
-                
-                // Forçar o valor correto de condominio baseado no isCondominio atual
-                if (isCondominioAtual === 'nao') {
-                  currentFormData.condominio = null;
+                // Atualizar apenas o valor de isCondominio se necessário
+                if (formDataRef.current.isCondominio !== isCondominioAtual) {
+                  formDataRef.current = {
+                    ...formDataRef.current,
+                    isCondominio: isCondominioAtual
+                  };
+                  
+                  // Forçar o valor correto de condominio baseado no isCondominio atual
+                  if (isCondominioAtual === 'nao') {
+                    formDataRef.current.condominio = null;
+                  }
                 }
                 
-                // Atualizar formDataRef com os dados mais recentes
-                formDataRef.current = { ...currentFormData };
-                
-                // Mapear dados do formulário para formato da API
-                const dadosParaAPI: Partial<InformacoesIniciaisInterface> = {
-                  codigo_referencia: currentFormData.codigo_referencia as string,
-                  tipo: currentFormData.tipo as string,
-                  subtipo: currentFormData.subtipo as string,
-                  perfil: currentFormData.perfil as string,
-                  situacao: currentFormData.situacao as string,
-                  ano_construcao: currentFormData.ano_construcao ? Number(currentFormData.ano_construcao) : null,
-                  proprietario_id: currentFormData.proprietario as number | null,
-                  incorporacao: currentFormData.incorporacao as string || null,
-                  posicao_solar: currentFormData.posicaoSolar as string || null,
-                  terreno: currentFormData.terreno as string || null,
-                  averbado: currentFormData.averbado === 'sim',
-                  escriturado: currentFormData.escriturado === 'sim',
-                  esquina: currentFormData.esquina === 'sim',
-                  mobiliado: currentFormData.mobiliado === 'sim',
-                };
-                
-                // Remover campos undefined/null do payload
-                Object.keys(dadosParaAPI).forEach(key => {
-                  if (dadosParaAPI[key as keyof typeof dadosParaAPI] === undefined || 
-                      dadosParaAPI[key as keyof typeof dadosParaAPI] === null) {
-                    delete dadosParaAPI[key as keyof typeof dadosParaAPI];
-                  }
-                });
-                
-                // Notificar o componente pai com os dados formatados
-                onUpdate(dadosParaAPI, true);
+                // Como todos os campos já são salvos individualmente,
+                // apenas notificar o componente pai que estamos prontos para avançar
+                // sem enviar dados para a API novamente
                 return true;
               } catch (error) {
-                logger.error('[CONDOMINIO] Erro ao capturar estado atual:', error);
+                logger.error('[CALLBACK] Erro ao processar callback:', error);
                 return false;
               }
             };
             
             registerCustomSubmitCallback(customCallback);
           }
-        }, [registerCustomSubmitCallback, onUpdate]);
+        }, [registerCustomSubmitCallback]);
 
         // Função wrapper para handleChange que salva automaticamente cada campo alterado
         const handleFieldChangeSimple = (field: string, value: unknown) => {
@@ -1076,31 +982,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
             </div>
           </div>
 
-          {/* Indicadores de salvamento da etapa na mudança de aba */}
-          {salvandoEtapa && (
-            <div className="col-span-2 mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-blue-700 text-sm flex items-center">
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Salvando dados na mudança de etapa...
-              </p>
-            </div>
-          )}
-          
-          {etapaSalva && !salvandoEtapa && (
-            <div className="col-span-2 mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
-              <p className="text-green-700 text-sm flex items-center">
-                ✓ Dados salvos com sucesso na mudança de etapa
-              </p>
-            </div>
-          )}
-          
-          {erroSalvamentoEtapa && !salvandoEtapa && (
-            <div className="col-span-2 mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-red-700 text-sm flex items-center">
-                ⚠ {erroSalvamentoEtapa}
-              </p>
-            </div>
-          )}
+          {/* Indicadores de salvamento por campo são exibidos individualmente em cada campo */}
         </div>
         );
       }}
