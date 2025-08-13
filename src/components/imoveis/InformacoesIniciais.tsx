@@ -194,7 +194,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
         setCondominios(condominiosComOpcaoVazia);
         
         // Carregamento de perfis
-        const perfisResponse = await api.get('/api/perfis/select');
+        const perfisResponse = await api.get('/perfis/select');
         const perfisMapeados = perfisResponse.data.map((item: any) => {
           if ('value' in item && 'label' in item) {
             return {
@@ -219,7 +219,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
         setPerfis(perfisComOpcaoVazia);
         
         // Carregamento de situações
-        const situacoesResponse = await api.get('/api/situacoes/select');
+        const situacoesResponse = await api.get('/situacoes/select');
         const situacoesMapeadas = situacoesResponse.data.map((item: any) => {
           if ('value' in item && 'label' in item) {
             return {
@@ -244,7 +244,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
         setSituacoes(situacoesComOpcaoVazia);
         
         // Carregamento de posições solares
-        const posicoesResponse = await api.get('/api/posicoes-solares/select');
+        const posicoesResponse = await api.get('/posicoes-solares/select');
         const posicoesMapeadas = posicoesResponse.data.map((item: any) => {
           if ('value' in item && 'label' in item) {
             return {
