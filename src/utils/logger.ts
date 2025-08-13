@@ -1,9 +1,9 @@
 const isDevelopment = process.env.NODE_ENV === 'development';
 // Mudar esta linha em logger.ts:
 // De:
-const isDebugEnabled = isDevelopment && (localStorage.getItem('debug') === 'true');
+// const isDebugEnabled = isDevelopment && (localStorage.getItem('debug') === 'true');
 // Para:
-// const isDebugEnabled = false; // Força desativação de logs debug # NUNCA APAGAR ESTA LINHA.
+const isDebugEnabled = false; // Força desativação de logs debug # NUNCA APAGAR ESTA LINHA.
 
 interface Logger {
   debug: (message: string, ...args: unknown[]) => void;
@@ -22,17 +22,24 @@ const logger: Logger = {
   },
   
   info: (message: string, ...args: unknown[]) => {
-    if (isDevelopment) {
+    // Filtrar logs para mostrar apenas os relacionados a condomínio
+    if (isDevelopment && message.includes('[CONDOMINIO]')) {
       console.info(`[INFO] ${message}`, ...args);
     }
   },
   
   warn: (message: string, ...args: unknown[]) => {
-    console.warn(`[WARN] ${message}`, ...args);
-    },
+    // Filtrar logs de aviso para mostrar apenas os relacionados a condomínio
+    if (message.includes('[CONDOMINIO]')) {
+      console.warn(`[WARN] ${message}`, ...args);
+    }
+  },
   
   error: (message: string, ...args: unknown[]) => {
-    console.error(`[ERROR] ${message}`, ...args);
+    // Filtrar logs de erro para mostrar apenas os relacionados a condomínio
+    if (message.includes('[CONDOMINIO]')) {
+      console.error(`[ERROR] ${message}`, ...args);
+    }
   },
   
   enableDebug: () => {
