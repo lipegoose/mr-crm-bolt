@@ -616,7 +616,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Input
-              label="Código de referência *"
+              label="Código de referência"
               placeholder="Digite o código de referência"
               value={formData.codigo_referencia}
               onChange={(e) => handleCodigoReferenciaChange(e.target.value, handleFieldChangeSimple)}
@@ -720,7 +720,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
           {formData.isCondominio === 'sim' && (
             <div>
               <Select
-                label="Condomínio/empreendimento *"
+                label="Condomínio/empreendimento"
                 options={condominios}
                 value={formData.condominio?.toString() || ''}
                 onChange={(e) => {
@@ -805,7 +805,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
 
           <div>
             <Select
-              label="Proprietário * (privado)"
+              label="Proprietário (privado)"
               options={proprietarios}
               value={formData.proprietario?.toString() || ''}
               onChange={(e) => handleFieldChangeSimple('proprietario', e.target.value ? Number(e.target.value) : null)}
@@ -822,7 +822,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
 
           <div>
             <Select
-              label="Tipo *"
+              label="Tipo"
               options={[
                 { value: '', label: 'Selecione' },
                 ...tipos.map(tipo => ({ value: tipo, label: tipo }))
@@ -836,7 +836,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
 
           <div>
             <Select
-              label="Subtipo *"
+              label="Subtipo"
               options={[
                 { value: '', label: 'Selecione' },
                 ...subtipos.map(subtipo => ({ value: subtipo, label: subtipo }))
@@ -850,7 +850,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
 
           <div>
             <Select
-              label="Perfil do imóvel *"
+              label="Perfil do imóvel"
               options={perfis}
               value={formData.perfil}
               onChange={(e) => handleFieldChangeSimple('perfil', e.target.value)}
@@ -860,7 +860,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
 
           <div>
             <Select
-              label="Situação *"
+              label="Situação"
               options={situacoes}
               value={formData.situacao}
               onChange={(e) => handleFieldChangeSimple('situacao', e.target.value)}
