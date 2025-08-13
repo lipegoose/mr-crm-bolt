@@ -120,41 +120,15 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
 
 
 
-  // Lista de perfis
-  const perfis = [
-    { value: '', label: 'Selecione' },
-    { value: 'RESIDENCIAL', label: 'Residencial' },
-    { value: 'COMERCIAL', label: 'Comercial' },
-    { value: 'RESIDENCIAL-COMERCIAL', label: 'Residencial/Comercial' },
-    { value: 'INDUSTRIAL', label: 'Industrial' },
-    { value: 'RURAL', label: 'Rural' },
-    { value: 'TEMPORADA', label: 'Temporada' },
-  ];
-
-  // Lista de situações
-  const situacoes = [
-    { value: '', label: 'Selecione' },
-    { value: 'PRONTO', label: 'Pronto para morar' },
-    { value: 'CONSTRUCAO', label: 'Em construção' },
-    { value: 'PLANTA', label: 'Na planta' },
-    { value: 'REFORMA', label: 'Em reforma' },
-  ];
-
-  // Lista de posições solares
-  const posicoesSolares = [
-    { value: '', label: 'Selecione' },
-    { value: 'LESTE', label: 'Leste' },
-    { value: 'OESTE', label: 'Oeste' },
-    { value: 'NORTE', label: 'Norte' },
-    { value: 'SUL', label: 'Sul' },
-    { value: 'NORDESTE', label: 'Nordeste' },
-    { value: 'SUDESTE', label: 'Sudeste' },
-    { value: 'SUDOESTE', label: 'Sudoeste' },
-    { value: 'NOROESTE', label: 'Noroeste' },
-    { value: 'SOL-MANHA', label: 'Sol da manhã' },
-    { value: 'SOL-TARDE', label: 'Sol da tarde' },
-    { value: 'SOL-MANHA-TARDE', label: 'Sol da manhã e tarde' },
-  ];
+  // Estados para armazenar dados das APIs
+  const [perfis, setPerfis] = useState<{ value: string; label: string }[]>([{ value: '', label: 'Selecione' }]);
+  const [situacoes, setSituacoes] = useState<{ value: string; label: string }[]>([{ value: '', label: 'Selecione' }]);
+  const [posicoesSolares, setPosicoesSolares] = useState<{ value: string; label: string }[]>([{ value: '', label: 'Selecione' }]);
+  
+  // Estados para controlar carregamento
+  const [loadingPerfis, setLoadingPerfis] = useState(false);
+  const [loadingSituacoes, setLoadingSituacoes] = useState(false);
+  const [loadingPosicoesSolares, setLoadingPosicoesSolares] = useState(false);
 
   // Ref para controlar se as opções já foram carregadas
   const optionsLoadedRef = useRef(false);
@@ -174,6 +148,9 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
       setLoadingOptions(true);
       setLoadingProprietarios(true);
       setLoadingCondominios(true);
+      setLoadingPerfis(true);
+      setLoadingSituacoes(true);
+      setLoadingPosicoesSolares(true);
       
       try {
         // Carregamento de tipos de imóveis
@@ -215,6 +192,81 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
         ];
         
         setCondominios(condominiosComOpcaoVazia);
+        
+        // Carregamento de perfis
+        const perfisResponse = await api.get('/api/perfis/select');
+        const perfisMapeados = perfisResponse.data.map((item: any) => {
+          if ('value' in item && 'label' in item) {
+            return {
+              value: String(item.value),
+              label: item.label
+            };
+          } else if ('id' in item && 'nome' in item) {
+            return {
+              value: String(item.id),
+              label: item.nome
+            };
+          } else {
+            return { value: '', label: 'Erro ao carregar' };
+          }
+        });
+        
+        const perfisComOpcaoVazia = [
+          { value: '', label: 'Selecione' },
+          ...perfisMapeados
+        ];
+        
+        setPerfis(perfisComOpcaoVazia);
+        
+        // Carregamento de situações
+        const situacoesResponse = await api.get('/api/situacoes/select');
+        const situacoesMapeadas = situacoesResponse.data.map((item: any) => {
+          if ('value' in item && 'label' in item) {
+            return {
+              value: String(item.value),
+              label: item.label
+            };
+          } else if ('id' in item && 'nome' in item) {
+            return {
+              value: String(item.id),
+              label: item.nome
+            };
+          } else {
+            return { value: '', label: 'Erro ao carregar' };
+          }
+        });
+        
+        const situacoesComOpcaoVazia = [
+          { value: '', label: 'Selecione' },
+          ...situacoesMapeadas
+        ];
+        
+        setSituacoes(situacoesComOpcaoVazia);
+        
+        // Carregamento de posições solares
+        const posicoesResponse = await api.get('/api/posicoes-solares/select');
+        const posicoesMapeadas = posicoesResponse.data.map((item: any) => {
+          if ('value' in item && 'label' in item) {
+            return {
+              value: String(item.value),
+              label: item.label
+            };
+          } else if ('id' in item && 'nome' in item) {
+            return {
+              value: String(item.id),
+              label: item.nome
+            };
+          } else {
+            return { value: '', label: 'Erro ao carregar' };
+          }
+        });
+        
+        const posicoesComOpcaoVazia = [
+          { value: '', label: 'Selecione' },
+          ...posicoesMapeadas
+        ];
+        
+        setPosicoesSolares(posicoesComOpcaoVazia);
       } catch (error) {
         // Tratar erro sem log detalhado
         // Reset do ref em caso de erro para permitir nova tentativa
@@ -223,6 +275,9 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
         setLoadingOptions(false);
         setLoadingProprietarios(false);
         setLoadingCondominios(false);
+        setLoadingPerfis(false);
+        setLoadingSituacoes(false);
+        setLoadingPosicoesSolares(false);
       }
     };
     
@@ -855,7 +910,14 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               value={formData.perfil}
               onChange={(e) => handleFieldChangeSimple('perfil', e.target.value)}
               required
+              disabled={loadingPerfis}
             />
+            {loadingPerfis && (
+              <p className="text-xs text-blue-600 mt-1 flex items-center">
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                Carregando perfis...
+              </p>
+            )}
           </div>
 
           <div>
@@ -865,7 +927,14 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               value={formData.situacao}
               onChange={(e) => handleFieldChangeSimple('situacao', e.target.value)}
               required
+              disabled={loadingSituacoes}
             />
+            {loadingSituacoes && (
+              <p className="text-xs text-blue-600 mt-1 flex items-center">
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                Carregando situações...
+              </p>
+            )}
           </div>
 
           <div>
@@ -893,7 +962,14 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
               options={posicoesSolares}
               value={formData.posicaoSolar}
               onChange={(e) => handleFieldChangeSimple('posicaoSolar', e.target.value)}
+              disabled={loadingPosicoesSolares}
             />
+            {loadingPosicoesSolares && (
+              <p className="text-xs text-blue-600 mt-1 flex items-center">
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                Carregando posições solares...
+              </p>
+            )}
           </div>
 
           <div>
