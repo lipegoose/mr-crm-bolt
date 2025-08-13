@@ -189,31 +189,23 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
         // Carregamento de condomínios - manter log para depuração do campo condominio
         const condominiosResponse = await api.get('/condominios/select');
         
-        // Log para debug da resposta original da API
-        logger.info('[CONDOMINIO] Resposta original da API:', JSON.stringify(condominiosResponse.data));
-        
         // Mapear os dados para o formato esperado pelo componente Select
         const condominiosMapeados = condominiosResponse.data.map((item: any) => {
           // Verificar o formato dos dados recebidos
           if ('value' in item && 'label' in item) {
             // Já está no formato correto, apenas garantir que value seja string
-            const mappedItem = {
+            return {
               value: String(item.value),
               label: item.label
             };
-            logger.info('[CONDOMINIO] Item já mapeado:', JSON.stringify(mappedItem));
-            return mappedItem;
           } else if ('id' in item && 'nome' in item) {
             // Está no formato CondominioAPI, converter para o formato esperado
-            const mappedItem = {
+            return {
               value: String(item.id),
               label: item.nome
             };
-            logger.info('[CONDOMINIO] Item convertido de CondominioAPI:', JSON.stringify(mappedItem));
-            return mappedItem;
           } else {
-            // Formato desconhecido, log para debug
-            logger.info('[CONDOMINIO] Formato de item desconhecido:', item);
+            // Formato desconhecido
             return { value: '', label: 'Erro ao carregar' };
           }
         });
@@ -225,10 +217,6 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
         ];
         
         setCondominios(condominiosComOpcaoVazia);
-        
-        // Log essencial para nossa investigação
-        logger.info('[CONDOMINIO] Condomínios carregados:', condominiosComOpcaoVazia.length);
-        logger.info('[CONDOMINIO] Dados dos condomínios formatados:', JSON.stringify(condominiosComOpcaoVazia));
       } catch (error) {
         // Tratar erro sem log detalhado
         // Reset do ref em caso de erro para permitir nova tentativa
@@ -463,29 +451,8 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
           await salvarCodigoReferencia(value, true);
         }
       }, 500);
-    }
-  }, [codigoEditadoManualmente, imovelId, validarCodigoReferencia, salvarCodigoReferencia]);
 
-  // Função para submeter os dados quando mudar de etapa
-  const submitForm = useCallback(async (formData: InformacoesForm) => {
-    // Log para debug dos dados recebidos na função submitForm
-    logger.info('[CONDOMINIO] submitForm recebeu - isCondominio:', formData.isCondominio, '/ condominio:', formData.condominio);
-    
-    // Garantir que condominio seja null quando isCondominio for 'nao'
-    const dadosCorrigidos = {
-      ...formData,
-      condominio: formData.isCondominio === 'nao' ? null : formData.condominio
-    };
-    
-    if (formData.isCondominio === 'nao' && formData.condominio !== null) {
-      logger.info('[CONDOMINIO] Corrigindo inconsistência: isCondominio = nao mas condominio não é null');
-    }
-    
-    // Usar os dados corrigidos para o restante da função
-    formData = dadosCorrigidos;
-    
-    if (!imovelId) {
-      return false;
+// Removida função gerarSiglaTipo não utilizada
     }
 
     setSalvandoEtapa(true);
@@ -496,25 +463,25 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
       
       // Mapear dados do formulário para formato da API
       const dadosParaAPI: Partial<InformacoesIniciaisInterface> = {
-        codigo_referencia: formData.codigo_referencia as string,
-        tipo: formData.tipo as string,
-        subtipo: formData.subtipo as string,
-        perfil: formData.perfil as string,
-        situacao: formData.situacao as string,
-        ano_construcao: formData.ano_construcao ? Number(formData.ano_construcao) : null,
-        proprietario_id: formData.proprietario as number | null,
+        codigo_referencia: formDataRef.current.codigo_referencia as string,
+        tipo: formDataRef.current.tipo as string,
+        subtipo: formDataRef.current.subtipo as string,
+        perfil: formDataRef.current.perfil as string,
+        situacao: formDataRef.current.situacao as string,
+        ano_construcao: formDataRef.current.ano_construcao ? Number(formDataRef.current.ano_construcao) : null,
+        proprietario_id: formDataRef.current.proprietario as number | null,
         // Mapear campos adicionais do formulário para campos da API
         // Nova abordagem: Não enviar condominio_id no payload de mudança de aba
         // O condominio_id agora é atualizado imediatamente quando o usuário seleciona um valor
         // ou quando muda isCondominio para "nao"
         // condominio_id: removido do payload,
-        incorporacao: formData.incorporacao as string || null,
-        posicao_solar: formData.posicaoSolar as string || null,
-        terreno: formData.terreno as string || null,
-        averbado: formData.averbado === 'sim', // Converter string para boolean
-        escriturado: formData.escriturado === 'sim', // Converter string para boolean
-        esquina: formData.esquina === 'sim', // Converter string para boolean
-        mobiliado: formData.mobiliado === 'sim', // Converter string para boolean
+        incorporacao: formDataRef.current.incorporacao as string || null,
+        posicao_solar: formDataRef.current.posicaoSolar as string || null,
+        terreno: formDataRef.current.terreno as string || null,
+        averbado: formDataRef.current.averbado === 'sim', // Converter string para boolean
+        escriturado: formDataRef.current.escriturado === 'sim', // Converter string para boolean
+        esquina: formDataRef.current.esquina === 'sim', // Converter string para boolean
+        mobiliado: formDataRef.current.mobiliado === 'sim', // Converter string para boolean
         // Campos que não existem na interface da API serão ignorados
         // mas mantemos os campos principais para compatibilidade
       };
@@ -524,7 +491,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
       // ou quando muda isCondominio para "nao"
       
       // Log para confirmar que não estamos enviando dados de condomínio
-      logger.info('[CONDOMINIO] Payload final - Não enviando is_condominio e condominio_id na mudança de aba');
+
       
       // Remover campos undefined/null do payload
       Object.keys(dadosParaAPI).forEach(key => {
@@ -573,23 +540,19 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
         // Atualizar a ref com os dados atuais do formulário
         // Garantir que formDataRef.current sempre tenha os dados mais recentes
         useEffect(() => {
+          // Atualizar a referência com os dados mais recentes do formulário
+          // Isso garante que sempre tenhamos os dados mais atualizados
           formDataRef.current = { ...formData };
-          // Apenas log quando os campos relevantes mudarem
-          if (formData.isCondominio !== undefined || formData.condominio !== undefined) {
-            // Log essencial para nossa investigação
-            logger.info('[CONDOMINIO] formDataRef atualizado - isCondominio:', formData.isCondominio, '/ condominio:', formData.condominio);
-          }
         }, [formData]);
         
         // Efeito para limpar o campo condominio quando isCondominio for 'nao'
         useEffect(() => {
-          // Log simplificado apenas quando relevante
           if (formData.isCondominio === 'nao' && formData.condominio !== null) {
-            // Log essencial para nossa investigação
-            logger.info('[CONDOMINIO] Limpando valor do condomínio porque isCondominio = nao');
             handleChange('condominio', null);
           }
         }, [formData.isCondominio, formData.condominio, handleChange]);
+
+
 
         // Registrar o callback personalizado diretamente no WizardStep
         useEffect(() => {
@@ -602,58 +565,145 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                 const radioNao = document.querySelector('input[name="isCondominio"][value="nao"]') as HTMLInputElement;
                 
                 // Determinar o valor atual do isCondominio baseado no estado do DOM
-                const isCondominioAtual = radioSim?.checked ? 'sim' : (radioNao?.checked ? 'nao' : formData.isCondominio);
+                const isCondominioAtual = radioSim?.checked ? 'sim' : (radioNao?.checked ? 'nao' : formDataRef.current.isCondominio);
                 
                 // Criar uma cópia atualizada dos dados do formulário
                 const currentFormData = {
-                  ...formData,
+                  ...formDataRef.current,
                   isCondominio: isCondominioAtual
                 };
                 
                 // Forçar o valor correto de condominio baseado no isCondominio atual
                 if (isCondominioAtual === 'nao') {
                   currentFormData.condominio = null;
-                  logger.info('[CONDOMINIO] Forçando condominio = null porque isCondominio = nao');
                 }
-                
-                // Log essencial para nossa investigação
-                logger.info('[CONDOMINIO] Estado REAL antes do envio - isCondominio:', currentFormData.isCondominio, '/ condominio:', currentFormData.condominio);
                 
                 // Atualizar formDataRef com os dados mais recentes
                 formDataRef.current = { ...currentFormData };
                 
-                // Usar os dados atualizados para garantir que temos os valores mais recentes
-                const result = await submitForm(currentFormData);
-                return result;
+                // Mapear dados do formulário para formato da API
+                const dadosParaAPI: Partial<InformacoesIniciaisInterface> = {
+                  codigo_referencia: currentFormData.codigo_referencia as string,
+                  tipo: currentFormData.tipo as string,
+                  subtipo: currentFormData.subtipo as string,
+                  perfil: currentFormData.perfil as string,
+                  situacao: currentFormData.situacao as string,
+                  ano_construcao: currentFormData.ano_construcao ? Number(currentFormData.ano_construcao) : null,
+                  proprietario_id: currentFormData.proprietario as number | null,
+                  incorporacao: currentFormData.incorporacao as string || null,
+                  posicao_solar: currentFormData.posicaoSolar as string || null,
+                  terreno: currentFormData.terreno as string || null,
+                  averbado: currentFormData.averbado === 'sim',
+                  escriturado: currentFormData.escriturado === 'sim',
+                  esquina: currentFormData.esquina === 'sim',
+                  mobiliado: currentFormData.mobiliado === 'sim',
+                };
+                
+                // Remover campos undefined/null do payload
+                Object.keys(dadosParaAPI).forEach(key => {
+                  if (dadosParaAPI[key as keyof typeof dadosParaAPI] === undefined || 
+                      dadosParaAPI[key as keyof typeof dadosParaAPI] === null) {
+                    delete dadosParaAPI[key as keyof typeof dadosParaAPI];
+                  }
+                });
+                
+                // Notificar o componente pai com os dados formatados
+                onUpdate(dadosParaAPI, true);
+                return true;
               } catch (error) {
                 logger.error('[CONDOMINIO] Erro ao capturar estado atual:', error);
-                // Em caso de erro, usar os dados do formData normalmente
-                return await submitForm(formData);
+                return false;
               }
             };
             
             registerCustomSubmitCallback(customCallback);
-            logger.info('[CONDOMINIO] Callback de envio registrado com captura de estado atual');
           }
-        }, [registerCustomSubmitCallback, submitForm, formData]);
+        }, [registerCustomSubmitCallback, onUpdate]);
 
-        // Função wrapper para handleChange que apenas chama onFieldChange (SEM salvamento automático)
+        // Função wrapper para handleChange que salva automaticamente cada campo alterado
         const handleFieldChangeSimple = (field: string, value: unknown) => {
           // Se estiver alterando o campo isCondominio para 'nao', limpar o campo condominio
           if (field === 'isCondominio') {
-            // Log essencial para nossa investigação
-            logger.info(`[CONDOMINIO] Campo isCondominio alterado para: ${value}`);
-            
             if (value === 'nao') {
-              // Log essencial para nossa investigação
-              logger.info('[CONDOMINIO] Limpando valor do condomínio porque isCondominio = nao');
               // Limpar o campo condominio diretamente
               handleChange('condominio', null);
             }
           }
           
+          // Atualizar o campo no estado local do formulário
           handleChange(field, value);
+          
+          // Notificar sobre a mudança de campo (comportamento original)
           onFieldChange?.();
+          
+          // Não salvar automaticamente os campos que já têm salvamento específico
+          // (isCondominio, condominio e codigo_referencia já têm lógica própria)
+          if (field === 'isCondominio' || field === 'condominio' || field === 'codigo_referencia') {
+            return;
+          }
+          
+          // Para todos os outros campos, salvar imediatamente no backend
+          if (imovelId) {
+            // Criar payload com apenas o campo alterado
+            const payload: Record<string, any> = {};
+            
+            // Mapear o nome do campo do formulário para o nome do campo na API
+            switch (field) {
+              case 'tipo':
+                payload.tipo = value as string;
+                break;
+              case 'subtipo':
+                payload.subtipo = value as string;
+                break;
+              case 'perfil':
+                payload.perfil = value as string;
+                break;
+              case 'situacao':
+                payload.situacao = value as string;
+                break;
+              case 'ano_construcao':
+                payload.ano_construcao = value ? Number(value) : null;
+                break;
+              case 'proprietario':
+                payload.proprietario_id = value as number | null;
+                break;
+              case 'incorporacao':
+                payload.incorporacao = value as string || null;
+                break;
+              case 'posicaoSolar':
+                payload.posicao_solar = value as string || null;
+                break;
+              case 'terreno':
+                payload.terreno = value as string || null;
+                break;
+              case 'averbado':
+                payload.averbado = value === 'sim';
+                break;
+              case 'escriturado':
+                payload.escriturado = value === 'sim';
+                break;
+              case 'esquina':
+                payload.esquina = value === 'sim';
+                break;
+              case 'mobiliado':
+                payload.mobiliado = value === 'sim';
+                break;
+              default:
+                // Campo não mapeado, não enviar para a API
+                return;
+            }
+            
+            // Enviar requisição PUT para atualizar apenas o campo alterado
+            api.put(`/imoveis/${imovelId}`, payload)
+              .then(() => {
+                // Campo atualizado com sucesso
+                // Atualizar formDataRef para garantir que temos os dados mais recentes
+                formDataRef.current = { ...formDataRef.current, [field]: value };
+              })
+              .catch((error) => {
+                logger.error(`[CAMPO] Erro ao atualizar campo ${field}:`, error);
+              });
+          }
         };
 
         return (
@@ -745,14 +795,12 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                   
                   // Nova abordagem: Enviar imediatamente uma requisição PUT quando mudar isCondominio para "nao"
                   if (value === 'nao') {
-                    logger.info('[CONDOMINIO] Enviando requisição PUT para definir condominio_id como null');
-                    
                     // Enviar requisição PUT para atualizar o imóvel com condominio_id: null
                     api.put(`/imoveis/${imovelId}`, {
                       condominio_id: null
                     })
                     .then(() => {
-                      logger.info('[CONDOMINIO] Condominio_id definido como null com sucesso');
+                      // Condominio_id definido como null com sucesso
                     })
                     .catch((error) => {
                       logger.error('[CONDOMINIO] Erro ao definir condominio_id como null:', error);
@@ -774,22 +822,20 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                     // Extrair o valor diretamente sem tentar serializar o objeto DOM
                     const value = e.target.value;
                     
-                    // Log seguro apenas do valor selecionado
-                    logger.info('[CONDOMINIO] Valor selecionado do condomínio:', value, typeof value);
-                    logger.info('[CONDOMINIO] Estado atual do formData.condominio:', formData.condominio);
+
                     
                     // Se o valor for vazio, definir como null
                     if (value === '') {
-                      logger.info('[CONDOMINIO] Valor vazio selecionado, definindo condomínio como null');
+
                       handleFieldChangeSimple('condominio', null);
                       
                       // Enviar requisição PUT para atualizar o imóvel com condominio_id: null
-                      logger.info('[CONDOMINIO] Enviando requisição PUT para definir condominio_id como null');
+                      // Enviar requisição PUT para definir condominio_id como null
                       api.put(`/imoveis/${imovelId}`, {
                         condominio_id: null
                       })
                       .then(() => {
-                        logger.info('[CONDOMINIO] Condominio_id definido como null com sucesso');
+                        // Condominio_id definido como null com sucesso
                       })
                       .catch((error) => {
                         logger.error('[CONDOMINIO] Erro ao definir condominio_id como null:', error);
@@ -800,35 +846,35 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                     
                     // Converter para número e verificar se é válido
                     const numericValue = parseInt(value, 10);
-                    logger.info('[CONDOMINIO] Valor convertido para número:', numericValue);
+
                     
                     // Verificar se é um número válido
                     if (isNaN(numericValue) || numericValue <= 0) {
-                      logger.info('[CONDOMINIO] Valor inválido para condomínio:', value);
+
                       handleFieldChangeSimple('condominio', null);
                       
                       // Enviar requisição PUT para atualizar o imóvel com condominio_id: null
-                      logger.info('[CONDOMINIO] Enviando requisição PUT para definir condominio_id como null');
+                      // Enviar requisição PUT para definir condominio_id como null
                       api.put(`/imoveis/${imovelId}`, {
                         condominio_id: null
                       })
                       .then(() => {
-                        logger.info('[CONDOMINIO] Condominio_id definido como null com sucesso');
+                        // Condominio_id definido como null com sucesso
                       })
                       .catch((error) => {
                         logger.error('[CONDOMINIO] Erro ao definir condominio_id como null:', error);
                       });
                     } else {
-                      logger.info('[CONDOMINIO] Atualizando condomínio para:', numericValue);
+
                       handleFieldChangeSimple('condominio', numericValue);
                       
                       // Nova abordagem: Enviar imediatamente uma requisição PUT quando selecionar um condomínio
-                      logger.info('[CONDOMINIO] Enviando requisição PUT para definir condominio_id como', numericValue);
+
                       api.put(`/imoveis/${imovelId}`, {
                         condominio_id: numericValue
                       })
                       .then(() => {
-                        logger.info('[CONDOMINIO] Condominio_id atualizado com sucesso');
+
                       })
                       .catch((error) => {
                         logger.error('[CONDOMINIO] Erro ao atualizar condominio_id:', error);
@@ -836,7 +882,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                     }
                   } catch (error) {
                     // Capturar qualquer erro e logar para debug
-                    logger.info('[CONDOMINIO] Erro ao processar seleção de condomínio:', error instanceof Error ? error.message : String(error));
+
                   }
                 }}
                 required
