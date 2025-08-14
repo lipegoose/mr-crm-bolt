@@ -392,6 +392,8 @@ const ImovelCadastro: React.FC = () => {
             <Medidas 
               onUpdate={(data) => handleUpdateFormData('medidas', data)} 
               onFieldChange={() => markStepAsChanged('medidas')}
+              imovelId={id ? Number(id) : undefined}
+              initialData={formData['medidas'] as Record<string, unknown>}
             />
           </div>
         );
