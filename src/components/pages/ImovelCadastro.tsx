@@ -377,6 +377,8 @@ const ImovelCadastro: React.FC = () => {
             onUpdate={(data, hasChanges) => handleUpdateFormData('comodos', data, hasChanges)}
             submitCallback={(callback) => registerCallback('comodos', callback)}
             onFieldChange={() => markStepAsChanged('comodos')}
+            imovelId={id ? Number(id) : undefined}
+            initialData={formData['comodos'] as Record<string, unknown>}
           />
         );
       case 'medidas':

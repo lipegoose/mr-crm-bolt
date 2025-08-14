@@ -81,6 +81,8 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
   
   // Ref para controlar o timeout de validação
   const validacaoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref para controlar debounce de salvamento por campo (300ms)
+  const saveTimeoutsRef = useRef<Record<string, NodeJS.Timeout | number>>({});
   
   // Dados iniciais do formulário
   const initialFormData: InformacoesForm = {
@@ -597,18 +599,44 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
           // Notificar sobre a mudança de campo (comportamento original)
           onFieldChange?.();
           
-          // Não salvar automaticamente os campos que já têm salvamento específico
-          // (isCondominio, condominio e codigo_referencia já têm lógica própria)
-          if (field === 'isCondominio' || field === 'condominio' || field === 'codigo_referencia') {
+          // Campos com salvamento específico: controlar aqui
+          if (!imovelId) return;
+
+          // Conduta especial para isCondominio/condominio (salvar imediatamente sem debounce)
+          if (field === 'isCondominio') {
+            if (value === 'nao') {
+              ImovelService.updateEtapaInformacoes(imovelId, { condominio_id: null })
+                .catch((error) => {
+                  logger.error('[CONDOMINIO] Erro ao definir condominio_id como null:', error);
+                });
+            }
             return;
           }
-          
-          // Para todos os outros campos, salvar imediatamente no backend
-          if (imovelId) {
-            // Criar payload com apenas o campo alterado
+
+          if (field === 'condominio') {
+            const numericValue = typeof value === 'number' ? value : Number(value);
+            const payloadCondominio = isNaN(numericValue) || numericValue <= 0 ? { condominio_id: null } : { condominio_id: numericValue };
+            ImovelService.updateEtapaInformacoes(imovelId, payloadCondominio)
+              .catch((error) => {
+                logger.error('[CONDOMINIO] Erro ao atualizar condominio_id:', error);
+              });
+            return;
+          }
+
+          if (field === 'codigo_referencia') {
+            // Mantido por lógica específica já existente (validar/salvar via endpoint dedicado)
+            return;
+          }
+
+          // Debounce para demais campos da etapa
+          const prevTimeout = saveTimeoutsRef.current[field];
+          if (prevTimeout) {
+            clearTimeout(prevTimeout as number);
+          }
+
+          saveTimeoutsRef.current[field] = setTimeout(() => {
             const payload: Record<string, any> = {};
-            
-            // Mapear o nome do campo do formulário para o nome do campo na API
+
             switch (field) {
               case 'tipo':
                 payload.tipo = value as string;
@@ -623,19 +651,19 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                 payload.situacao = value as string;
                 break;
               case 'ano_construcao':
-                payload.ano_construcao = value ? Number(value) : null;
+                payload.ano_construcao = value === '' ? null : Number(value);
                 break;
               case 'proprietario':
-                payload.proprietario_id = value as number | null;
+                payload.proprietario_id = (value === '' ? null : (value as number | null));
                 break;
               case 'incorporacao':
-                payload.incorporacao = value as string || null;
+                payload.incorporacao = (value as string) || null;
                 break;
               case 'posicaoSolar':
-                payload.posicao_solar = value as string || null;
+                payload.posicao_solar = (value as string) || null;
                 break;
               case 'terreno':
-                payload.terreno = value as string || null;
+                payload.terreno = (value as string) || null;
                 break;
               case 'averbado':
                 payload.averbado = value === 'sim';
@@ -650,21 +678,17 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                 payload.mobiliado = value === 'sim';
                 break;
               default:
-                // Campo não mapeado, não enviar para a API
-                return;
+                return; // campo não mapeado
             }
-            
-            // Enviar requisição PUT para atualizar apenas o campo alterado
-            api.put(`/imoveis/${imovelId}`, payload)
+
+            ImovelService.updateEtapaInformacoes(imovelId, payload)
               .then(() => {
-                // Campo atualizado com sucesso
-                // Atualizar formDataRef para garantir que temos os dados mais recentes
                 formDataRef.current = { ...formDataRef.current, [field]: value };
               })
               .catch((error) => {
-                logger.error(`[CAMPO] Erro ao atualizar campo ${field}:`, error);
+                logger.error(`[INFORMAÇÕES] Erro ao atualizar campo ${field}:`, error);
               });
-          }
+          }, 300);
         };
 
         return (
@@ -756,16 +780,11 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                   
                   // Nova abordagem: Enviar imediatamente uma requisição PUT quando mudar isCondominio para "nao"
                   if (value === 'nao') {
-                    // Enviar requisição PUT para atualizar o imóvel com condominio_id: null
-                    api.put(`/imoveis/${imovelId}`, {
-                      condominio_id: null
-                    })
-                    .then(() => {
-                      // Condominio_id definido como null com sucesso
-                    })
-                    .catch((error) => {
-                      logger.error('[CONDOMINIO] Erro ao definir condominio_id como null:', error);
-                    });
+                     // Atualizar via etapa específica
+                     ImovelService.updateEtapaInformacoes(imovelId!, { condominio_id: null })
+                     .catch((error) => {
+                       logger.error('[CONDOMINIO] Erro ao definir condominio_id como null:', error);
+                     });
                   }
                 }}
               />
@@ -790,17 +809,11 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
 
                       handleFieldChangeSimple('condominio', null);
                       
-                      // Enviar requisição PUT para atualizar o imóvel com condominio_id: null
-                      // Enviar requisição PUT para definir condominio_id como null
-                      api.put(`/imoveis/${imovelId}`, {
-                        condominio_id: null
-                      })
-                      .then(() => {
-                        // Condominio_id definido como null com sucesso
-                      })
-                      .catch((error) => {
-                        logger.error('[CONDOMINIO] Erro ao definir condominio_id como null:', error);
-                      });
+                       // Atualizar via etapa específica
+                       ImovelService.updateEtapaInformacoes(imovelId!, { condominio_id: null })
+                       .catch((error) => {
+                         logger.error('[CONDOMINIO] Erro ao definir condominio_id como null:', error);
+                       });
                       
                       return;
                     }
@@ -829,17 +842,11 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
 
                       handleFieldChangeSimple('condominio', numericValue);
                       
-                      // Nova abordagem: Enviar imediatamente uma requisição PUT quando selecionar um condomínio
-
-                      api.put(`/imoveis/${imovelId}`, {
-                        condominio_id: numericValue
-                      })
-                      .then(() => {
-
-                      })
-                      .catch((error) => {
-                        logger.error('[CONDOMINIO] Erro ao atualizar condominio_id:', error);
-                      });
+                       // Nova abordagem: Enviar imediatamente via etapa específica quando selecionar um condomínio
+                       ImovelService.updateEtapaInformacoes(imovelId!, { condominio_id: numericValue })
+                       .catch((error) => {
+                         logger.error('[CONDOMINIO] Erro ao atualizar condominio_id:', error);
+                       });
                     }
                   } catch (error) {
                     // Capturar qualquer erro e logar para debug

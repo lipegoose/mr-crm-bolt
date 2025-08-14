@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Input } from '../ui/Input';
 import { RadioGroup } from '../ui/RadioGroup';
 import WizardStep from '../wizard/WizardStep';
+import { ImovelService } from '../../services/ImovelService';
+import logger from '../../utils/logger';
 
 interface ComodosProps {
   onUpdate: (data: Record<string, unknown>, hasChanges?: boolean) => void;
   submitCallback?: (callback: () => void) => void;
   onFieldChange?: () => void;
+  imovelId?: number;
+  initialData?: Record<string, unknown>;
 }
 
 interface ComodosForm extends Record<string, unknown> {
@@ -28,26 +32,38 @@ interface ComodosForm extends Record<string, unknown> {
   copa: string;
 }
 
-const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback, onFieldChange }) => {
+const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback, onFieldChange, imovelId, initialData }) => {
   // Dados iniciais do formulário
   const initialFormData: ComodosForm = {
-    dormitorio: '0',
-    suite: '0',
-    banheiro: '0',
-    garagem: '0',
-    garagemCoberta: 'nao',
-    possuiBoxGaragem: 'nao',
-    salaTV: '0',
-    salaJantar: '0',
-    salaEstar: '0',
-    lavabo: '0',
-    areaServico: '0',
-    cozinha: '0',
-    closet: '0',
-    escritorio: '0',
-    dependenciaServico: '0',
-    copa: '0',
+    dormitorio: initialData?.dormitorios !== undefined && initialData?.dormitorios !== null ? String(initialData.dormitorios) : '0',
+    suite: initialData?.suites !== undefined && initialData?.suites !== null ? String(initialData.suites) : '0',
+    banheiro: initialData?.banheiros !== undefined && initialData?.banheiros !== null ? String(initialData.banheiros) : '0',
+    garagem: initialData?.garagens !== undefined && initialData?.garagens !== null ? String(initialData.garagens) : '0',
+    garagemCoberta: initialData?.garagem_coberta === true ? 'sim' : 'nao',
+    possuiBoxGaragem: initialData?.box_garagem === true ? 'sim' : 'nao',
+    salaTV: initialData?.sala_tv !== undefined && initialData?.sala_tv !== null ? String(initialData.sala_tv) : '0',
+    salaJantar: initialData?.sala_jantar !== undefined && initialData?.sala_jantar !== null ? String(initialData.sala_jantar) : '0',
+    salaEstar: initialData?.sala_estar !== undefined && initialData?.sala_estar !== null ? String(initialData.sala_estar) : '0',
+    lavabo: initialData?.lavabo !== undefined && initialData?.lavabo !== null ? String(initialData.lavabo) : '0',
+    areaServico: initialData?.area_servico !== undefined && initialData?.area_servico !== null ? String(initialData.area_servico) : '0',
+    cozinha: initialData?.cozinha !== undefined && initialData?.cozinha !== null ? String(initialData.cozinha) : '0',
+    closet: initialData?.closet !== undefined && initialData?.closet !== null ? String(initialData.closet) : '0',
+    escritorio: initialData?.escritorio !== undefined && initialData?.escritorio !== null ? String(initialData.escritorio) : '0',
+    dependenciaServico: initialData?.dependencia_servico !== undefined && initialData?.dependencia_servico !== null ? String(initialData.dependencia_servico) : '0',
+    copa: initialData?.copa !== undefined && initialData?.copa !== null ? String(initialData.copa) : '0',
   };
+
+  // Ref para temporizadores de debounce por campo
+  const saveTimeoutsRef = useRef<Record<string, NodeJS.Timeout | number>>({});
+
+  // Função utilitária para converter valores
+  const toNumberOrNull = (value: unknown): number | null => {
+    if (value === '' || value === undefined || value === null) return null;
+    const parsed = parseInt(String(value), 10);
+    return isNaN(parsed) ? null : parsed;
+  };
+
+  const toBoolean = (value: unknown): boolean => String(value) === 'sim';
 
   return (
     <WizardStep<ComodosForm>
@@ -63,6 +79,78 @@ const Comodos: React.FC<ComodosProps> = ({ onUpdate, submitCallback, onFieldChan
         const handleFieldChange = (field: string, value: unknown) => {
           handleChange(field, value);
           onFieldChange?.();
+
+          if (!imovelId) return;
+
+          // Cancelar debounce anterior para o campo
+          const prevTimeout = saveTimeoutsRef.current[field];
+          if (prevTimeout) {
+            clearTimeout(prevTimeout as number);
+          }
+
+          // Agendar salvamento com debounce (300ms)
+          saveTimeoutsRef.current[field] = setTimeout(async () => {
+            try {
+              const payload: Record<string, any> = {};
+              switch (field) {
+                case 'dormitorio':
+                  payload.dormitorios = toNumberOrNull(value);
+                  break;
+                case 'suite':
+                  payload.suites = toNumberOrNull(value);
+                  break;
+                case 'banheiro':
+                  payload.banheiros = toNumberOrNull(value);
+                  break;
+                case 'garagem':
+                  payload.garagens = toNumberOrNull(value);
+                  break;
+                case 'garagemCoberta':
+                  payload.garagem_coberta = toBoolean(value);
+                  break;
+                case 'possuiBoxGaragem':
+                  payload.box_garagem = toBoolean(value);
+                  break;
+                case 'salaTV':
+                  payload.sala_tv = toNumberOrNull(value);
+                  break;
+                case 'salaJantar':
+                  payload.sala_jantar = toNumberOrNull(value);
+                  break;
+                case 'salaEstar':
+                  payload.sala_estar = toNumberOrNull(value);
+                  break;
+                case 'lavabo':
+                  payload.lavabo = toNumberOrNull(value);
+                  break;
+                case 'areaServico':
+                  payload.area_servico = toNumberOrNull(value);
+                  break;
+                case 'cozinha':
+                  payload.cozinha = toNumberOrNull(value);
+                  break;
+                case 'closet':
+                  payload.closet = toNumberOrNull(value);
+                  break;
+                case 'escritorio':
+                  payload.escritorio = toNumberOrNull(value);
+                  break;
+                case 'dependenciaServico':
+                  payload.dependencia_servico = toNumberOrNull(value);
+                  break;
+                case 'copa':
+                  payload.copa = toNumberOrNull(value);
+                  break;
+                default:
+                  return; // campo não suportado
+              }
+
+              await ImovelService.updateEtapaComodos(imovelId, payload);
+              logger.info(`[CÔMODOS] Campo ${field} atualizado com sucesso.`);
+            } catch (error) {
+              logger.error(`[CÔMODOS] Erro ao atualizar campo ${field}:`, error);
+            }
+          }, 300);
         };
 
         return (
