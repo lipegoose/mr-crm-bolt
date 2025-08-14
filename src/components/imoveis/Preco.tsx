@@ -70,9 +70,36 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
   // Utils
   const toNumberOrNull = (value: string): number | null => {
     if (!value || value.trim() === '') return null;
-    const normalized = value.replace(/\./g, '').replace(',', '.');
+    const raw = value.trim();
+    let normalized: string;
+    if (raw.includes(',')) {
+      // vírgula como separador decimal; pontos são milhares → remover
+      normalized = raw.replace(/\./g, '').replace(',', '.');
+    } else {
+      // sem vírgula: respeitar ponto como decimal se houver
+      normalized = raw;
+    }
     const num = Number(normalized);
     return isNaN(num) ? null : num;
+  };
+
+  // Sanitiza entrada monetária: permite apenas dígitos e UMA vírgula, máx 2 casas
+  const sanitizeMoney = (raw: string): string => {
+    if (!raw) return '';
+    // Remover pontos e quaisquer chars que não sejam dígitos ou vírgula
+    let s = raw.replace(/\./g, '').replace(/[^0-9,]/g, '');
+    // Manter apenas a primeira vírgula
+    const firstComma = s.indexOf(',');
+    if (firstComma !== -1) {
+      const intPart = s.slice(0, firstComma).replace(/,/g, '');
+      let decPart = s.slice(firstComma + 1).replace(/,/g, '');
+      decPart = decPart.slice(0, 2); // no máx 2 casas
+      s = decPart.length > 0 ? `${intPart},${decPart}` : intPart + (raw.endsWith(',') ? ',' : '');
+    } else {
+      // Sem vírgula: apenas dígitos
+      s = s.replace(/,/g, '');
+    }
+    return s;
   };
 
   const toBoolean = (value: string): boolean => value === 'sim';
@@ -173,6 +200,18 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
     saveFieldWithDebounce(field, value);
   };
 
+  // Handler específico para campos monetários (texto com vírgula)
+  const handleMoneyChange = (field: string, raw: string) => {
+    const sanitized = sanitizeMoney(raw);
+    handleChange(field, sanitized);
+  };
+
+  const preventDotKey: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
+    if (e.key === '.') {
+      e.preventDefault();
+    }
+  };
+
   return (
     <div>
       <h2 className="text-xl font-title font-semibold mb-4">Preço</h2>
@@ -196,11 +235,10 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
             <Input
               label="Preço de Venda (R$)"
               placeholder="0,00"
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
               value={formData.precoVenda}
-              onChange={(e) => handleChange('precoVenda', e.target.value)}
+              onChange={(e) => handleMoneyChange('precoVenda', e.target.value)}
+              onKeyDown={preventDotKey}
               required
             />
           </div>
@@ -211,11 +249,10 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
             <Input
               label="Preço de Locação (R$)"
               placeholder="0,00"
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
               value={formData.precoLocacao}
-              onChange={(e) => handleChange('precoLocacao', e.target.value)}
+              onChange={(e) => handleMoneyChange('precoLocacao', e.target.value)}
+              onKeyDown={preventDotKey}
               required
             />
           </div>
@@ -227,22 +264,20 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
               <Input
                 label="Preço de Venda (R$)"
                 placeholder="0,00"
-                type="number"
-                min="0"
-                step="0.01"
+                type="text"
                 value={formData.precoVenda}
-                onChange={(e) => handleChange('precoVenda', e.target.value)}
+                onChange={(e) => handleMoneyChange('precoVenda', e.target.value)}
+                onKeyDown={preventDotKey}
               />
             </div>
             <div>
               <Input
                 label="Preço de Locação (R$)"
                 placeholder="0,00"
-                type="number"
-                min="0"
-                step="0.01"
+                type="text"
                 value={formData.precoLocacao}
-                onChange={(e) => handleChange('precoLocacao', e.target.value)}
+                onChange={(e) => handleMoneyChange('precoLocacao', e.target.value)}
+                onKeyDown={preventDotKey}
               />
             </div>
           </>
@@ -253,11 +288,10 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
             <Input
               label="Preço de Temporada (R$)"
               placeholder="0,00"
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
               value={formData.precoTemporada}
-              onChange={(e) => handleChange('precoTemporada', e.target.value)}
+              onChange={(e) => handleMoneyChange('precoTemporada', e.target.value)}
+              onKeyDown={preventDotKey}
               required
             />
           </div>
@@ -313,11 +347,10 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
             <Input
               label="Preço anterior (riscado) (R$)"
               placeholder="0,00"
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
               value={formData.precoAnterior}
-              onChange={(e) => handleChange('precoAnterior', e.target.value)}
+              onChange={(e) => handleMoneyChange('precoAnterior', e.target.value)}
+              onKeyDown={preventDotKey}
             />
           </div>
         )}
@@ -326,11 +359,10 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
           <Input
             label="Preço do IPTU (R$)"
             placeholder="0,00"
-            type="number"
-            min="0"
-            step="0.01"
+            type="text"
             value={formData.precoIPTU}
-            onChange={(e) => handleChange('precoIPTU', e.target.value)}
+            onChange={(e) => handleMoneyChange('precoIPTU', e.target.value)}
+            onKeyDown={preventDotKey}
           />
         </div>
 
@@ -355,11 +387,10 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
           <Input
             label="Preço Condomínio (R$)"
             placeholder="0,00"
-            type="number"
-            min="0"
-            step="0.01"
+            type="text"
             value={formData.precoCondominio}
-            onChange={(e) => handleChange('precoCondominio', e.target.value)}
+            onChange={(e) => handleMoneyChange('precoCondominio', e.target.value)}
+            onKeyDown={preventDotKey}
           />
         </div>
 
@@ -418,11 +449,10 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
           <Input
             label="Total mensal em taxas (se houver) (R$)"
             placeholder="0,00"
-            type="number"
-            min="0"
-            step="0.01"
+            type="text"
             value={formData.totalMensalTaxas}
-            onChange={(e) => handleChange('totalMensalTaxas', e.target.value)}
+            onChange={(e) => handleMoneyChange('totalMensalTaxas', e.target.value)}
+            onKeyDown={preventDotKey}
           />
         </div>
 
