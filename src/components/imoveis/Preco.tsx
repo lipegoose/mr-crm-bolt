@@ -5,6 +5,7 @@ import { RadioGroup } from '../ui/RadioGroup';
 import { TextArea } from '../ui/TextArea';
 import { ImovelService } from '../../services/ImovelService';
 import logger from '../../utils/logger';
+import { sanitizeNumericInput, handleNumericKeyDown, parseInputToNumber, formatNumberToDisplay } from '../../utils/numberFormat';
 
 interface PrecoProps {
   onUpdate: (data: any) => void;
@@ -64,43 +65,27 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData]);
 
+  // Formatar valores vindos do backend para exibição com vírgula
+  useEffect(() => {
+    if (!initialData) return;
+    setFormData(prev => ({
+      ...prev,
+      precoVenda: formatNumberToDisplay((initialData as any)?.preco_venda),
+      precoLocacao: formatNumberToDisplay((initialData as any)?.preco_aluguel),
+      precoTemporada: formatNumberToDisplay((initialData as any)?.preco_temporada),
+      precoAnterior: formatNumberToDisplay((initialData as any)?.preco_anterior),
+      precoIPTU: formatNumberToDisplay((initialData as any)?.preco_iptu),
+      precoCondominio: formatNumberToDisplay((initialData as any)?.preco_condominio),
+      totalMensalTaxas: formatNumberToDisplay((initialData as any)?.total_taxas),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData]);
+
   // Debounce timeouts
   const savingTimeouts = useRef<Record<string, NodeJS.Timeout | number>>({});
 
   // Utils
-  const toNumberOrNull = (value: string): number | null => {
-    if (!value || value.trim() === '') return null;
-    const raw = value.trim();
-    let normalized: string;
-    if (raw.includes(',')) {
-      // vírgula como separador decimal; pontos são milhares → remover
-      normalized = raw.replace(/\./g, '').replace(',', '.');
-    } else {
-      // sem vírgula: respeitar ponto como decimal se houver
-      normalized = raw;
-    }
-    const num = Number(normalized);
-    return isNaN(num) ? null : num;
-  };
-
-  // Sanitiza entrada monetária: permite apenas dígitos e UMA vírgula, máx 2 casas
-  const sanitizeMoney = (raw: string): string => {
-    if (!raw) return '';
-    // Remover pontos e quaisquer chars que não sejam dígitos ou vírgula
-    let s = raw.replace(/\./g, '').replace(/[^0-9,]/g, '');
-    // Manter apenas a primeira vírgula
-    const firstComma = s.indexOf(',');
-    if (firstComma !== -1) {
-      const intPart = s.slice(0, firstComma).replace(/,/g, '');
-      let decPart = s.slice(firstComma + 1).replace(/,/g, '');
-      decPart = decPart.slice(0, 2); // no máx 2 casas
-      s = decPart.length > 0 ? `${intPart},${decPart}` : intPart + (raw.endsWith(',') ? ',' : '');
-    } else {
-      // Sem vírgula: apenas dígitos
-      s = s.replace(/,/g, '');
-    }
-    return s;
-  };
+  const toNumberOrNull = (value: string): number | null => parseInputToNumber(value);
 
   const toBoolean = (value: string): boolean => value === 'sim';
 
@@ -202,15 +187,11 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
 
   // Handler específico para campos monetários (texto com vírgula)
   const handleMoneyChange = (field: string, raw: string) => {
-    const sanitized = sanitizeMoney(raw);
+    const sanitized = sanitizeNumericInput(raw);
     handleChange(field, sanitized);
   };
 
-  const preventDotKey: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
-    if (e.key === '.') {
-      e.preventDefault();
-    }
-  };
+  const preventDotKey: React.KeyboardEventHandler<HTMLInputElement> = handleNumericKeyDown;
 
   return (
     <div>
