@@ -408,6 +408,8 @@ const ImovelCadastro: React.FC = () => {
             <Preco 
               onUpdate={(data) => handleUpdateFormData('preco', data)} 
               onFieldChange={() => markStepAsChanged('preco')}
+              imovelId={id ? Number(id) : undefined}
+              initialData={formData['preco'] as Record<string, unknown>}
             />
           </div>
         );
@@ -422,6 +424,8 @@ const ImovelCadastro: React.FC = () => {
             <CaracteristicasImovel 
               onUpdate={(data) => handleUpdateFormData('caracteristicas-imovel', data)} 
               onFieldChange={() => markStepAsChanged('caracteristicas-imovel')}
+              imovelId={id ? Number(id) : undefined}
+              initialData={formData['caracteristicas-imovel'] as Record<string, unknown>}
             />
           </div>
         );
@@ -436,6 +440,8 @@ const ImovelCadastro: React.FC = () => {
             <CaracteristicasCondominio 
               onUpdate={(data) => handleUpdateFormData('caracteristicas-condominio', data)} 
               onFieldChange={() => markStepAsChanged('caracteristicas-condominio')}
+              imovelId={id ? Number(id) : undefined}
+              initialData={formData['caracteristicas-condominio'] as Record<string, unknown>}
             />
           </div>
         );

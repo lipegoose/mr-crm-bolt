@@ -1,71 +1,70 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { ImovelService } from '../../services/ImovelService';
+import logger from '../../utils/logger';
 
 interface CaracteristicasImovelProps {
   onUpdate: (data: any) => void;
   onFieldChange?: () => void;
+  imovelId?: number;
+  initialData?: Record<string, unknown>;
 }
 
-const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate, onFieldChange }) => {
-  const [caracteristicasSelecionadas, setCaracteristicasSelecionadas] = useState<string[]>([]);
+const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
+  const [caracteristicasSelecionadas, setCaracteristicasSelecionadas] = useState<number[]>(
+    Array.isArray(initialData?.caracteristicas) ? (initialData?.caracteristicas as number[]) : []
+  );
   const [novaCaracteristica, setNovaCaracteristica] = useState('');
   const [showNovaCaracteristicaForm, setShowNovaCaracteristicaForm] = useState(false);
+  const [opcoes, setOpcoes] = useState<{ id: number; nome: string }[]>([]);
+  const savingTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
 
-  // Lista de características disponíveis
-  const caracteristicasDisponiveis = [
-    'Aceita Financiamento', 'Aceita Permuta', 'Adega', 'Alarme', 'Aprovado Ambiental',
-    'Aquecimento a gás', 'Aquecimento central', 'Aquecimento solar', 'Ar',
-    'Ar condicionado central', 'Área esportiva', 'Area Serviço', 'Armario Area De Servico',
-    'Armario Banheiro', 'Armario Closet', 'Armario Corredor', 'Armario Cozinha',
-    'Armario Dorm. Empregada', 'Armario Dormitorio', 'Armario Escritorio', 'Armario Home Theater',
-    'Armário na cozinha', 'Armario Sala', 'Banheira', 'Banheiro Empregada', 'Biblioteca',
-    'Cabeamento estruturado', 'Calefação', 'Campo Futebol', 'Churrasqueira', 'Cimento Queimado',
-    'Circuito de segurança', 'Condominio Fechado', 'Copa', 'Cozinha', 'Cozinha americana',
-    'Cozinha gourmet', 'Deck Molhado', 'Depósito', 'Deposito', 'Despensa', 'Destaque',
-    'Dormitorio Empregada', 'Dormitorio Reversivel', 'Elevador', 'Energia solar', 'Escritorio',
-    'Espaço Pet', 'Espaço verde', 'Exclusividade', 'Fechadura digital', 'Fgts', 'Forro de gesso',
-    'Forro de madeira', 'Forro de PVC', 'Gás central', 'Gás individual', 'Gerador elétrico',
-    'Hidro', 'Hidromassagem', 'Hidrômetro individual', 'Interfone', 'Internet',
-    'Isolamento acústico', 'Jardim Inverno', 'Lareira', 'Lavabo', 'Lavanderia', 'Litoral',
-    'Locado', 'Mezanino', 'Mobiliado', 'Ofuro', 'Pe Direito Duplo', 'Piscina', 'Piso Ardosia',
-    'Piso Granito', 'Piso Laminado', 'Piso Marmore', 'Piso Porcelanato', 'Piso Taboa',
-    'Piso Taco', 'Placa', 'Portais', 'Portao', 'Portaria', 'Projeto Aprovado',
-    'Quadra Poliesportiva', 'Ronda/Vigilância', 'Rua asfaltada', 'Sacada', 'Sauna',
-    'Sem Comdomínio', 'Sistema de alarme', 'Site', 'Solarium', 'Terraco', 'Tv Cabo',
-    'Varanda', 'Varanda Gourmet', 'Vestiario', 'Vigia', 'Vista exterior',
-    'Vista para a montanha', 'Vista para o lago', 'Zelador'
-  ];
-
-  // Atualiza os dados do formulário quando há mudanças
-  // Removemos onUpdate da lista de dependências para evitar o loop infinito
+  // Carregar opções dinâmicas do backend
   useEffect(() => {
-    // Chamamos onUpdate apenas quando caracteristicasSelecionadas mudar
+    (async () => {
+      try {
+        const resp = await ImovelService.getCaracteristicas('IMOVEL');
+        setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
+      } catch (error) {
+        logger.error('[CARACTERISTICAS_IMOVEL] Erro ao carregar opções:', error);
+      }
+    })();
+  }, []);
+
+  // Atualiza parent e salva com debounce quando selecionadas mudarem
+  useEffect(() => {
     onUpdate({ caracteristicas: caracteristicasSelecionadas });
+    if (!imovelId) return;
+    if (savingTimeoutRef.current) clearTimeout(savingTimeoutRef.current as number);
+    savingTimeoutRef.current = setTimeout(async () => {
+      try {
+        await ImovelService.updateEtapaCaracteristicas(imovelId, { caracteristicas: caracteristicasSelecionadas });
+        logger.info('[CARACTERISTICAS_IMOVEL] Características atualizadas com sucesso.');
+      } catch (error) {
+        logger.error('[CARACTERISTICAS_IMOVEL] Erro ao atualizar características:', error);
+      }
+    }, 300);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caracteristicasSelecionadas]);
 
-  // Função para alternar a seleção de uma característica
-  const toggleCaracteristica = (caracteristica: string) => {
-    if (caracteristicasSelecionadas.includes(caracteristica)) {
-      setCaracteristicasSelecionadas(prev => 
-        prev.filter(item => item !== caracteristica)
-      );
-    } else {
-      setCaracteristicasSelecionadas(prev => [...prev, caracteristica]);
-    }
-    // Notificar que houve mudança no campo
+  // Função para alternar a seleção de uma característica (por ID)
+  const toggleCaracteristica = (id: number) => {
+    setCaracteristicasSelecionadas(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
     onFieldChange?.();
   };
 
-  // Função para adicionar uma nova característica
-  const adicionarCaracteristica = () => {
-    if (novaCaracteristica && !caracteristicasDisponiveis.includes(novaCaracteristica)) {
-      setCaracteristicasSelecionadas(prev => [...prev, novaCaracteristica]);
+  // Função para adicionar uma nova característica (requer backend para criar e retornar ID)
+  const adicionarCaracteristica = async () => {
+    try {
+      if (!novaCaracteristica.trim()) return;
+      // No contexto atual, sem endpoint para criar característica. Apenas fechar o formulário.
       setNovaCaracteristica('');
       setShowNovaCaracteristicaForm(false);
-      // Notificar que houve mudança no campo
-      onFieldChange?.();
+    } catch (error) {
+      logger.error('[CARACTERISTICAS_IMOVEL] Erro ao adicionar característica:', error);
     }
   };
 
@@ -111,23 +110,23 @@ const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate,
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {caracteristicasDisponiveis.map((caracteristica) => (
+        {opcoes.map((opt) => (
           <div 
-            key={caracteristica} 
+            key={opt.id} 
             className="flex items-center"
           >
             <input
               type="checkbox"
-              id={`caracteristica-${caracteristica}`}
-              checked={caracteristicasSelecionadas.includes(caracteristica)}
-              onChange={() => toggleCaracteristica(caracteristica)}
+              id={`caracteristica-${opt.id}`}
+              checked={caracteristicasSelecionadas.includes(opt.id)}
+              onChange={() => toggleCaracteristica(opt.id)}
               className="w-4 h-4 text-primary-orange border-neutral-gray rounded focus:ring-primary-orange"
             />
             <label 
-              htmlFor={`caracteristica-${caracteristica}`}
+              htmlFor={`caracteristica-${opt.id}`}
               className="ml-2 text-sm text-neutral-black cursor-pointer"
             >
-              {caracteristica}
+              {opt.nome}
             </label>
           </div>
         ))}

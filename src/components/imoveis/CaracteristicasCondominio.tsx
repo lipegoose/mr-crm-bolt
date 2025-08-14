@@ -1,58 +1,67 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { ImovelService } from '../../services/ImovelService';
+import logger from '../../utils/logger';
 
 interface CaracteristicasCondominioProps {
   onUpdate: (data: any) => void;
   onFieldChange?: () => void;
+  imovelId?: number;
+  initialData?: Record<string, unknown>;
 }
 
-const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ onUpdate, onFieldChange }) => {
-  const [caracteristicasSelecionadas, setCaracteristicasSelecionadas] = useState<string[]>([]);
+const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
+  const [caracteristicasSelecionadas, setCaracteristicasSelecionadas] = useState<number[]>(
+    Array.isArray(initialData?.caracteristicas) ? (initialData?.caracteristicas as number[]) : []
+  );
   const [novaCaracteristica, setNovaCaracteristica] = useState('');
   const [showNovaCaracteristicaForm, setShowNovaCaracteristicaForm] = useState(false);
+  const [opcoes, setOpcoes] = useState<{ id: number; nome: string }[]>([]);
+  const savingTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
 
-  // Lista de características disponíveis para condomínio
-  const caracteristicasDisponiveis = [
-    'Academia', 'Área de festas', 'Área gourmet', 'Bicicletário', 'Brinquedoteca',
-    'Campo de futebol', 'Churrasqueira coletiva', 'Cinema', 'Circuito de segurança',
-    'Elevador', 'Espaço coworking', 'Espaço gourmet', 'Espaço pet', 'Espaço zen',
-    'Estacionamento para visitantes', 'Fitness', 'Gerador', 'Guarita', 'Jardim',
-    'Lavanderia coletiva', 'Piscina adulto', 'Piscina infantil', 'Playground',
-    'Portaria 24h', 'Portaria eletrônica', 'Porteiro eletrônico', 'Quadra de esportes',
-    'Quadra de tênis', 'Quadra poliesportiva', 'Salão de festas', 'Salão de jogos',
-    'Sauna', 'Segurança 24h', 'Spa', 'Vagas para visitantes', 'Wi-fi nas áreas comuns'
-  ];
-
-  // Atualiza os dados do formulário quando há mudanças
-  // Removemos onUpdate da lista de dependências para evitar o loop infinito
   useEffect(() => {
-    // Chamamos onUpdate apenas quando caracteristicasSelecionadas mudar
+    (async () => {
+      try {
+        const resp = await ImovelService.getCaracteristicas('CONDOMINIO');
+        setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
+      } catch (error) {
+        logger.error('[CARACTERISTICAS_COND] Erro ao carregar opções:', error);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
     onUpdate({ caracteristicasCondominio: caracteristicasSelecionadas });
+    if (!imovelId) return;
+    if (savingTimeoutRef.current) clearTimeout(savingTimeoutRef.current as number);
+    savingTimeoutRef.current = setTimeout(async () => {
+      try {
+        await ImovelService.updateEtapaCaracteristicasCondominio(imovelId, { caracteristicas: caracteristicasSelecionadas });
+        logger.info('[CARACTERISTICAS_COND] Características atualizadas com sucesso.');
+      } catch (error) {
+        logger.error('[CARACTERISTICAS_COND] Erro ao atualizar características:', error);
+      }
+    }, 300);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caracteristicasSelecionadas]);
 
   // Função para alternar a seleção de uma característica
-  const toggleCaracteristica = (caracteristica: string) => {
-    if (caracteristicasSelecionadas.includes(caracteristica)) {
-      setCaracteristicasSelecionadas(prev => 
-        prev.filter(item => item !== caracteristica)
-      );
-    } else {
-      setCaracteristicasSelecionadas(prev => [...prev, caracteristica]);
-    }
-    // Notificar que houve mudança no campo
+  const toggleCaracteristica = (id: number) => {
+    setCaracteristicasSelecionadas(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
     onFieldChange?.();
   };
 
   // Função para adicionar uma nova característica
-  const adicionarCaracteristica = () => {
-    if (novaCaracteristica && !caracteristicasDisponiveis.includes(novaCaracteristica)) {
-      setCaracteristicasSelecionadas(prev => [...prev, novaCaracteristica]);
+  const adicionarCaracteristica = async () => {
+    try {
+      if (!novaCaracteristica.trim()) return;
       setNovaCaracteristica('');
       setShowNovaCaracteristicaForm(false);
-      // Notificar que houve mudança no campo
-      onFieldChange?.();
+    } catch (error) {
+      logger.error('[CARACTERISTICAS_COND] Erro ao adicionar característica:', error);
     }
   };
 
@@ -98,23 +107,23 @@ const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ o
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {caracteristicasDisponiveis.map((caracteristica) => (
+        {opcoes.map((opt) => (
           <div 
-            key={caracteristica} 
+            key={opt.id} 
             className="flex items-center"
           >
             <input
               type="checkbox"
-              id={`caracteristica-condominio-${caracteristica}`}
-              checked={caracteristicasSelecionadas.includes(caracteristica)}
-              onChange={() => toggleCaracteristica(caracteristica)}
+              id={`caracteristica-condominio-${opt.id}`}
+              checked={caracteristicasSelecionadas.includes(opt.id)}
+              onChange={() => toggleCaracteristica(opt.id)}
               className="w-4 h-4 text-primary-orange border-neutral-gray rounded focus:ring-primary-orange"
             />
             <label 
-              htmlFor={`caracteristica-condominio-${caracteristica}`}
+              htmlFor={`caracteristica-condominio-${opt.id}`}
               className="ml-2 text-sm text-neutral-black cursor-pointer"
             >
-              {caracteristica}
+              {opt.nome}
             </label>
           </div>
         ))}

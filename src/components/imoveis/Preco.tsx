@@ -1,34 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { RadioGroup } from '../ui/RadioGroup';
 import { TextArea } from '../ui/TextArea';
+import { ImovelService } from '../../services/ImovelService';
+import logger from '../../utils/logger';
 
 interface PrecoProps {
   onUpdate: (data: any) => void;
   onFieldChange?: () => void;
+  imovelId?: number;
+  initialData?: Record<string, unknown>;
 }
 
-const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange }) => {
+const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
   const [formData, setFormData] = useState({
-    tipoNegocio: 'venda',
-    precoImovel: '',
-    mostrarPrecoSite: 'sim',
-    mostrarLugarPreco: '',
-    mostrarAlteracaoPreco: 'nao',
-    precoAnterior: '',
-    precoIPTU: '',
-    periodoIPTU: 'anual',
-    precoCondominio: '',
-    estaFinanciado: 'nao',
-    aceitaFinanciamento: 'nao',
-    minhaCasaMinhaVida: 'nao',
-    totalMensalTaxas: '',
-    descricaoTaxas: '',
-    aceitaPermuta: 'nao',
-    tipoImovelAceito: '',
-    valorMaximoPermuta: '',
-    descricaoPermutas: '',
+    // tipo_negocio backend: 'VENDA' | 'ALUGUEL' | 'VENDA_ALUGUEL' | 'TEMPORADA'
+    tipoNegocio: (() => {
+      const tn = (initialData?.tipo_negocio as string) || '';
+      switch (tn) {
+        case 'VENDA': return 'venda';
+        case 'ALUGUEL': return 'aluguel';
+        case 'VENDA_ALUGUEL': return 'venda-aluguel';
+        case 'TEMPORADA': return 'temporada';
+        default: return 'venda';
+      }
+    })(),
+    // preços separados dependendo do tipo de negócio
+    precoVenda: initialData?.valor_venda != null ? String(initialData.valor_venda) : '',
+    precoLocacao: initialData?.valor_locacao != null ? String(initialData.valor_locacao) : '',
+    precoTemporada: (initialData as any)?.valor_temporada != null ? String((initialData as any).valor_temporada) : '',
+    mostrarPrecoSite: initialData?.mostrar_valores_site === false ? 'nao' : 'sim',
+    mostrarLugarPreco: (initialData as any)?.preco_alternativo ? String((initialData as any).preco_alternativo) : '',
+    mostrarAlteracaoPreco: (initialData as any)?.mostrar_preco_anterior ? 'sim' : 'nao',
+    precoAnterior: (initialData as any)?.preco_anterior != null ? String((initialData as any).preco_anterior) : '',
+    precoIPTU: initialData?.valor_iptu != null ? String(initialData.valor_iptu) : '',
+    periodoIPTU: (() => {
+      const p = (initialData?.periodo_iptu as string) || '';
+      return p === 'MENSAL' ? 'mensal' : 'anual';
+    })(),
+    precoCondominio: initialData?.valor_condominio != null ? String(initialData.valor_condominio) : '',
+    estaFinanciado: (initialData as any)?.financiado ? 'sim' : 'nao',
+    aceitaFinanciamento: initialData?.aceita_financiamento ? 'sim' : 'nao',
+    minhaCasaMinhaVida: (initialData as any)?.minha_casa_minha_vida ? 'sim' : 'nao',
+    totalMensalTaxas: (initialData as any)?.total_taxas != null ? String((initialData as any).total_taxas) : '',
+    descricaoTaxas: (initialData as any)?.descricao_taxas ? String((initialData as any).descricao_taxas) : '',
+    aceitaPermuta: (initialData as any)?.aceita_permuta ? 'sim' : 'nao',
   });
 
   // Tipos de negócio
@@ -50,13 +67,108 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange }) => {
     { value: 'qualquer', label: 'Qualquer tipo' },
   ];
 
-  // Atualiza os dados do formulário quando há mudanças
-  // Removemos onUpdate da lista de dependências para evitar o loop infinito
+  // Atualiza os dados do formulário quando há mudanças (apenas para parent awareness)
   useEffect(() => {
-    // Chamamos onUpdate apenas quando formData mudar
     onUpdate(formData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData]);
+
+  // Debounce timeouts
+  const savingTimeouts = useRef<Record<string, NodeJS.Timeout | number>>({});
+
+  // Utils
+  const toNumberOrNull = (value: string): number | null => {
+    if (!value || value.trim() === '') return null;
+    const normalized = value.replace(/\./g, '').replace(',', '.');
+    const num = Number(normalized);
+    return isNaN(num) ? null : num;
+  };
+
+  const toBoolean = (value: string): boolean => value === 'sim';
+
+  const mapTipoNegocioToBackend = (v: string): string => {
+    switch (v) {
+      case 'venda': return 'VENDA';
+      case 'aluguel': return 'ALUGUEL';
+      case 'venda-aluguel': return 'VENDA_ALUGUEL';
+      case 'temporada': return 'TEMPORADA';
+      default: return 'VENDA';
+    }
+  };
+
+  const mapPeriodoIptuToBackend = (v: string): string => (v === 'mensal' ? 'MENSAL' : 'ANUAL');
+
+  const saveFieldWithDebounce = (field: string, value: string) => {
+    if (!imovelId) return;
+    if (savingTimeouts.current[field]) clearTimeout(savingTimeouts.current[field] as number);
+
+    savingTimeouts.current[field] = setTimeout(async () => {
+      try {
+        const payload: Record<string, unknown> = {};
+
+        switch (field) {
+          case 'tipoNegocio':
+            payload.tipo_negocio = mapTipoNegocioToBackend(value);
+            break;
+          case 'precoVenda':
+            payload.valor_venda = toNumberOrNull(value);
+            break;
+          case 'precoLocacao':
+            payload.valor_locacao = toNumberOrNull(value);
+            break;
+          case 'precoTemporada':
+            payload.valor_temporada = toNumberOrNull(value);
+            break;
+          case 'mostrarPrecoSite':
+            payload.mostrar_valores_site = toBoolean(value);
+            break;
+          case 'mostrarLugarPreco':
+            payload.preco_alternativo = value || null;
+            break;
+          case 'mostrarAlteracaoPreco':
+            payload.mostrar_preco_anterior = toBoolean(value);
+            break;
+          case 'precoAnterior':
+            payload.preco_anterior = toNumberOrNull(value);
+            break;
+          case 'precoIPTU':
+            payload.valor_iptu = toNumberOrNull(value);
+            break;
+          case 'periodoIPTU':
+            payload.periodo_iptu = mapPeriodoIptuToBackend(value);
+            break;
+          case 'precoCondominio':
+            payload.valor_condominio = toNumberOrNull(value);
+            break;
+          case 'estaFinanciado':
+            payload.financiado = toBoolean(value);
+            break;
+          case 'aceitaFinanciamento':
+            payload.aceita_financiamento = toBoolean(value);
+            break;
+          case 'minhaCasaMinhaVida':
+            payload.minha_casa_minha_vida = toBoolean(value);
+            break;
+          case 'totalMensalTaxas':
+            payload.total_taxas = toNumberOrNull(value);
+            break;
+          case 'descricaoTaxas':
+            payload.descricao_taxas = value || null;
+            break;
+          case 'aceitaPermuta':
+            payload.aceita_permuta = toBoolean(value);
+            break;
+          default:
+            return;
+        }
+
+        await ImovelService.updateEtapaPreco(imovelId, payload);
+        logger.info(`[PREÇO] Campo ${field} atualizado com sucesso.`);
+      } catch (error) {
+        logger.error(`[PREÇO] Erro ao atualizar campo ${field}:`, error);
+      }
+    }, 300);
+  };
 
   // Função para atualizar os dados do formulário
   const handleChange = (field: string, value: string) => {
@@ -66,6 +178,8 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange }) => {
     }));
     // Notificar que houve mudança no campo
     onFieldChange?.();
+    // Salvar com debounce
+    saveFieldWithDebounce(field, value);
   };
 
   return (
@@ -86,18 +200,77 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange }) => {
           />
         </div>
 
-        <div>
-          <Input
-            label="Preço do Imóvel (R$)"
-            placeholder="0,00"
-            type="number"
-            min="0"
-            step="0.01"
-            value={formData.precoImovel}
-            onChange={(e) => handleChange('precoImovel', e.target.value)}
-            required
-          />
-        </div>
+        {formData.tipoNegocio === 'venda' && (
+          <div>
+            <Input
+              label="Preço de Venda (R$)"
+              placeholder="0,00"
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.precoVenda}
+              onChange={(e) => handleChange('precoVenda', e.target.value)}
+              required
+            />
+          </div>
+        )}
+
+        {formData.tipoNegocio === 'aluguel' && (
+          <div>
+            <Input
+              label="Preço de Locação (R$)"
+              placeholder="0,00"
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.precoLocacao}
+              onChange={(e) => handleChange('precoLocacao', e.target.value)}
+              required
+            />
+          </div>
+        )}
+
+        {formData.tipoNegocio === 'venda-aluguel' && (
+          <>
+            <div>
+              <Input
+                label="Preço de Venda (R$)"
+                placeholder="0,00"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.precoVenda}
+                onChange={(e) => handleChange('precoVenda', e.target.value)}
+              />
+            </div>
+            <div>
+              <Input
+                label="Preço de Locação (R$)"
+                placeholder="0,00"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.precoLocacao}
+                onChange={(e) => handleChange('precoLocacao', e.target.value)}
+              />
+            </div>
+          </>
+        )}
+
+        {formData.tipoNegocio === 'temporada' && (
+          <div>
+            <Input
+              label="Preço de Temporada (R$)"
+              placeholder="0,00"
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.precoTemporada}
+              onChange={(e) => handleChange('precoTemporada', e.target.value)}
+              required
+            />
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-semibold mb-1">
@@ -289,40 +462,7 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange }) => {
           </div>
         </div>
 
-        {formData.aceitaPermuta === 'sim' && (
-          <>
-            <div>
-              <Select
-                label="Tipo de imóvel aceito"
-                options={tiposImoveisPermuta}
-                value={formData.tipoImovelAceito}
-                onChange={(e) => handleChange('tipoImovelAceito', e.target.value)}
-              />
-            </div>
-
-            <div>
-              <Input
-                label="Valor máximo da permuta (R$)"
-                placeholder="0,00"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.valorMaximoPermuta}
-                onChange={(e) => handleChange('valorMaximoPermuta', e.target.value)}
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <TextArea
-                label="Descrição das Permutas"
-                placeholder="Descreva as permutas..."
-                value={formData.descricaoPermutas}
-                onChange={(e) => handleChange('descricaoPermutas', e.target.value)}
-                rows={3}
-              />
-            </div>
-          </>
-        )}
+        {/* Campos detalhados de permuta removidos conforme mapeamento atual; mantemos apenas a flag */}
       </div>
     </div>
   );
