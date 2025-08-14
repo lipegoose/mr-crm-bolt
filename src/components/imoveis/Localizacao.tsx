@@ -1,30 +1,71 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { RadioGroup } from '../ui/RadioGroup';
 import { MapPin } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { ImovelService } from '../../services/ImovelService';
+import logger from '../../utils/logger';
 
 interface LocalizacaoProps {
   onUpdate: (data: any) => void;
   onFieldChange?: () => void;
+  imovelId?: number;
+  initialData?: Record<string, unknown>;
 }
 
-const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange }) => {
+const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
   const [formData, setFormData] = useState({
-    cep: '',
-    estado: '',
-    cidade: '',
-    bairro: '',
-    logradouro: '',
-    numero: '',
-    complemento: '',
-    mostrarEnderecoSite: 'sim',
-    mostrarNumeroSite: 'sim',
-    mostrarApenasProximidades: 'nao',
-    latitude: '',
-    longitude: '',
+    cep: (initialData?.cep as string) || '',
+    estado: (initialData?.uf as string) || '',
+    cidade: (initialData?.cidade as string) || '',
+    bairro: (initialData?.bairro as string) || '',
+    logradouro: (initialData?.logradouro as string) || '',
+    numero: (initialData?.numero as string) || '',
+    complemento: (initialData?.complemento as string) || '',
+    mostrarEnderecoSite: (initialData as any)?.mostrar_endereco === false ? 'nao' : 'sim',
+    mostrarNumeroSite: (initialData as any)?.mostrar_numero === false ? 'nao' : 'sim',
+    mostrarApenasProximidades: (initialData as any)?.mostrar_proximidades ? 'sim' : 'nao',
+    latitude: initialData?.latitude != null ? String(initialData.latitude) : '',
+    longitude: initialData?.longitude != null ? String(initialData.longitude) : '',
   });
+
+  const savingTimeouts = useRef<Record<string, NodeJS.Timeout | number>>({});
+  const toBoolean = (v: string) => v === 'sim';
+  const toNumberOrNull = (v: string): number | null => {
+    if (!v || v.trim() === '') return null;
+    const num = Number(v.replace(/\./g, '').replace(',', '.'));
+    return isNaN(num) ? null : num;
+  };
+
+  const saveFieldWithDebounce = (field: string, value: string) => {
+    if (!imovelId) return;
+    if (savingTimeouts.current[field]) clearTimeout(savingTimeouts.current[field] as number);
+    savingTimeouts.current[field] = setTimeout(async () => {
+      try {
+        const payload: Record<string, unknown> = {};
+        switch (field) {
+          case 'cep': payload.cep = value || null; break;
+          case 'estado': payload.uf = value || null; break;
+          case 'cidade': payload.cidade = value || null; break;
+          case 'bairro': payload.bairro = value || null; break;
+          case 'logradouro': payload.logradouro = value || null; break;
+          case 'numero': payload.numero = value || null; break;
+          case 'complemento': payload.complemento = value || null; break;
+          case 'mostrarEnderecoSite': payload.mostrar_endereco = toBoolean(value); break;
+          case 'mostrarNumeroSite': payload.mostrar_numero = toBoolean(value); break;
+          case 'mostrarApenasProximidades': payload.mostrar_proximidades = toBoolean(value); break;
+          case 'latitude': payload.latitude = toNumberOrNull(value); break;
+          case 'longitude': payload.longitude = toNumberOrNull(value); break;
+          default: return;
+        }
+        await ImovelService.updateEtapaLocalizacao(imovelId, payload);
+        logger.info(`[LOCALIZACAO] Campo ${field} atualizado com sucesso.`);
+      } catch (error) {
+        logger.error(`[LOCALIZACAO] Erro ao atualizar campo ${field}:`, error);
+      }
+    }, 300);
+  };
 
   // Lista de estados (UF)
   const estados = [
@@ -104,6 +145,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange }) =>
     }));
     // Notificar que houve mudança no campo
     onFieldChange?.();
+    saveFieldWithDebounce(field, value);
   };
 
   // Função para buscar CEP (simulação)

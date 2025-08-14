@@ -27,19 +27,19 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
       }
     })(),
     // preços separados dependendo do tipo de negócio
-    precoVenda: initialData?.valor_venda != null ? String(initialData.valor_venda) : '',
-    precoLocacao: initialData?.valor_locacao != null ? String(initialData.valor_locacao) : '',
-    precoTemporada: (initialData as any)?.valor_temporada != null ? String((initialData as any).valor_temporada) : '',
-    mostrarPrecoSite: initialData?.mostrar_valores_site === false ? 'nao' : 'sim',
+    precoVenda: (initialData as any)?.preco_venda != null ? String((initialData as any).preco_venda) : '',
+    precoLocacao: (initialData as any)?.preco_aluguel != null ? String((initialData as any).preco_aluguel) : '',
+    precoTemporada: (initialData as any)?.preco_temporada != null ? String((initialData as any).preco_temporada) : '',
+    mostrarPrecoSite: (initialData as any)?.mostrar_preco === false ? 'nao' : 'sim',
     mostrarLugarPreco: (initialData as any)?.preco_alternativo ? String((initialData as any).preco_alternativo) : '',
     mostrarAlteracaoPreco: (initialData as any)?.mostrar_preco_anterior ? 'sim' : 'nao',
     precoAnterior: (initialData as any)?.preco_anterior != null ? String((initialData as any).preco_anterior) : '',
-    precoIPTU: initialData?.valor_iptu != null ? String(initialData.valor_iptu) : '',
+    precoIPTU: (initialData as any)?.preco_iptu != null ? String((initialData as any).preco_iptu) : '',
     periodoIPTU: (() => {
       const p = (initialData?.periodo_iptu as string) || '';
       return p === 'MENSAL' ? 'mensal' : 'anual';
     })(),
-    precoCondominio: initialData?.valor_condominio != null ? String(initialData.valor_condominio) : '',
+    precoCondominio: (initialData as any)?.preco_condominio != null ? String((initialData as any).preco_condominio) : '',
     estaFinanciado: (initialData as any)?.financiado ? 'sim' : 'nao',
     aceitaFinanciamento: initialData?.aceita_financiamento ? 'sim' : 'nao',
     minhaCasaMinhaVida: (initialData as any)?.minha_casa_minha_vida ? 'sim' : 'nao',
@@ -56,16 +56,7 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
     { value: 'temporada', label: 'Temporada' },
   ];
 
-  // Tipos de imóveis aceitos para permuta
-  const tiposImoveisPermuta = [
-    { value: '', label: 'Selecione' },
-    { value: 'apartamento', label: 'Apartamento' },
-    { value: 'casa', label: 'Casa' },
-    { value: 'terreno', label: 'Terreno' },
-    { value: 'comercial', label: 'Comercial' },
-    { value: 'rural', label: 'Rural' },
-    { value: 'qualquer', label: 'Qualquer tipo' },
-  ];
+  // Removido: tiposImoveisPermuta (não utilizado na UI atual)
 
   // Atualiza os dados do formulário quando há mudanças (apenas para parent awareness)
   useEffect(() => {
@@ -111,16 +102,16 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
             payload.tipo_negocio = mapTipoNegocioToBackend(value);
             break;
           case 'precoVenda':
-            payload.valor_venda = toNumberOrNull(value);
+            payload.preco_venda = toNumberOrNull(value);
             break;
           case 'precoLocacao':
-            payload.valor_locacao = toNumberOrNull(value);
+            payload.preco_aluguel = toNumberOrNull(value);
             break;
           case 'precoTemporada':
-            payload.valor_temporada = toNumberOrNull(value);
+            payload.preco_temporada = toNumberOrNull(value);
             break;
           case 'mostrarPrecoSite':
-            payload.mostrar_valores_site = toBoolean(value);
+            payload.mostrar_preco = toBoolean(value);
             break;
           case 'mostrarLugarPreco':
             payload.preco_alternativo = value || null;
@@ -132,13 +123,13 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
             payload.preco_anterior = toNumberOrNull(value);
             break;
           case 'precoIPTU':
-            payload.valor_iptu = toNumberOrNull(value);
+            payload.preco_iptu = toNumberOrNull(value);
             break;
           case 'periodoIPTU':
             payload.periodo_iptu = mapPeriodoIptuToBackend(value);
             break;
           case 'precoCondominio':
-            payload.valor_condominio = toNumberOrNull(value);
+            payload.preco_condominio = toNumberOrNull(value);
             break;
           case 'estaFinanciado':
             payload.financiado = toBoolean(value);
