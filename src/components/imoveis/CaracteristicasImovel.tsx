@@ -18,9 +18,6 @@ interface CaracteristicasImovelProps {
 }
 
 const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
-  // Log para depuração do formato dos dados iniciais
-  console.log('[DEBUG] initialData?.caracteristicas recebido:', initialData?.caracteristicas);
-  
   // Processamento dos dados iniciais para extrair IDs de objetos ou usar IDs diretos
   let sanitizedInitialData: number[] = [];
   
@@ -28,7 +25,6 @@ const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate,
     sanitizedInitialData = initialData.caracteristicas.map(item => {
       // Caso 1: O item é um objeto com propriedade id (formato do retorno da API)
       if (item && typeof item === 'object' && 'id' in item) {
-        console.log('[DEBUG] Extraindo ID de objeto:', item);
         return Number(item.id);
       }
       // Caso 2: O item já é um número ou string numérica
@@ -37,13 +33,10 @@ const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate,
       }
       // Caso 3: Item inválido, será filtrado
       else {
-        console.log('[DEBUG] Item inválido filtrado:', item);
         return NaN;
       }
     }).filter(id => !isNaN(id)); // Filtra quaisquer valores NaN
   }
-  
-  console.log('[DEBUG] sanitizedInitialData após processamento:', sanitizedInitialData);
   
   const [caracteristicasSelecionadas, setCaracteristicasSelecionadas] = useState<number[]>(sanitizedInitialData);
   const [novaCaracteristica, setNovaCaracteristica] = useState('');
@@ -141,7 +134,6 @@ const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate,
         try {
           // Converter cada ID para string individualmente
           const stringIds = newSelection.map(itemId => String(itemId));
-          console.log('[DEBUG] Enviando payload para API:', { caracteristicas: stringIds });
           
           await ImovelService.updateEtapaCaracteristicas(imovelId, { 
             caracteristicas: stringIds

@@ -469,50 +469,36 @@ export class ImovelService {
   private static pendingRequests: Record<string, Promise<ApiResponse<Caracteristica[]>>> = {};
   
   static async getCaracteristicas(escopo: 'IMOVEL' | 'CONDOMINIO', forceCache: boolean = false): Promise<ApiResponse<Caracteristica[]>> {
-    console.log(`[DEBUG] ImovelService.getCaracteristicas("${escopo}", forceCache=${forceCache}) chamado`);
-    console.log(`[DEBUG] Cache atual:`, this.caracteristicasCache);
-    console.log(`[DEBUG] Requisições pendentes:`, Object.keys(this.pendingRequests));
-    
     // 1. Verificar cache primeiro
     if (this.caracteristicasCache[escopo]) {
-      console.log(`[DEBUG] Retornando dados em cache para "${escopo}"`);
       return this.caracteristicasCache[escopo];
     }
     
     // 2. Se forceCache é true, mas não temos cache, lançamos um erro
     if (forceCache) {
-      console.log(`[DEBUG] forceCache=true mas não há dados em cache para "${escopo}"`);
       throw new Error(`Não há dados em cache para "${escopo}"`);
     }
     
     // 3. Verificar se já existe uma requisição pendente para este escopo
     const pendingRequest = this.pendingRequests[escopo];
     if (pendingRequest) {
-      console.log(`[DEBUG] Reutilizando requisição pendente para "${escopo}"`);
       return pendingRequest;
     }
     
     // 4. Criar nova requisição e armazená-la
-    console.log(`[DEBUG] Criando nova requisição para "${escopo}"`);
-    
-    // Criar a Promise e armazená-la para reutilização
     this.pendingRequests[escopo] = (async () => {
       try {
-        console.log(`[DEBUG] Executando chamada à API para "${escopo}"`);
         const response = await api.get(`/imoveis/opcoes/caracteristicas/${escopo}`);
         
         // Armazena no cache
         this.caracteristicasCache[escopo] = response.data;
-        console.log(`[DEBUG] Dados armazenados em cache para "${escopo}"`);
         
         return response.data;
       } catch (error) {
-        // Em caso de erro, remover do cache de requisições pendentes
-        console.error(`[DEBUG] Erro na chamada à API para "${escopo}":`, error);
+        // Em caso de erro, propaga o erro
         throw error;
       } finally {
         // Limpar a referência da Promise quando concluída (sucesso ou erro)
-        console.log(`[DEBUG] Limpando referência de requisição pendente para "${escopo}"`);
         delete this.pendingRequests[escopo];
       }
     })();
