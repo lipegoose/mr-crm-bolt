@@ -19,26 +19,51 @@ interface CaracteristicasCondominioProps {
 
 const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
   // Log para depuração do formato dos dados iniciais
-  console.log('[DEBUG] initialData?.caracteristicas recebido (condomínio):', initialData?.caracteristicas);
+  console.log('[DEBUG] initialData recebido (condomínio):', initialData);
   
-  // Sanitização dos dados iniciais para garantir que apenas IDs numéricos válidos sejam armazenados
-  const sanitizedInitialData = Array.isArray(initialData?.caracteristicas) 
-    ? initialData.caracteristicas
-        .filter(item => {
-          // Aceitar apenas números ou strings que podem ser convertidas para números
-          const isValid = typeof item === 'number' || 
-                         (typeof item === 'string' && !isNaN(Number(item)));
-          
-          if (!isValid) {
-            console.log('[DEBUG] Item inválido filtrado (condomínio):', item);
-          }
-          
-          return isValid;
-        })
-        .map(item => Number(item))
-    : [];
+  // Processamento dos dados iniciais para extrair IDs de objetos ou usar IDs diretos
+  let sanitizedInitialData: number[] = [];
   
-  console.log('[DEBUG] sanitizedInitialData após filtragem (condomínio):', sanitizedInitialData);
+  // Estrutura específica para características do condomínio
+  // A API retorna: data.condominio.caracteristicas (array de objetos com id e nome)
+  if (initialData?.condominio && 
+      typeof initialData.condominio === 'object' && 
+      (initialData.condominio as any)?.caracteristicas && 
+      Array.isArray((initialData.condominio as any).caracteristicas)) {
+    
+    console.log('[DEBUG] Processando características do condomínio:', (initialData.condominio as any).caracteristicas);
+    
+    sanitizedInitialData = (initialData.condominio as any).caracteristicas
+      .map((item: any) => {
+        if (item && typeof item === 'object' && 'id' in item) {
+          console.log('[DEBUG] Extraindo ID de característica do condomínio:', item.id);
+          return Number(item.id);
+        }
+        return NaN;
+      })
+      .filter((id: number) => !isNaN(id));
+  }
+  // Fallback para o formato anterior, caso a API mude
+  else if (Array.isArray(initialData?.caracteristicas)) {
+    sanitizedInitialData = initialData.caracteristicas.map(item => {
+      // Caso 1: O item é um objeto com propriedade id
+      if (item && typeof item === 'object' && 'id' in item) {
+        console.log('[DEBUG] Extraindo ID de objeto (formato alternativo):', item);
+        return Number(item.id);
+      }
+      // Caso 2: O item já é um número ou string numérica
+      else if (typeof item === 'number' || (typeof item === 'string' && !isNaN(Number(item)))) {
+        return Number(item);
+      }
+      // Caso 3: Item inválido, será filtrado
+      else {
+        console.log('[DEBUG] Item inválido filtrado (condomínio):', item);
+        return NaN;
+      }
+    }).filter(id => !isNaN(id)); // Filtra quaisquer valores NaN
+  }
+  
+  console.log('[DEBUG] sanitizedInitialData após processamento (condomínio):', sanitizedInitialData);
   
   const [caracteristicasSelecionadas, setCaracteristicasSelecionadas] = useState<number[]>(sanitizedInitialData);
   const [novaCaracteristica, setNovaCaracteristica] = useState('');

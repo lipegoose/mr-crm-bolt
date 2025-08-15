@@ -21,24 +21,29 @@ const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate,
   // Log para depuração do formato dos dados iniciais
   console.log('[DEBUG] initialData?.caracteristicas recebido:', initialData?.caracteristicas);
   
-  // Sanitização dos dados iniciais para garantir que apenas IDs numéricos válidos sejam armazenados
-  const sanitizedInitialData = Array.isArray(initialData?.caracteristicas) 
-    ? initialData.caracteristicas
-        .filter(item => {
-          // Aceitar apenas números ou strings que podem ser convertidas para números
-          const isValid = typeof item === 'number' || 
-                         (typeof item === 'string' && !isNaN(Number(item)));
-          
-          if (!isValid) {
-            console.log('[DEBUG] Item inválido filtrado:', item);
-          }
-          
-          return isValid;
-        })
-        .map(item => Number(item))
-    : [];
+  // Processamento dos dados iniciais para extrair IDs de objetos ou usar IDs diretos
+  let sanitizedInitialData: number[] = [];
   
-  console.log('[DEBUG] sanitizedInitialData após filtragem:', sanitizedInitialData);
+  if (Array.isArray(initialData?.caracteristicas)) {
+    sanitizedInitialData = initialData.caracteristicas.map(item => {
+      // Caso 1: O item é um objeto com propriedade id (formato do retorno da API)
+      if (item && typeof item === 'object' && 'id' in item) {
+        console.log('[DEBUG] Extraindo ID de objeto:', item);
+        return Number(item.id);
+      }
+      // Caso 2: O item já é um número ou string numérica
+      else if (typeof item === 'number' || (typeof item === 'string' && !isNaN(Number(item)))) {
+        return Number(item);
+      }
+      // Caso 3: Item inválido, será filtrado
+      else {
+        console.log('[DEBUG] Item inválido filtrado:', item);
+        return NaN;
+      }
+    }).filter(id => !isNaN(id)); // Filtra quaisquer valores NaN
+  }
+  
+  console.log('[DEBUG] sanitizedInitialData após processamento:', sanitizedInitialData);
   
   const [caracteristicasSelecionadas, setCaracteristicasSelecionadas] = useState<number[]>(sanitizedInitialData);
   const [novaCaracteristica, setNovaCaracteristica] = useState('');
