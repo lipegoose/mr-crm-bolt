@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Info, Home, Ruler, DollarSign, CheckSquare, Building, MapPin, 
@@ -41,8 +41,26 @@ const ImovelCadastro: React.FC = () => {
   // Hook para gerenciar callbacks de etapas
   const { registerCallback, executeCallback } = useStepCallbacks();
 
-  // Define os passos do cadastro
-  const steps: Step[] = [
+  // Função para verificar se o imóvel tem um condomínio selecionado
+  const hasValidCondominio = useCallback((): boolean => {
+    const informacoesData = formData['informacoes'] as Record<string, unknown> | undefined;
+    
+    // Se não temos dados de informações, não podemos verificar
+    if (!informacoesData) return false;
+    
+    // Verifica se o imóvel está marcado como pertencente a um condomínio
+    const isCondominio = informacoesData.isCondominio === 'sim';
+    
+    // Verifica se um condomínio válido foi selecionado
+    const condominioId = informacoesData.condominio_id;
+    const hasCondominio = typeof condominioId === 'number' && condominioId > 0;
+    
+    // Retorna true apenas se ambas as condições forem verdadeiras
+    return isCondominio && hasCondominio;
+  }, [formData]);
+  
+  // Define todos os passos possíveis do cadastro
+  const allSteps: Step[] = [
     { id: 'informacoes', label: 'Informações', icon: <Info size={16} />, completed: stepsCompleted.includes('informacoes') },
     { id: 'comodos', label: 'Cômodos', icon: <Home size={16} />, completed: stepsCompleted.includes('comodos') },
     { id: 'medidas', label: 'Medidas', icon: <Ruler size={16} />, completed: stepsCompleted.includes('medidas') },
@@ -57,6 +75,17 @@ const ImovelCadastro: React.FC = () => {
     { id: 'imagens', label: 'Imagens do imóvel', icon: <Image size={16} />, completed: stepsCompleted.includes('imagens') },
     { id: 'publicacao', label: 'Publicação', icon: <Eye size={16} />, completed: stepsCompleted.includes('publicacao') },
   ];
+  
+  // Filtra os passos com base nas condições do imóvel
+  const steps: Step[] = useMemo(() => {
+    // Se o imóvel tem um condomínio válido, mostra todos os passos
+    if (hasValidCondominio()) {
+      return allSteps;
+    }
+    
+    // Caso contrário, filtra a etapa de características do condomínio
+    return allSteps.filter(step => step.id !== 'caracteristicas-condominio');
+  }, [allSteps, hasValidCondominio]);
 
   // Estado para controlar etapas já carregadas
   const [loadedSteps, setLoadedSteps] = useState<Set<string>>(new Set());
@@ -256,7 +285,26 @@ const ImovelCadastro: React.FC = () => {
     
     logger.info('🔄 [DEBUG] Callback executado, avançando para próxima etapa...');
     
+    // Encontra o índice atual nos passos filtrados
     const currentIndex = steps.findIndex(step => step.id === activeStep);
+    
+    // Verifica se estamos na etapa de características do imóvel e se devemos pular a próxima etapa
+    if (activeStep === 'caracteristicas-imovel' && !hasValidCondominio()) {
+      logger.info('🔄 [DEBUG] Imóvel sem condomínio válido, pulando etapa de características do condomínio');
+      
+      // Encontra o índice da etapa de localização (que vem após características do condomínio)
+      const localizacaoIndex = steps.findIndex(step => step.id === 'localizacao');
+      
+      if (localizacaoIndex !== -1) {
+        const nextStepId = steps[localizacaoIndex].id;
+        logger.info('🔄 [DEBUG] Pulando para etapa:', nextStepId);
+        setActiveStep(nextStepId);
+        loadStepData(nextStepId);
+        return;
+      }
+    }
+    
+    // Comportamento padrão para avançar para a próxima etapa
     if (currentIndex < steps.length - 1) {
       const nextStepId = steps[currentIndex + 1].id;
       logger.info('🔄 [DEBUG] Mudando de etapa:', activeStep, '→', nextStepId);
