@@ -15,6 +15,7 @@ interface InformacoesIniciaisProps {
   initialData?: Record<string, unknown>;
   onFieldChange?: () => void;
   imovelId?: number; // ID do imóvel para validação do código de referência
+  updateAfterCondominioChange?: (isCondominio: string, condominioId: number | null) => void;
 }
 
 // Formato dos dados de condomínio da API:
@@ -48,7 +49,7 @@ interface InformacoesForm extends Record<string, unknown> {
   mobiliado: string;
 }
 
-const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, submitCallback, initialData, onFieldChange, imovelId }) => {
+const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, submitCallback, initialData, onFieldChange, imovelId, updateAfterCondominioChange }) => {
   // Estado para opções da API
   const [tipos, setTipos] = useState<string[]>([]);
   const [subtipos, setSubtipos] = useState<string[]>([]);
@@ -775,17 +776,28 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                 ]}
                 value={formData.isCondominio}
                 onChange={(value) => {
-                  // Atualizar o valor de isCondominio
-                  handleFieldChangeSimple('isCondominio', value);
+                  // Atualizar o valor local primeiro
+                  handleChange('isCondominio', value);
                   
-                  // Nova abordagem: Enviar imediatamente uma requisição PUT quando mudar isCondominio para "nao"
-                  if (value === 'nao') {
-                     // Atualizar via etapa específica
-                     ImovelService.updateEtapaInformacoes(imovelId!, { condominio_id: null })
-                     .catch((error) => {
-                       logger.error('[CONDOMINIO] Erro ao definir condominio_id como null:', error);
-                     });
+                  if (imovelId) {
+                    // Limpar campo condominio se for "nao"
+                    const condominioId = value === 'nao' ? null : formData.condominio;
+                    
+                    // Atualizar a API uma única vez
+                    ImovelService.updateEtapaInformacoes(imovelId, { 
+                      condominio_id: condominioId 
+                    })
+                    .then(() => {
+                      // Notificar o componente pai para atualizar seu estado
+                      updateAfterCondominioChange?.(value, condominioId as number | null);
+                    })
+                    .catch((error) => {
+                      logger.error('[CONDOMINIO] Erro ao atualizar condominio_id:', error);
+                    });
                   }
+                  
+                  // Notificar sobre a mudança
+                  onFieldChange?.();
                 }}
               />
             </div>
@@ -799,58 +811,33 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                 value={formData.condominio?.toString() || ''}
                 onChange={(e) => {
                   try {
-                    // Extrair o valor diretamente sem tentar serializar o objeto DOM
                     const value = e.target.value;
                     
-
+                    // Converter para número ou null
+                    const numericValue = value === '' ? null : parseInt(value, 10);
+                    const validNumericValue = numericValue === null || isNaN(numericValue) || numericValue <= 0 ? null : numericValue;
                     
-                    // Se o valor for vazio, definir como null
-                    if (value === '') {
-
-                      handleFieldChangeSimple('condominio', null);
-                      
-                       // Atualizar via etapa específica
-                       ImovelService.updateEtapaInformacoes(imovelId!, { condominio_id: null })
-                       .catch((error) => {
-                         logger.error('[CONDOMINIO] Erro ao definir condominio_id como null:', error);
-                       });
-                      
-                      return;
-                    }
+                    // Atualizar o valor local
+                    handleChange('condominio', validNumericValue);
                     
-                    // Converter para número e verificar se é válido
-                    const numericValue = parseInt(value, 10);
-
-                    
-                    // Verificar se é um número válido
-                    if (isNaN(numericValue) || numericValue <= 0) {
-
-                      handleFieldChangeSimple('condominio', null);
-                      
-                      // Enviar requisição PUT para atualizar o imóvel com condominio_id: null
-                      // Enviar requisição PUT para definir condominio_id como null
-                      api.put(`/imoveis/${imovelId}`, {
-                        condominio_id: null
+                    if (imovelId) {
+                      // Atualizar a API uma única vez
+                      ImovelService.updateEtapaInformacoes(imovelId, { 
+                        condominio_id: validNumericValue 
                       })
                       .then(() => {
-                        // Condominio_id definido como null com sucesso
+                        // Notificar o componente pai para atualizar seu estado
+                        updateAfterCondominioChange?.('sim', validNumericValue);
                       })
                       .catch((error) => {
-                        logger.error('[CONDOMINIO] Erro ao definir condominio_id como null:', error);
+                        logger.error('[CONDOMINIO] Erro ao atualizar condominio_id:', error);
                       });
-                    } else {
-
-                      handleFieldChangeSimple('condominio', numericValue);
-                      
-                       // Nova abordagem: Enviar imediatamente via etapa específica quando selecionar um condomínio
-                       ImovelService.updateEtapaInformacoes(imovelId!, { condominio_id: numericValue })
-                       .catch((error) => {
-                         logger.error('[CONDOMINIO] Erro ao atualizar condominio_id:', error);
-                       });
                     }
+                    
+                    // Notificar sobre a mudança
+                    onFieldChange?.();
                   } catch (error) {
-                    // Capturar qualquer erro e logar para debug
-
+                    console.error('[CONDOMINIO] Erro ao processar mudança de condomínio:', error);
                   }
                 }}
                 required

@@ -46,17 +46,56 @@ const ImovelCadastro: React.FC = () => {
     const informacoesData = formData['informacoes'] as Record<string, unknown> | undefined;
     
     // Se não temos dados de informações, não podemos verificar
-    if (!informacoesData) return false;
+    if (!informacoesData) {
+      return false;
+    }
     
     // Verifica se o imóvel está marcado como pertencente a um condomínio
     const isCondominio = informacoesData.isCondominio === 'sim';
     
-    // Verifica se um condomínio válido foi selecionado
+    // Verificação do condominio_id (usado pela API)
     const condominioId = informacoesData.condominio_id;
-    const hasCondominio = typeof condominioId === 'number' && condominioId > 0;
+    
+    // Verificação do condominio (usado pelo frontend)
+    const condominio = informacoesData.condominio;
+    
+    // Verificação flexível para o ID do condomínio, considerando múltiplos campos possíveis
+    let hasCondominio = false;
+    
+    // Verifica o campo condominio_id (usado pela API)
+    if (typeof condominioId === 'number' && condominioId > 0) {
+      hasCondominio = true;
+    } else if (typeof condominioId === 'string' && !isNaN(Number(condominioId)) && Number(condominioId) > 0) {
+      hasCondominio = true;
+    }
+    
+    // Verifica o objeto condominio (que pode ter um campo id)
+    if (!hasCondominio && typeof condominio === 'object' && condominio !== null) {
+      const condominioObj = condominio as Record<string, unknown>;
+      
+      if (condominioObj.id) {
+        const id = condominioObj.id;
+        if (typeof id === 'number' && id > 0) {
+          hasCondominio = true;
+        } else if (typeof id === 'string' && !isNaN(Number(id)) && Number(id) > 0) {
+          hasCondominio = true;
+        }
+      }
+    }
+    
+    // Verifica o campo condominio (usado pelo frontend) como número direto
+    if (!hasCondominio) {
+      if (typeof condominio === 'number' && condominio > 0) {
+        hasCondominio = true;
+      } else if (typeof condominio === 'string' && !isNaN(Number(condominio)) && Number(condominio) > 0) {
+        hasCondominio = true;
+      }
+    }
     
     // Retorna true apenas se ambas as condições forem verdadeiras
-    return isCondominio && hasCondominio;
+    const result = isCondominio && hasCondominio;
+    
+    return result;
   }, [formData]);
   
   // Define todos os passos possíveis do cadastro
@@ -79,13 +118,16 @@ const ImovelCadastro: React.FC = () => {
   // Filtra os passos com base nas condições do imóvel
   const steps: Step[] = useMemo(() => {
     // Se o imóvel tem um condomínio válido, mostra todos os passos
-    if (hasValidCondominio()) {
+    const temCondominio = hasValidCondominio();
+    
+    if (temCondominio) {
       return allSteps;
     }
     
     // Caso contrário, filtra a etapa de características do condomínio
-    return allSteps.filter(step => step.id !== 'caracteristicas-condominio');
-  }, [allSteps, hasValidCondominio]);
+    const filteredSteps = allSteps.filter(step => step.id !== 'caracteristicas-condominio');
+    return filteredSteps;
+  }, [allSteps, formData, hasValidCondominio]); // Dependências completas para garantir recálculo correto
 
   // Estado para controlar etapas já carregadas
   const [loadedSteps, setLoadedSteps] = useState<Set<string>>(new Set());
@@ -179,6 +221,8 @@ const ImovelCadastro: React.FC = () => {
         logger.info(`Carregando dados da primeira etapa (informacoes)`);
         await loadStepData('informacoes');
         
+        // Dados carregados com sucesso
+        
       } catch (error) {
         logger.error('Erro ao carregar imóvel:', error);
         alert('Erro ao carregar dados do imóvel. Tente novamente.');
@@ -189,7 +233,7 @@ const ImovelCadastro: React.FC = () => {
     };
     
     loadImovelBasico();
-  }, [id, loadStepData]); // Adicionado loadStepData como dependência
+  }, [id, loadStepData, formData]); // Adicionado formData como dependência
 
   // Função para atualizar os dados do formulário
   const handleUpdateFormData = useCallback(async (stepId: string, data: Record<string, unknown>, hasChanges = false) => {
@@ -343,6 +387,21 @@ const ImovelCadastro: React.FC = () => {
     }
   };
 
+  // Método específico para atualizar o estado após mudanças no condomínio
+  const updateFormDataAfterCondominioChange = useCallback((isCondominio: string, condominioId: number | null) => {
+    setFormData(prev => ({
+      ...prev,
+      informacoes: {
+        ...(prev['informacoes'] as Record<string, unknown> || {}),
+        isCondominio,
+        condominio_id: condominioId,
+        condominio: condominioId
+      }
+    }));
+    
+    // Forçar recálculo das etapas visíveis
+  }, []);
+
   // Função auxiliar para verificar se há dados salvos para uma etapa
   const hasStepData = useCallback((stepId: string): boolean => {
     const stepData = formData[stepId];
@@ -392,6 +451,7 @@ const ImovelCadastro: React.FC = () => {
               initialData={formData['informacoes'] as Record<string, unknown>}
               onFieldChange={() => markStepAsChanged('informacoes')}
               imovelId={id ? Number(id) : undefined}
+              updateAfterCondominioChange={updateFormDataAfterCondominioChange}
             />
           </div>
         );
