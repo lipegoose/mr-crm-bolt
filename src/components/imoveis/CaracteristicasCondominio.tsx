@@ -63,22 +63,21 @@ const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ o
 
   // Carregar opções dinâmicas do backend (apenas uma vez)
   useEffect(() => {
-    console.log('[DEBUG] CaracteristicasCondominio - useEffect para carregar opções executado');
-    console.log('[DEBUG] CaracteristicasCondominio - OPCOES_CARREGADAS.CONDOMINIO =', OPCOES_CARREGADAS.CONDOMINIO);
+    // Carregar opções de características do condomínio
     
     // Se já carregamos as opções em alguma instância anterior do componente
     if (OPCOES_CARREGADAS.CONDOMINIO) {
-      console.log('[DEBUG] CaracteristicasCondominio - Opções já carregadas globalmente, obtendo dados');
+      // Opções já carregadas, obtendo dados do cache
       
       // Não precisamos mais do tratamento de erro complexo, pois o serviço agora gerencia isso
       // Apenas solicitamos os dados, o serviço decidirá se usa cache ou requisição pendente
       ImovelService.getCaracteristicas('CONDOMINIO')
         .then(resp => {
-          console.log('[DEBUG] CaracteristicasCondominio - Dados obtidos com sucesso');
+          // Dados obtidos com sucesso
           setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
         })
         .catch(err => {
-          console.error('[DEBUG] CaracteristicasCondominio - Erro ao obter dados:', err);
+          // Erro já registrado pelo logger
           logger.error('[CARACTERISTICAS_COND] Erro ao carregar opções:', err);
           // Em caso de erro, permitimos tentar novamente em outra montagem
           OPCOES_CARREGADAS.CONDOMINIO = false;
@@ -94,19 +93,18 @@ const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ o
     
     const carregarOpcoes = async () => {
       try {
-        console.log('[DEBUG] CaracteristicasCondominio - Iniciando chamada à API para getCaracteristicas("CONDOMINIO")');
+        // Fazer chamada à API para obter características
         const resp = await ImovelService.getCaracteristicas('CONDOMINIO');
-        console.log('[DEBUG] CaracteristicasCondominio - Chamada à API concluída com sucesso');
         
         // Verifica se o componente ainda está montado antes de atualizar o estado
         if (isMounted) {
           setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
-          console.log('[DEBUG] CaracteristicasCondominio - Estado atualizado');
+          // Estado atualizado com as opções recebidas
         }
       } catch (error) {
         if (isMounted) {
           logger.error('[CARACTERISTICAS_COND] Erro ao carregar opções:', error);
-          console.log('[DEBUG] CaracteristicasCondominio - Erro ao carregar opções:', error);
+          // Erro já registrado pelo logger
           // Se falhou, permitimos tentar novamente em outra montagem
           OPCOES_CARREGADAS.CONDOMINIO = false;
         }
@@ -117,7 +115,7 @@ const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ o
     
     // Cleanup para evitar atualização de estado em componente desmontado
     return () => {
-      console.log('[DEBUG] CaracteristicasCondominio - Cleanup do useEffect executado');
+      // Cleanup do useEffect
       isMounted = false;
     };
   }, []);

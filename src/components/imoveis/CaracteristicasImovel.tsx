@@ -46,22 +46,21 @@ const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate,
 
   // Carregar opções dinâmicas do backend (apenas uma vez)
   useEffect(() => {
-    console.log('[DEBUG] CaracteristicasImovel - useEffect para carregar opções executado');
-    console.log('[DEBUG] CaracteristicasImovel - OPCOES_CARREGADAS.IMOVEL =', OPCOES_CARREGADAS.IMOVEL);
+    // Carregar opções de características
     
     // Se já carregamos as opções em alguma instância anterior do componente
     if (OPCOES_CARREGADAS.IMOVEL) {
-      console.log('[DEBUG] CaracteristicasImovel - Opções já carregadas globalmente, obtendo dados');
+      // Opções já carregadas, obtendo dados do cache
       
       // Não precisamos mais do tratamento de erro complexo, pois o serviço agora gerencia isso
       // Apenas solicitamos os dados, o serviço decidirá se usa cache ou requisição pendente
       ImovelService.getCaracteristicas('IMOVEL')
         .then(resp => {
-          console.log('[DEBUG] CaracteristicasImovel - Dados obtidos com sucesso');
+          // Dados obtidos com sucesso
           setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
         })
         .catch(err => {
-          console.error('[DEBUG] CaracteristicasImovel - Erro ao obter dados:', err);
+          // Erro ao obter dados
           logger.error('[CARACTERISTICAS_IMOVEL] Erro ao carregar opções:', err);
           // Em caso de erro, permitimos tentar novamente em outra montagem
           OPCOES_CARREGADAS.IMOVEL = false;
@@ -77,19 +76,18 @@ const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate,
     
     const carregarOpcoes = async () => {
       try {
-        console.log('[DEBUG] CaracteristicasImovel - Iniciando chamada à API para getCaracteristicas("IMOVEL")');
+        // Fazer chamada à API para obter características
         const resp = await ImovelService.getCaracteristicas('IMOVEL');
-        console.log('[DEBUG] CaracteristicasImovel - Chamada à API concluída com sucesso');
         
         // Verifica se o componente ainda está montado antes de atualizar o estado
         if (isMounted) {
           setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
-          console.log('[DEBUG] CaracteristicasImovel - Estado atualizado');
+          // Estado atualizado com as opções recebidas
         }
       } catch (error) {
         if (isMounted) {
           logger.error('[CARACTERISTICAS_IMOVEL] Erro ao carregar opções:', error);
-          console.log('[DEBUG] CaracteristicasImovel - Erro ao carregar opções:', error);
+          // Erro já registrado pelo logger
           // Se falhou, permitimos tentar novamente em outra montagem
           OPCOES_CARREGADAS.IMOVEL = false;
         }
@@ -100,7 +98,7 @@ const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate,
     
     // Cleanup para evitar atualização de estado em componente desmontado
     return () => {
-      console.log('[DEBUG] CaracteristicasImovel - Cleanup do useEffect executado');
+      // Cleanup do useEffect
       isMounted = false;
     };
   }, []);

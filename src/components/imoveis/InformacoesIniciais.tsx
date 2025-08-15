@@ -837,7 +837,7 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
                     // Notificar sobre a mudança
                     onFieldChange?.();
                   } catch (error) {
-                    console.error('[CONDOMINIO] Erro ao processar mudança de condomínio:', error);
+                    logger.error('[CONDOMINIO] Erro ao processar mudança de condomínio:', error);
                   }
                 }}
                 required
