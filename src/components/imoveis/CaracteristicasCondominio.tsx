@@ -4,6 +4,12 @@ import { Button } from '../ui/Button';
 import { ImovelService } from '../../services/ImovelService';
 import logger from '../../utils/logger';
 
+// Cache compartilhado no nível do módulo
+const OPCOES_CARREGADAS = {
+  IMOVEL: false,
+  CONDOMINIO: false
+};
+
 interface CaracteristicasCondominioProps {
   onUpdate: (data: any) => void;
   onFieldChange?: () => void;
@@ -12,46 +18,134 @@ interface CaracteristicasCondominioProps {
 }
 
 const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
-  const [caracteristicasSelecionadas, setCaracteristicasSelecionadas] = useState<number[]>(
-    Array.isArray(initialData?.caracteristicas) ? (initialData?.caracteristicas as number[]) : []
-  );
+  // Log para depuração do formato dos dados iniciais
+  console.log('[DEBUG] initialData?.caracteristicas recebido (condomínio):', initialData?.caracteristicas);
+  
+  // Sanitização dos dados iniciais para garantir que apenas IDs numéricos válidos sejam armazenados
+  const sanitizedInitialData = Array.isArray(initialData?.caracteristicas) 
+    ? initialData.caracteristicas
+        .filter(item => {
+          // Aceitar apenas números ou strings que podem ser convertidas para números
+          const isValid = typeof item === 'number' || 
+                         (typeof item === 'string' && !isNaN(Number(item)));
+          
+          if (!isValid) {
+            console.log('[DEBUG] Item inválido filtrado (condomínio):', item);
+          }
+          
+          return isValid;
+        })
+        .map(item => Number(item))
+    : [];
+  
+  console.log('[DEBUG] sanitizedInitialData após filtragem (condomínio):', sanitizedInitialData);
+  
+  const [caracteristicasSelecionadas, setCaracteristicasSelecionadas] = useState<number[]>(sanitizedInitialData);
   const [novaCaracteristica, setNovaCaracteristica] = useState('');
   const [showNovaCaracteristicaForm, setShowNovaCaracteristicaForm] = useState(false);
   const [opcoes, setOpcoes] = useState<{ id: number; nome: string }[]>([]);
   const savingTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
 
+  // Carregar opções dinâmicas do backend (apenas uma vez)
   useEffect(() => {
-    (async () => {
+    console.log('[DEBUG] CaracteristicasCondominio - useEffect para carregar opções executado');
+    console.log('[DEBUG] CaracteristicasCondominio - OPCOES_CARREGADAS.CONDOMINIO =', OPCOES_CARREGADAS.CONDOMINIO);
+    
+    // Se já carregamos as opções em alguma instância anterior do componente
+    if (OPCOES_CARREGADAS.CONDOMINIO) {
+      console.log('[DEBUG] CaracteristicasCondominio - Opções já carregadas globalmente, obtendo dados');
+      
+      // Não precisamos mais do tratamento de erro complexo, pois o serviço agora gerencia isso
+      // Apenas solicitamos os dados, o serviço decidirá se usa cache ou requisição pendente
+      ImovelService.getCaracteristicas('CONDOMINIO')
+        .then(resp => {
+          console.log('[DEBUG] CaracteristicasCondominio - Dados obtidos com sucesso');
+          setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
+        })
+        .catch(err => {
+          console.error('[DEBUG] CaracteristicasCondominio - Erro ao obter dados:', err);
+          logger.error('[CARACTERISTICAS_COND] Erro ao carregar opções:', err);
+          // Em caso de erro, permitimos tentar novamente em outra montagem
+          OPCOES_CARREGADAS.CONDOMINIO = false;
+        });
+      
+      return;
+    }
+    
+    // Marcamos como carregado imediatamente para evitar corrida
+    OPCOES_CARREGADAS.CONDOMINIO = true;
+    
+    let isMounted = true;
+    
+    const carregarOpcoes = async () => {
       try {
+        console.log('[DEBUG] CaracteristicasCondominio - Iniciando chamada à API para getCaracteristicas("CONDOMINIO")');
         const resp = await ImovelService.getCaracteristicas('CONDOMINIO');
-        setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
+        console.log('[DEBUG] CaracteristicasCondominio - Chamada à API concluída com sucesso');
+        
+        // Verifica se o componente ainda está montado antes de atualizar o estado
+        if (isMounted) {
+          setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
+          console.log('[DEBUG] CaracteristicasCondominio - Estado atualizado');
+        }
       } catch (error) {
-        logger.error('[CARACTERISTICAS_COND] Erro ao carregar opções:', error);
+        if (isMounted) {
+          logger.error('[CARACTERISTICAS_COND] Erro ao carregar opções:', error);
+          console.log('[DEBUG] CaracteristicasCondominio - Erro ao carregar opções:', error);
+          // Se falhou, permitimos tentar novamente em outra montagem
+          OPCOES_CARREGADAS.CONDOMINIO = false;
+        }
       }
-    })();
+    };
+    
+    carregarOpcoes();
+    
+    // Cleanup para evitar atualização de estado em componente desmontado
+    return () => {
+      console.log('[DEBUG] CaracteristicasCondominio - Cleanup do useEffect executado');
+      isMounted = false;
+    };
   }, []);
 
+  // Notifica o componente pai sobre as características selecionadas (sem salvar na API)
   useEffect(() => {
     onUpdate({ caracteristicasCondominio: caracteristicasSelecionadas });
-    if (!imovelId) return;
-    if (savingTimeoutRef.current) clearTimeout(savingTimeoutRef.current as number);
-    savingTimeoutRef.current = setTimeout(async () => {
-      try {
-        await ImovelService.updateEtapaCaracteristicasCondominio(imovelId, { caracteristicas: caracteristicasSelecionadas });
-        logger.info('[CARACTERISTICAS_COND] Características atualizadas com sucesso.');
-      } catch (error) {
-        logger.error('[CARACTERISTICAS_COND] Erro ao atualizar características:', error);
-      }
-    }, 300);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caracteristicasSelecionadas]);
 
   // Função para alternar a seleção de uma característica
   const toggleCaracteristica = (id: number) => {
-    setCaracteristicasSelecionadas(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-    onFieldChange?.();
+    // Calcular a nova seleção antes de atualizar o estado
+    const newSelection = caracteristicasSelecionadas.includes(id)
+      ? caracteristicasSelecionadas.filter(item => item !== id)
+      : [...caracteristicasSelecionadas, id];
+    
+    // Atualizar o estado com a nova seleção
+    setCaracteristicasSelecionadas(newSelection);
+    
+    // Notifica que houve mudança - movido para fora do setState para evitar atualização durante renderização
+    setTimeout(() => {
+      onFieldChange?.();
+    }, 0);
+    
+    // Salva na API com debounce - usando a nova seleção calculada
+    if (imovelId) {
+      if (savingTimeoutRef.current) clearTimeout(savingTimeoutRef.current as number);
+      savingTimeoutRef.current = setTimeout(async () => {
+        try {
+          // Converter cada ID para string individualmente
+          const stringIds = newSelection.map(itemId => String(itemId));
+          console.log('[DEBUG] Enviando payload para API:', { caracteristicas: stringIds });
+          
+          await ImovelService.updateEtapaCaracteristicasCondominio(imovelId, { 
+            caracteristicas: stringIds
+          });
+          logger.info('[CARACTERISTICAS_COND] Características atualizadas com sucesso.');
+        } catch (error) {
+          logger.error('[CARACTERISTICAS_COND] Erro ao atualizar características:', error);
+        }
+      }, 300);
+    }
   };
 
   // Função para adicionar uma nova característica
