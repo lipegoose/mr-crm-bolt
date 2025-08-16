@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { RadioGroup } from '../ui/RadioGroup';
-import { MapPin } from 'lucide-react';
+import { MapPin, Loader2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ImovelService } from '../../services/ImovelService';
 import logger from '../../utils/logger';
+import { buscarCEP } from '../../utils/cepUtils';
 
 interface LocalizacaoProps {
   onUpdate: (data: any) => void;
@@ -29,6 +30,11 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     latitude: initialData?.latitude != null ? String(initialData.latitude) : '',
     longitude: initialData?.longitude != null ? String(initialData.longitude) : '',
   });
+  
+  // Estados para controle da busca de CEP
+  const [loadingCep, setLoadingCep] = useState(false);
+  const [cepError, setCepError] = useState<string | null>(null);
+  const [cepSuccess, setCepSuccess] = useState(false);
 
   const savingTimeouts = useRef<Record<string, NodeJS.Timeout | number>>({});
   const toBoolean = (v: string) => v === 'sim';
@@ -65,6 +71,41 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
         logger.error(`[LOCALIZACAO] Erro ao atualizar campo ${field}:`, error);
       }
     }, 300);
+  };
+  
+  // Função para salvar múltiplos campos de uma vez
+  const saveMultipleFields = async (fields: Record<string, string>) => {
+    if (!imovelId) return;
+    
+    try {
+      const payload: Record<string, unknown> = {};
+      
+      // Mapeia os campos para o formato esperado pela API
+      Object.entries(fields).forEach(([field, value]) => {
+        switch (field) {
+          case 'cep': payload.cep = value || null; break;
+          case 'estado': payload.uf = value || null; break;
+          case 'cidade': payload.cidade = value || null; break;
+          case 'bairro': payload.bairro = value || null; break;
+          case 'logradouro': payload.logradouro = value || null; break;
+          case 'numero': payload.numero = value || null; break;
+          case 'complemento': payload.complemento = value || null; break;
+          case 'mostrarEnderecoSite': payload.mostrar_endereco = toBoolean(value); break;
+          case 'mostrarNumeroSite': payload.mostrar_numero = toBoolean(value); break;
+          case 'mostrarApenasProximidades': payload.mostrar_proximidades = toBoolean(value); break;
+          case 'latitude': payload.latitude = toNumberOrNull(value); break;
+          case 'longitude': payload.longitude = toNumberOrNull(value); break;
+        }
+      });
+      
+      // Envia todos os campos de uma vez
+      await ImovelService.updateEtapaLocalizacao(imovelId, payload);
+      logger.info(`[LOCALIZACAO] Múltiplos campos atualizados com sucesso.`);
+      return true;
+    } catch (error) {
+      logger.error(`[LOCALIZACAO] Erro ao atualizar múltiplos campos:`, error);
+      return false;
+    }
   };
 
   // Lista de estados (UF)
@@ -138,28 +179,90 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
   }, [formData]);
 
   // Função para atualizar os dados do formulário
-  const handleChange = (field: string, value: string) => {
+  const handleChange = async (field: string, value: string) => {
+    // Limpa mensagens de erro e sucesso ao alterar qualquer campo
+    if (field === 'cep') {
+      setCepError(null);
+      setCepSuccess(false);
+    }
+    
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+    
     // Notificar que houve mudança no campo
     onFieldChange?.();
-    saveFieldWithDebounce(field, value);
+    
+    // Se for o campo CEP e tiver 8 dígitos, busca o endereço automaticamente
+    if (field === 'cep' && value.length === 8) {
+      await buscarEnderecoPorCEP(value);
+    } else {
+      // Para outros campos, salva normalmente
+      saveFieldWithDebounce(field, value);
+    }
   };
 
-  // Função para buscar CEP (simulação)
-  const buscarCEP = () => {
-    // Simulação de busca de CEP
-    if (formData.cep.length === 8) {
-      // Dados simulados para demonstração
+  // Função para buscar endereço por CEP usando a API ViaCEP
+  const buscarEnderecoPorCEP = async (cep: string) => {
+    // Verifica se o CEP tem 8 dígitos
+    if (cep.length !== 8) {
+      setCepError('CEP deve conter 8 dígitos');
+      return;
+    }
+    
+    // Inicia o loading
+    setLoadingCep(true);
+    setCepError(null);
+    setCepSuccess(false);
+    
+    try {
+      // Busca o endereço na API ViaCEP
+      const endereco = await buscarCEP(cep);
+      
+      // Atualiza o formulário com os dados retornados
+      const novosDados = {
+        estado: endereco.uf,
+        cidade: endereco.cidade,
+        bairro: endereco.bairro,
+        logradouro: endereco.logradouro
+      };
+      
       setFormData(prev => ({
         ...prev,
-        estado: 'SP',
-        cidade: 'sao-paulo',
-        bairro: 'jardins',
-        logradouro: 'Rua Oscar Freire'
+        ...novosDados
       }));
+      
+      // Salva todos os campos atualizados de uma vez
+      await saveMultipleFields({
+        cep,
+        ...novosDados
+      });
+      
+      // Indica sucesso na busca
+      setCepSuccess(true);
+      
+      // Notifica que houve mudança nos campos
+      onFieldChange?.();
+      
+    } catch (error) {
+      // Em caso de erro, exibe a mensagem
+      if (error instanceof Error) {
+        setCepError(error.message);
+      } else {
+        setCepError('Erro ao buscar CEP');
+      }
+      logger.error('[LOCALIZACAO] Erro ao buscar CEP:', error);
+    } finally {
+      // Finaliza o loading
+      setLoadingCep(false);
+    }
+  };
+  
+  // Função para buscar CEP manualmente (botão de fallback)
+  const buscarCEPManual = () => {
+    if (formData.cep.length === 8) {
+      buscarEnderecoPorCEP(formData.cep);
     }
   };
 
@@ -197,15 +300,24 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
               onChange={(e) => handleChange('cep', e.target.value.replace(/\D/g, ''))}
               maxLength={8}
               required
+              error={cepError || undefined}
+              helperText={cepSuccess ? 'CEP encontrado com sucesso!' : undefined}
             />
           </div>
           <div className="pb-1">
             <Button 
               variant="secondary"
-              onClick={buscarCEP}
-              disabled={formData.cep.length !== 8}
+              onClick={buscarCEPManual}
+              disabled={formData.cep.length !== 8 || loadingCep}
             >
-              Buscar
+              {loadingCep ? (
+                <>
+                  <Loader2 size={16} className="mr-2 animate-spin" />
+                  Buscando...
+                </>
+              ) : (
+                'Buscar'
+              )}
             </Button>
           </div>
         </div>
