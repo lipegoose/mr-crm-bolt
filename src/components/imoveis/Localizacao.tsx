@@ -42,6 +42,10 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
   const [cepError, setCepError] = useState<string | null>(null);
   const [cepSuccess, setCepSuccess] = useState(false);
   
+  // Estados para validação de latitude e longitude
+  const [latitudeError, setLatitudeError] = useState<string | null>(null);
+  const [longitudeError, setLongitudeError] = useState<string | null>(null);
+  
   // Estados para armazenar dados de cidades e bairros
   const [cidades, setCidades] = useState<{ value: string; label: string; id: number; uf: string }[]>([
     { value: '', label: 'Selecione', id: 0, uf: '' }
@@ -67,7 +71,8 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
   const toBoolean = (v: string) => v === 'sim';
   const toNumberOrNull = (v: string): number | null => {
     if (!v || v.trim() === '') return null;
-    const num = Number(v.replace(/\./g, '').replace(',', '.'));
+    // Não remover pontos, apenas garantir que vírgulas sejam convertidas para pontos
+    const num = Number(v.replace(',', '.'));
     return isNaN(num) ? null : num;
   };
 
@@ -468,6 +473,85 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
       setCepSuccess(false);
     }
     
+    // Validação especial para latitude e longitude
+    if (field === 'latitude' || field === 'longitude') {
+      // Limpar mensagens de erro anteriores
+      if (field === 'latitude') {
+        setLatitudeError(null);
+      } else {
+        setLongitudeError(null);
+      }
+      
+      // Permitir apenas números, ponto, vírgula e sinal de negativo no início
+      const valorLimpo = value.replace(/[^0-9.,\-]/g, '');
+      
+      // Garantir que o sinal de negativo só apareça no início
+      let valorTratado = valorLimpo;
+      if (valorLimpo.includes('-') && valorLimpo.indexOf('-') > 0) {
+        valorTratado = valorLimpo.replace(/-/g, '');
+      }
+      
+      // Verificar se há mais de um ponto ou vírgula
+      const temPonto = valorTratado.includes('.');
+      const temVirgula = valorTratado.includes(',');
+      
+      // Se já tem ponto, não permitir vírgula e vice-versa
+      let valorFormatado = valorTratado;
+      if (temPonto && temVirgula) {
+        // Manter apenas o ponto
+        valorFormatado = valorTratado.replace(/,/g, '');
+      }
+      
+      // Converter vírgula para ponto
+      valorFormatado = valorFormatado.replace(',', '.');
+      
+      // Validar intervalo
+      const num = Number(valorFormatado);
+      if (!isNaN(num)) {
+        if (field === 'latitude' && (num < -90 || num > 90)) {
+          console.warn('[LOCALIZAÇÃO] Latitude fora do intervalo válido (-90 a 90):', num);
+          setLatitudeError('A latitude deve estar entre -90 e 90');
+          
+          // Ainda atualiza o campo para mostrar o que foi digitado
+          setFormData(prev => ({
+            ...prev,
+            [field]: valorFormatado
+          }));
+          
+          // Notificar que houve mudança no campo
+          onFieldChange?.();
+          return;
+        } else if (field === 'longitude' && (num < -180 || num > 180)) {
+          console.warn('[LOCALIZAÇÃO] Longitude fora do intervalo válido (-180 a 180):', num);
+          setLongitudeError('A longitude deve estar entre -180 e 180');
+          
+          // Ainda atualiza o campo para mostrar o que foi digitado
+          setFormData(prev => ({
+            ...prev,
+            [field]: valorFormatado
+          }));
+          
+          // Notificar que houve mudança no campo
+          onFieldChange?.();
+          return;
+        }
+      }
+      
+      // Atualizar com o valor formatado
+      setFormData(prev => ({
+        ...prev,
+        [field]: valorFormatado
+      }));
+      
+      // Notificar que houve mudança no campo
+      onFieldChange?.();
+      
+      // Salvar o valor formatado
+      saveFieldWithDebounce(field, valorFormatado);
+      return;
+    }
+    
+    // Para os demais campos, manter o comportamento original
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -838,17 +922,25 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         
+        // Limpar mensagens de erro
+        setLatitudeError(null);
+        setLongitudeError(null);
+        
+        // Formatar valores com ponto decimal (até 8 casas decimais)
+        const latFormatado = lat.toFixed(8);
+        const lngFormatado = lng.toFixed(8);
+        
         setFormData(prev => ({
           ...prev,
-          latitude: lat.toString(),
-          longitude: lng.toString()
+          latitude: latFormatado,
+          longitude: lngFormatado
         }));
         
         // Salvar coordenadas se houver um imóvel
         if (imovelId) {
           saveMultipleFields({
-            latitude: lat.toString(),
-            longitude: lng.toString()
+            latitude: latFormatado,
+            longitude: lngFormatado
           });
         }
         
@@ -1031,6 +1123,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
                 placeholder="Ex: -23.5505"
                 value={formData.latitude}
                 onChange={(e) => handleChange('latitude', e.target.value)}
+                error={latitudeError || undefined}
               />
             </div>
             <div>
@@ -1039,6 +1132,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
                 placeholder="Ex: -46.6333"
                 value={formData.longitude}
                 onChange={(e) => handleChange('longitude', e.target.value)}
+                error={longitudeError || undefined}
               />
             </div>
           </div>
