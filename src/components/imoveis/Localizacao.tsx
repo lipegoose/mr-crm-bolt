@@ -34,8 +34,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     longitude: initialData?.longitude != null ? String(initialData.longitude) : '',
   });
   
-  // Log para depuração dos dados iniciais
-  console.log('[LOCALIZAÇÃO] Dados iniciais:', initialData);
   
   // Estados para controle da busca de CEP
   const [loadingCep, setLoadingCep] = useState(false);
@@ -56,9 +54,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     { value: '', label: 'Selecione', id: 0, cidade_id: 0 }
   ]);
   
-  // Log para depuração dos estados
-  console.log('[LOCALIZAÇÃO] Estado atual do formData:', formData);
-
+  
   // Estados para controlar carregamento
   const [loadingLocalidades, setLoadingLocalidades] = useState(true);
   const [loadingBairros, setLoadingBairros] = useState(false);
@@ -132,8 +128,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
         }
       });
       
-      console.log('[LOCALIZAÇÃO] Payload final para API:', payload);
-      
       // Envia todos os campos de uma vez
       await ImovelService.updateEtapaLocalizacao(imovelId, payload);
       logger.info(`[LOCALIZACAO] Múltiplos campos atualizados com sucesso.`);
@@ -200,12 +194,12 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     
     setLoadingLocalidades(true);
     try {
-      console.log(`[LOCALIZAÇÃO] Buscando cidades para UF: ${uf}`);
+      
       const cidadesResponse = await LocalidadesService.getCidadesPorUF(uf);
       
       if (cidadesResponse?.success && cidadesResponse?.data) {
         // Log para debug
-        console.log('[LOCALIZAÇÃO] Cidades recebidas:', cidadesResponse.data);
+        
         
         // Mapear dados para o formato esperado pelo select
         const cidadesUF = [
@@ -255,11 +249,10 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
       
       setLoadingLocalidades(true);
       try {
-        console.log(`[LOCALIZAÇÃO] Buscando cidades para UF inicial: ${ufInicial}`);
+        
         const cidadesResponse = await LocalidadesService.getCidadesPorUF(ufInicial);
         
         if (cidadesResponse?.success && cidadesResponse?.data) {
-          console.log('[LOCALIZAÇÃO] Cidades recebidas:', cidadesResponse.data);
           
           // Mapear dados para o formato esperado pelo select
           const cidadesUF = [
@@ -290,7 +283,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
           // Carregar bairros iniciais se houver cidade_id nos dados iniciais
           const cidadeId = initialData?.cidade_id ? Number(initialData.cidade_id) : 0;
           if (cidadeId > 0) {
-            console.log(`[LOCALIZAÇÃO] Carregando bairros iniciais para cidade ID: ${cidadeId}`);
+            
             await carregarBairros(cidadeId);
             
             // Se houver um bairro_id nos dados iniciais, selecionar o bairro
@@ -298,7 +291,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
             const bairroNome = initialData?.bairro ? String(initialData.bairro) : '';
             
             if (bairroId && bairroNome) {
-              console.log(`[LOCALIZAÇÃO] Selecionando bairro inicial: ${bairroNome} (ID: ${bairroId})`);
               
               // Verificar se o bairro está na lista de opções do select
               const bairroExistente = bairrosFiltrados.find(b => b.id === Number(bairroId) || b.value === bairroId);
@@ -314,8 +306,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
                     cidade_id: cidadeId
                   }
                 ]);
-                
-                console.log(`[LOCALIZAÇÃO] Adicionando bairro inicial ao select: ${bairroNome} (ID: ${bairroId})`);
               }
             }
           }
@@ -344,11 +334,10 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     
     setLoadingBairros(true);
     try {
-      console.log(`[LOCALIZAÇÃO] Buscando bairros para cidade ID: ${cidadeId}`);
+      
       const bairrosResponse = await LocalidadesService.getBairrosPorCidade(cidadeId);
       
       if (bairrosResponse?.success && bairrosResponse?.data) {
-        console.log('[LOCALIZAÇÃO] Bairros recebidos:', bairrosResponse.data);
         
         // Criar lista de bairros para o select
         const bairrosDaCidade = [
@@ -412,8 +401,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
         saveFieldWithDebounce('bairro', '');
         saveFieldWithDebounce('bairro_id', '');
       }
-      
-      console.log(`[LOCALIZAÇÃO] Cidade selecionada: ${cidadeSelecionada.label} (ID: ${cidadeSelecionada.id})`);
       
       // Carregar bairros da cidade selecionada
       if (cidadeSelecionada.id) {
@@ -509,7 +496,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
       const num = Number(valorFormatado);
       if (!isNaN(num)) {
         if (field === 'latitude' && (num < -90 || num > 90)) {
-          console.warn('[LOCALIZAÇÃO] Latitude fora do intervalo válido (-90 a 90):', num);
+          
           setLatitudeError('A latitude deve estar entre -90 e 90');
           
           // Ainda atualiza o campo para mostrar o que foi digitado
@@ -522,7 +509,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
           onFieldChange?.();
           return;
         } else if (field === 'longitude' && (num < -180 || num > 180)) {
-          console.warn('[LOCALIZAÇÃO] Longitude fora do intervalo válido (-180 a 180):', num);
+          
           setLongitudeError('A longitude deve estar entre -180 e 180');
           
           // Ainda atualiza o campo para mostrar o que foi digitado
@@ -573,8 +560,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
   const processarDadosCEP = async (dadosCEP: ViaCEPResponse) => {
     if (!dadosCEP || dadosCEP.erro) return;
     
-    console.log('[LOCALIZAÇÃO] Dados recebidos do ViaCEP:', dadosCEP);
-    
     // Dados temporários para atualização em lote após todas as operações
     const dadosAtualizados: Record<string, any> = {
       cep: formData.cep,
@@ -595,7 +580,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     
     if (!temCidadesDaUF) {
       // Carregar cidades apenas se não tivermos cidades para esta UF
-      console.log(`[LOCALIZAÇÃO] Carregando cidades para UF ${ufAtual} no processamento de CEP`);
+      
       setLoadingLocalidades(true);
       try {
         const cidadesResponse = await LocalidadesService.getCidadesPorUF(ufAtual);
@@ -641,7 +626,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     if (cidadesPorNome.current[nomeCidadeNormalizado]) {
       // Cidade encontrada no cache
       cidadeId = cidadesPorNome.current[nomeCidadeNormalizado].id;
-      console.log(`[LOCALIZAÇÃO] Cidade encontrada no cache: ${dadosCEP.localidade} (ID: ${cidadeId})`);
       
       // Verificar se a cidade está na lista de opções do select
       const cidadeExistente = cidades.find(c => c.id === cidadeId || c.value === cidadeId.toString());
@@ -657,8 +641,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
             uf: dadosCEP.uf 
           }
         ]);
-        
-        console.log(`[LOCALIZAÇÃO] Adicionando cidade ao select: ${dadosCEP.localidade} (ID: ${cidadeId})`);
       }
       
       // Atualizar formData diretamente para garantir que o select seja atualizado
@@ -678,7 +660,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     } else {
       // Cidade não encontrada, criar nova
       try {
-        console.log(`[LOCALIZAÇÃO] Cidade não encontrada, criando: ${dadosCEP.localidade} (UF: ${dadosCEP.uf})`);
+        
         const cidadeResponse = await LocalidadesService.buscarOuCriarCidade({
           nome: dadosCEP.localidade,
           uf: dadosCEP.uf
@@ -686,7 +668,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
         
         if (cidadeResponse?.data && cidadeResponse.data.id) {
           cidadeId = cidadeResponse.data.id;
-          console.log(`[LOCALIZAÇÃO] Cidade criada com sucesso: ${dadosCEP.localidade} (ID: ${cidadeId})`);
           
           // Adicionar a cidade recém-criada à lista de opções
           setCidades(prev => [
@@ -732,7 +713,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
       if (bairrosPorNomeECidade.current[nomeBairroNormalizado]) {
         // Bairro encontrado no cache
         bairroId = bairrosPorNomeECidade.current[nomeBairroNormalizado].id;
-        console.log(`[LOCALIZAÇÃO] Bairro encontrado no cache: ${dadosCEP.bairro} (ID: ${bairroId})`);
         
         // Verificar se o bairro está na lista de opções do select
         const bairroExistente = bairrosFiltrados.find((b: { id: number; value: string }) => b.id === bairroId || b.value === bairroId.toString());
@@ -748,8 +728,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
               cidade_id: cidadeId
             }
           ]);
-          
-          console.log(`[LOCALIZAÇÃO] Adicionando bairro ao select: ${dadosCEP.bairro} (ID: ${bairroId})`);
         }
         
         // Atualizar formData diretamente para garantir que o select seja atualizado
@@ -766,7 +744,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
       } else {
         // Bairro não encontrado, criar novo
         try {
-          console.log(`[LOCALIZAÇÃO] Bairro não encontrado, criando: ${dadosCEP.bairro} (Cidade ID: ${cidadeId})`);
+          
           // Buscar cidade para obter nome e UF
           const cidadeAtual = cidades.find(c => c.id === cidadeId);
           
@@ -779,7 +757,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
           
           if (bairroResponse?.data && bairroResponse.data.id) {
             bairroId = bairroResponse.data.id;
-            console.log(`[LOCALIZAÇÃO] Bairro criado com sucesso: ${dadosCEP.bairro} (ID: ${bairroId})`);
             
             // Adicionar o bairro recém-criado à lista de opções
             setBairrosFiltrados((prev: Array<{ value: string; label: string; id: number; cidade_id: number }>) => [
@@ -851,18 +828,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
       
       // CEP já está sem hífen para a API
       
-      // Criar payload diretamente dos dados do ViaCEP
-      const dadosViaCEP = {
-        cep: cep, // Manter sem hífen para API
-        estado: data.uf,
-        cidade: data.localidade,
-        bairro: data.bairro,
-        logradouro: data.logradouro
-      };
-      
-      console.log('[LOCALIZAÇÃO] Dados originais do ViaCEP:', data);
-      console.log('[LOCALIZAÇÃO] Payload inicial:', dadosViaCEP);
-      
       // Processar dados do CEP para verificar/criar cidade e bairro
       await processarDadosCEP(data);
       
@@ -880,8 +845,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
         cidade_id: formData.cidade_id,
         bairro_id: formData.bairro_id
       };
-      
-      console.log('[LOCALIZAÇÃO] Dados que serão enviados à API:', dadosAtualizados);
       
       // Salvar todos os campos atualizados de uma vez
       if (imovelId) {
@@ -943,8 +906,6 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
             longitude: lngFormatado
           });
         }
-        
-        console.log(`[LOCALIZAÇÃO] Coordenadas obtidas: ${lat}, ${lng}`);
       }, () => {
         alert('Não foi possível obter sua localização atual.');
       });
