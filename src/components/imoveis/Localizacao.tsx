@@ -6,7 +6,8 @@ import { MapPin, Loader2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ImovelService } from '../../services/ImovelService';
 import logger from '../../utils/logger';
-import { buscarCEP } from '../../utils/cepUtils';
+import { ViaCEPResponse } from '../../utils/cepUtils';
+import { LocalidadesService } from '../../services/LocalidadesService';
 
 interface LocalizacaoProps {
   onUpdate: (data: any) => void;
@@ -20,7 +21,9 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     cep: (initialData?.cep as string) || '',
     estado: (initialData?.uf as string) || '',
     cidade: (initialData?.cidade as string) || '',
+    cidade_id: (initialData?.cidade_id as string) || '',
     bairro: (initialData?.bairro as string) || '',
+    bairro_id: (initialData?.bairro_id as string) || '',
     logradouro: (initialData?.logradouro as string) || '',
     numero: (initialData?.numero as string) || '',
     complemento: (initialData?.complemento as string) || '',
@@ -31,10 +34,34 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     longitude: initialData?.longitude != null ? String(initialData.longitude) : '',
   });
   
+  // Log para depuração dos dados iniciais
+  console.log('[LOCALIZAÇÃO] Dados iniciais:', initialData);
+  
   // Estados para controle da busca de CEP
   const [loadingCep, setLoadingCep] = useState(false);
   const [cepError, setCepError] = useState<string | null>(null);
   const [cepSuccess, setCepSuccess] = useState(false);
+  
+  // Estados para armazenar dados de cidades e bairros
+  const [cidades, setCidades] = useState<{ value: string; label: string; id: number; uf: string }[]>([
+    { value: '', label: 'Selecione', id: 0, uf: '' }
+  ]);
+
+  // Estado para os bairros filtrados pela cidade selecionada
+  const [bairrosFiltrados, setBairrosFiltrados] = useState<{ value: string; label: string; id: number; cidade_id: number }[]>([
+    { value: '', label: 'Selecione', id: 0, cidade_id: 0 }
+  ]);
+  
+  // Log para depuração dos estados
+  console.log('[LOCALIZAÇÃO] Estado atual do formData:', formData);
+
+  // Estados para controlar carregamento
+  const [loadingLocalidades, setLoadingLocalidades] = useState(true);
+  const [loadingBairros, setLoadingBairros] = useState(false);
+
+  // Mapa para pesquisa rápida de cidades e bairros
+  const cidadesPorNome = useRef<Record<string, { id: number; uf: string }>>({});
+  const bairrosPorNomeECidade = useRef<Record<string, { id: number; cidade_id: number }>>({});
 
   const savingTimeouts = useRef<Record<string, NodeJS.Timeout | number>>({});
   const toBoolean = (v: string) => v === 'sim';
@@ -86,7 +113,9 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
           case 'cep': payload.cep = value || null; break;
           case 'estado': payload.uf = value || null; break;
           case 'cidade': payload.cidade = value || null; break;
+          case 'cidade_id': payload.cidade_id = value ? Number(value) : null; break; // Adicionar
           case 'bairro': payload.bairro = value || null; break;
+          case 'bairro_id': payload.bairro_id = value ? Number(value) : null; break; // Adicionar
           case 'logradouro': payload.logradouro = value || null; break;
           case 'numero': payload.numero = value || null; break;
           case 'complemento': payload.complemento = value || null; break;
@@ -97,6 +126,8 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
           case 'longitude': payload.longitude = toNumberOrNull(value); break;
         }
       });
+      
+      console.log('[LOCALIZAÇÃO] Payload final para API:', payload);
       
       // Envia todos os campos de uma vez
       await ImovelService.updateEtapaLocalizacao(imovelId, payload);
@@ -140,35 +171,286 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     { value: 'TO', label: 'Tocantins' },
   ];
 
-  // Lista de cidades (simulação - seria preenchida dinamicamente com base no estado)
-  const cidades = [
-    { value: '', label: 'Selecione' },
-    { value: 'sao-paulo', label: 'São Paulo' },
-    { value: 'rio-de-janeiro', label: 'Rio de Janeiro' },
-    { value: 'belo-horizonte', label: 'Belo Horizonte' },
-    { value: 'brasilia', label: 'Brasília' },
-    { value: 'salvador', label: 'Salvador' },
-    { value: 'fortaleza', label: 'Fortaleza' },
-    { value: 'recife', label: 'Recife' },
-    { value: 'porto-alegre', label: 'Porto Alegre' },
-    { value: 'curitiba', label: 'Curitiba' },
-    { value: 'manaus', label: 'Manaus' },
-  ];
+    // Função para normalizar texto (remover acentos, converter para minúsculas)
+  const normalizarTexto = (texto: string): string => {
+    return texto.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s-]/g, '');
+  };
 
-  // Lista de bairros (simulação - seria preenchida dinamicamente com base na cidade)
-  const bairros = [
-    { value: '', label: 'Selecione' },
-    { value: 'centro', label: 'Centro' },
-    { value: 'jardins', label: 'Jardins' },
-    { value: 'moema', label: 'Moema' },
-    { value: 'ipanema', label: 'Ipanema' },
-    { value: 'leblon', label: 'Leblon' },
-    { value: 'copacabana', label: 'Copacabana' },
-    { value: 'barra-da-tijuca', label: 'Barra da Tijuca' },
-    { value: 'savassi', label: 'Savassi' },
-    { value: 'boa-viagem', label: 'Boa Viagem' },
-    { value: 'meireles', label: 'Meireles' },
-  ];
+  // Função para carregar cidades quando a UF mudar
+  const handleUFChange = async (uf: string) => {
+    handleChange('estado', uf);
+    // Limpar cidade e bairro ao mudar UF
+    handleChange('cidade', '');
+    handleChange('cidade_id', '');
+    handleChange('bairro', '');
+    handleChange('bairro_id', '');
+    
+    // Resetar o select visual de bairros
+    setBairrosFiltrados([{ value: '', label: 'Selecione', id: 0, cidade_id: 0 }]);
+    
+    if (!uf) return;
+    
+    setLoadingLocalidades(true);
+    try {
+      console.log(`[LOCALIZAÇÃO] Buscando cidades para UF: ${uf}`);
+      const cidadesResponse = await LocalidadesService.getCidadesPorUF(uf);
+      
+      if (cidadesResponse?.success && cidadesResponse?.data) {
+        // Log para debug
+        console.log('[LOCALIZAÇÃO] Cidades recebidas:', cidadesResponse.data);
+        
+        // Mapear dados para o formato esperado pelo select
+        const cidadesUF = [
+          { value: '', label: 'Selecione', id: 0, uf: '' },
+          ...cidadesResponse.data.map(cidade => ({
+            value: cidade.value || '',
+            label: cidade.label || '',
+            id: parseInt(cidade.value || '0'),
+            uf: uf
+          }))
+        ];
+        
+        setCidades(cidadesUF);
+        
+        // Criar mapa de cidades para pesquisa rápida
+        const mapaCidades: Record<string, { id: number; uf: string }> = {};
+        cidadesResponse.data.forEach(cidade => {
+          if (cidade.label && cidade.value) {
+            const chave = normalizarTexto(`${cidade.label}-${uf}`);
+            mapaCidades[chave] = { 
+              id: parseInt(cidade.value), 
+              uf: uf 
+            };
+          }
+        });
+        cidadesPorNome.current = mapaCidades;
+      } else {
+        console.warn('[LOCALIZAÇÃO] Resposta vazia ou formato inesperado:', cidadesResponse);
+        setCidades([{ value: '', label: 'Selecione', id: 0, uf: '' }]);
+      }
+    } catch (error) {
+      console.error('[LOCALIZAÇÃO] Erro ao carregar cidades:', error);
+      setCidades([{ value: '', label: 'Selecione', id: 0, uf: '' }]);
+    } finally {
+      setLoadingLocalidades(false);
+    }
+  };
+  
+  // Função para carregar cidades e bairros iniciais
+  useEffect(() => {
+    const carregarLocalidades = async () => {
+      // Carregar cidades da UF inicial (MG por padrão)
+      const ufInicial = formData.estado || 'MG';
+      
+      // Evitar chamada direta ao handleUFChange para prevenir chamadas duplicadas
+      if (!ufInicial) return;
+      
+      setLoadingLocalidades(true);
+      try {
+        console.log(`[LOCALIZAÇÃO] Buscando cidades para UF inicial: ${ufInicial}`);
+        const cidadesResponse = await LocalidadesService.getCidadesPorUF(ufInicial);
+        
+        if (cidadesResponse?.success && cidadesResponse?.data) {
+          console.log('[LOCALIZAÇÃO] Cidades recebidas:', cidadesResponse.data);
+          
+          // Mapear dados para o formato esperado pelo select
+          const cidadesUF = [
+            { value: '', label: 'Selecione', id: 0, uf: '' },
+            ...cidadesResponse.data.map(cidade => ({
+              value: cidade.value || '',
+              label: cidade.label || '',
+              id: parseInt(cidade.value || '0'),
+              uf: ufInicial
+            }))
+          ];
+          
+          setCidades(cidadesUF);
+          
+          // Criar mapa de cidades para pesquisa rápida
+          const mapaCidades: Record<string, { id: number; uf: string }> = {};
+          cidadesResponse.data.forEach(cidade => {
+            if (cidade.label && cidade.value) {
+              const chave = normalizarTexto(`${cidade.label}-${ufInicial}`);
+              mapaCidades[chave] = { 
+                id: parseInt(cidade.value), 
+                uf: ufInicial 
+              };
+            }
+          });
+          cidadesPorNome.current = mapaCidades;
+          
+          // Carregar bairros iniciais se houver cidade_id nos dados iniciais
+          const cidadeId = initialData?.cidade_id ? Number(initialData.cidade_id) : 0;
+          if (cidadeId > 0) {
+            console.log(`[LOCALIZAÇÃO] Carregando bairros iniciais para cidade ID: ${cidadeId}`);
+            await carregarBairros(cidadeId);
+            
+            // Se houver um bairro_id nos dados iniciais, selecionar o bairro
+            const bairroId = initialData?.bairro_id ? String(initialData.bairro_id) : '';
+            const bairroNome = initialData?.bairro ? String(initialData.bairro) : '';
+            
+            if (bairroId && bairroNome) {
+              console.log(`[LOCALIZAÇÃO] Selecionando bairro inicial: ${bairroNome} (ID: ${bairroId})`);
+              
+              // Verificar se o bairro está na lista de opções do select
+              const bairroExistente = bairrosFiltrados.find(b => b.id === Number(bairroId) || b.value === bairroId);
+              
+              if (!bairroExistente && Number(bairroId) > 0) {
+                // Se o bairro não estiver na lista, adicioná-lo
+                setBairrosFiltrados(prev => [
+                  ...prev,
+                  { 
+                    value: bairroId, 
+                    label: bairroNome, 
+                    id: Number(bairroId),
+                    cidade_id: cidadeId
+                  }
+                ]);
+                
+                console.log(`[LOCALIZAÇÃO] Adicionando bairro inicial ao select: ${bairroNome} (ID: ${bairroId})`);
+              }
+            }
+          }
+        } else {
+          console.warn('[LOCALIZAÇÃO] Resposta vazia ou formato inesperado:', cidadesResponse);
+          setCidades([{ value: '', label: 'Selecione', id: 0, uf: '' }]);
+        }
+      } catch (error) {
+        console.error('[LOCALIZAÇÃO] Erro ao carregar cidades:', error);
+        setCidades([{ value: '', label: 'Selecione', id: 0, uf: '' }]);
+      } finally {
+        setLoadingLocalidades(false);
+      }
+    };
+    
+    carregarLocalidades();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Função para carregar bairros por cidade
+  const carregarBairros = async (cidadeId: number) => {
+    if (!cidadeId) {
+      setBairrosFiltrados([{ value: '', label: 'Selecione', id: 0, cidade_id: 0 }]);
+      return;
+    }
+    
+    setLoadingBairros(true);
+    try {
+      console.log(`[LOCALIZAÇÃO] Buscando bairros para cidade ID: ${cidadeId}`);
+      const bairrosResponse = await LocalidadesService.getBairrosPorCidade(cidadeId);
+      
+      if (bairrosResponse?.success && bairrosResponse?.data) {
+        console.log('[LOCALIZAÇÃO] Bairros recebidos:', bairrosResponse.data);
+        
+        // Criar lista de bairros para o select
+        const bairrosDaCidade = [
+          { value: '', label: 'Selecione', id: 0, cidade_id: 0 },
+          ...bairrosResponse.data.map(bairro => ({
+            value: bairro.value || '',
+            label: bairro.label || '',
+            id: parseInt(bairro.value || '0'),
+            cidade_id: cidadeId
+          }))
+        ];
+        
+        setBairrosFiltrados(bairrosDaCidade);
+        
+        // Atualizar o mapa de bairros
+        const mapaBairros: Record<string, { id: number; cidade_id: number }> = { ...bairrosPorNomeECidade.current };
+        bairrosResponse.data.forEach(bairro => {
+          if (bairro.label && bairro.value) {
+            const chave = normalizarTexto(`${bairro.label}-${cidadeId}`);
+            mapaBairros[chave] = { 
+              id: parseInt(bairro.value), 
+              cidade_id: cidadeId 
+            };
+          }
+        });
+        bairrosPorNomeECidade.current = mapaBairros;
+      } else {
+        console.warn('[LOCALIZAÇÃO] Resposta vazia ou formato inesperado para bairros:', bairrosResponse);
+        setBairrosFiltrados([{ value: '', label: 'Selecione', id: 0, cidade_id: 0 }]);
+      }
+    } catch (error) {
+      console.error('[LOCALIZAÇÃO] Erro ao carregar bairros:', error);
+      setBairrosFiltrados([{ value: '', label: 'Selecione', id: 0, cidade_id: 0 }]);
+    } finally {
+      setLoadingBairros(false);
+    }
+  };
+  
+  // Handler para mudança de cidade
+  const handleCidadeChange = async (cidadeValue: string) => {
+    // Atualizar o campo cidade (texto) e cidade_id
+    const cidadeSelecionada = cidades.find(c => c.value === cidadeValue);
+    
+    if (cidadeSelecionada) {
+      // Atualizar formData diretamente para evitar múltiplas renderizações
+      setFormData(prev => ({
+        ...prev,
+        cidade: cidadeSelecionada.label,
+        cidade_id: cidadeValue,
+        bairro: '',
+        bairro_id: ''
+      }));
+      
+      // Notificar mudança
+      onFieldChange?.();
+      
+      // Salvar os campos cidade e cidade_id
+      if (imovelId) {
+        saveFieldWithDebounce('cidade', cidadeSelecionada.label);
+        saveFieldWithDebounce('cidade_id', cidadeValue);
+        saveFieldWithDebounce('bairro', '');
+        saveFieldWithDebounce('bairro_id', '');
+      }
+      
+      console.log(`[LOCALIZAÇÃO] Cidade selecionada: ${cidadeSelecionada.label} (ID: ${cidadeSelecionada.id})`);
+      
+      // Carregar bairros da cidade selecionada
+      if (cidadeSelecionada.id) {
+        await carregarBairros(cidadeSelecionada.id);
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        cidade: '',
+        cidade_id: '',
+        bairro: '',
+        bairro_id: ''
+      }));
+      
+      onFieldChange?.();
+      setBairrosFiltrados([{ value: '', label: 'Selecione', id: 0, cidade_id: 0 }]);
+      
+      if (imovelId) {
+        saveFieldWithDebounce('cidade', '');
+        saveFieldWithDebounce('cidade_id', '');
+        saveFieldWithDebounce('bairro', '');
+        saveFieldWithDebounce('bairro_id', '');
+      }
+    }
+  };
+  
+  // Handler para mudança de bairro
+  const handleBairroChange = (bairroValue: string) => {
+    // Atualizar o campo bairro (texto) e bairro_id
+    const bairroSelecionado = bairrosFiltrados.find(b => b.value === bairroValue);
+    
+    if (bairroSelecionado) {
+      handleChange('bairro', bairroSelecionado.label);
+      handleChange('bairro_id', bairroValue);
+    } else {
+      handleChange('bairro', '');
+      handleChange('bairro_id', '');
+    }
+  };
+  
+  // Removido o useEffect que observava formData.cidade_id para evitar chamadas duplicadas
+  // O carregamento de bairros agora é feito apenas no handleCidadeChange
 
   // Atualiza os dados do formulário quando há mudanças
   // Removemos onUpdate da lista de dependências para evitar o loop infinito
@@ -203,6 +485,264 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     }
   };
 
+  // Função para processar dados retornados da API ViaCEP usando o cache local
+  const processarDadosCEP = async (dadosCEP: ViaCEPResponse) => {
+    if (!dadosCEP || dadosCEP.erro) return;
+    
+    console.log('[LOCALIZAÇÃO] Dados recebidos do ViaCEP:', dadosCEP);
+    
+    // Dados temporários para atualização em lote após todas as operações
+    const dadosAtualizados: Record<string, any> = {
+      cep: formData.cep,
+      estado: dadosCEP.uf,
+      cidade: dadosCEP.localidade, // Nome da cidade como texto
+      bairro: dadosCEP.bairro,     // Nome do bairro como texto
+      logradouro: dadosCEP.logradouro
+    };
+    
+    // Atualizar UF diretamente sem chamar handleUFChange
+    // para evitar chamada duplicada à API
+    handleChange('estado', dadosCEP.uf);
+    
+    // Verificar se já temos as cidades carregadas para esta UF
+    // Se não tivermos, precisamos carregá-las
+    const ufAtual = dadosCEP.uf;
+    const temCidadesDaUF = cidades.some(c => c.uf === ufAtual && c.id > 0);
+    
+    if (!temCidadesDaUF) {
+      // Carregar cidades apenas se não tivermos cidades para esta UF
+      console.log(`[LOCALIZAÇÃO] Carregando cidades para UF ${ufAtual} no processamento de CEP`);
+      setLoadingLocalidades(true);
+      try {
+        const cidadesResponse = await LocalidadesService.getCidadesPorUF(ufAtual);
+        
+        if (cidadesResponse?.success && cidadesResponse?.data) {
+          const cidadesUF = [
+            { value: '', label: 'Selecione', id: 0, uf: '' },
+            ...cidadesResponse.data.map(cidade => ({
+              value: cidade.value || '',
+              label: cidade.label || '',
+              id: parseInt(cidade.value || '0'),
+              uf: ufAtual
+            }))
+          ];
+          
+          setCidades(cidadesUF);
+          
+          // Atualizar cache de cidades
+          const mapaCidades: Record<string, { id: number; uf: string }> = {};
+          cidadesResponse.data.forEach(cidade => {
+            if (cidade.label && cidade.value) {
+              const chave = normalizarTexto(`${cidade.label}-${ufAtual}`);
+              mapaCidades[chave] = { 
+                id: parseInt(cidade.value), 
+                uf: ufAtual 
+              };
+            }
+          });
+          cidadesPorNome.current = mapaCidades;
+        }
+      } catch (error) {
+        console.error('[LOCALIZAÇÃO] Erro ao carregar cidades no processamento de CEP:', error);
+      } finally {
+        setLoadingLocalidades(false);
+      }
+    }
+    
+    // Normalizar os nomes para pesquisa no cache
+    const nomeCidadeNormalizado = normalizarTexto(`${dadosCEP.localidade}-${dadosCEP.uf}`);
+    
+    // Verificar se a cidade existe no cache
+    let cidadeId = 0;
+    if (cidadesPorNome.current[nomeCidadeNormalizado]) {
+      // Cidade encontrada no cache
+      cidadeId = cidadesPorNome.current[nomeCidadeNormalizado].id;
+      console.log(`[LOCALIZAÇÃO] Cidade encontrada no cache: ${dadosCEP.localidade} (ID: ${cidadeId})`);
+      
+      // Verificar se a cidade está na lista de opções do select
+      const cidadeExistente = cidades.find(c => c.id === cidadeId || c.value === cidadeId.toString());
+      
+      if (!cidadeExistente && cidadeId > 0) {
+        // Se a cidade não estiver na lista, adicioná-la
+        setCidades(prev => [
+          ...prev,
+          { 
+            value: cidadeId.toString(), 
+            label: dadosCEP.localidade, 
+            id: cidadeId,
+            uf: dadosCEP.uf 
+          }
+        ]);
+        
+        console.log(`[LOCALIZAÇÃO] Adicionando cidade ao select: ${dadosCEP.localidade} (ID: ${cidadeId})`);
+      }
+      
+      // Atualizar formData diretamente para garantir que o select seja atualizado
+      setFormData(prev => ({
+        ...prev,
+        cidade: dadosCEP.localidade,
+        cidade_id: cidadeId.toString()
+      }));
+      
+      // Atualizar os campos separadamente para garantir que os handlers sejam chamados
+      handleChange('cidade', dadosCEP.localidade);
+      handleChange('cidade_id', cidadeId.toString());
+      dadosAtualizados.cidade_id = cidadeId;
+      
+      // Carregar bairros para a cidade selecionada
+      await carregarBairros(cidadeId);
+    } else {
+      // Cidade não encontrada, criar nova
+      try {
+        console.log(`[LOCALIZAÇÃO] Cidade não encontrada, criando: ${dadosCEP.localidade} (UF: ${dadosCEP.uf})`);
+        const cidadeResponse = await LocalidadesService.buscarOuCriarCidade({
+          nome: dadosCEP.localidade,
+          uf: dadosCEP.uf
+        });
+        
+        if (cidadeResponse?.data && cidadeResponse.data.id) {
+          cidadeId = cidadeResponse.data.id;
+          console.log(`[LOCALIZAÇÃO] Cidade criada com sucesso: ${dadosCEP.localidade} (ID: ${cidadeId})`);
+          
+          // Adicionar a cidade recém-criada à lista de opções
+          setCidades(prev => [
+            ...prev,
+            { 
+              value: cidadeId.toString(), 
+              label: dadosCEP.localidade, 
+              id: cidadeId,
+              uf: dadosCEP.uf 
+            }
+          ]);
+          
+          // Atualizar formData diretamente
+          setFormData(prev => ({
+            ...prev,
+            cidade: dadosCEP.localidade,
+            cidade_id: cidadeId.toString()
+          }));
+          
+          // Atualizar os campos separadamente
+          handleChange('cidade', dadosCEP.localidade);
+          handleChange('cidade_id', cidadeId.toString());
+          dadosAtualizados.cidade_id = cidadeId;
+          
+          // Atualizar cache de cidades
+          const mapaCidades = { ...cidadesPorNome.current };
+          mapaCidades[nomeCidadeNormalizado] = { id: cidadeId, uf: dadosCEP.uf };
+          cidadesPorNome.current = mapaCidades;
+          
+          // Carregar bairros para a cidade recém-criada
+          await carregarBairros(cidadeId);
+        }
+      } catch (error) {
+        console.error('[LOCALIZAÇÃO] Erro ao criar cidade:', error);
+      }
+    }
+    
+    // Se temos cidade e bairro, verificar se o bairro existe
+    if (cidadeId && dadosCEP.bairro) {
+      const nomeBairroNormalizado = normalizarTexto(`${dadosCEP.bairro}-${cidadeId}`);
+      let bairroId = 0;
+      
+      if (bairrosPorNomeECidade.current[nomeBairroNormalizado]) {
+        // Bairro encontrado no cache
+        bairroId = bairrosPorNomeECidade.current[nomeBairroNormalizado].id;
+        console.log(`[LOCALIZAÇÃO] Bairro encontrado no cache: ${dadosCEP.bairro} (ID: ${bairroId})`);
+        
+        // Verificar se o bairro está na lista de opções do select
+        const bairroExistente = bairrosFiltrados.find((b: { id: number; value: string }) => b.id === bairroId || b.value === bairroId.toString());
+        
+        if (!bairroExistente && bairroId > 0) {
+          // Se o bairro não estiver na lista, adicioná-lo
+          setBairrosFiltrados(prev => [
+            ...prev,
+            { 
+              value: bairroId.toString(), 
+              label: dadosCEP.bairro, 
+              id: bairroId,
+              cidade_id: cidadeId
+            }
+          ]);
+          
+          console.log(`[LOCALIZAÇÃO] Adicionando bairro ao select: ${dadosCEP.bairro} (ID: ${bairroId})`);
+        }
+        
+        // Atualizar formData diretamente para garantir que o select seja atualizado
+        setFormData(prev => ({
+          ...prev,
+          bairro: dadosCEP.bairro,
+          bairro_id: bairroId.toString()
+        }));
+        
+        // Atualizar os campos separadamente
+        handleChange('bairro', dadosCEP.bairro);
+        handleChange('bairro_id', bairroId.toString());
+        dadosAtualizados.bairro_id = bairroId;
+      } else {
+        // Bairro não encontrado, criar novo
+        try {
+          console.log(`[LOCALIZAÇÃO] Bairro não encontrado, criando: ${dadosCEP.bairro} (Cidade ID: ${cidadeId})`);
+          // Buscar cidade para obter nome e UF
+          const cidadeAtual = cidades.find(c => c.id === cidadeId);
+          
+          const bairroResponse = await LocalidadesService.buscarOuCriarBairro({
+            nome: dadosCEP.bairro,
+            cidade_id: cidadeId,
+            cidade_nome: cidadeAtual?.label || dadosCEP.localidade,
+            uf: cidadeAtual?.uf || dadosCEP.uf
+          });
+          
+          if (bairroResponse?.data && bairroResponse.data.id) {
+            bairroId = bairroResponse.data.id;
+            console.log(`[LOCALIZAÇÃO] Bairro criado com sucesso: ${dadosCEP.bairro} (ID: ${bairroId})`);
+            
+            // Adicionar o bairro recém-criado à lista de opções
+            setBairrosFiltrados((prev: Array<{ value: string; label: string; id: number; cidade_id: number }>) => [
+              ...prev,
+              { 
+                value: bairroId.toString(), 
+                label: dadosCEP.bairro, 
+                id: bairroId,
+                cidade_id: cidadeId
+              }
+            ]);
+            
+            // Atualizar formData diretamente
+            setFormData(prev => ({
+              ...prev,
+              bairro: dadosCEP.bairro,
+              bairro_id: bairroId.toString()
+            }));
+            
+            // Atualizar os campos separadamente
+            handleChange('bairro', dadosCEP.bairro);
+            handleChange('bairro_id', bairroId.toString());
+            dadosAtualizados.bairro_id = bairroId;
+            
+            // Atualizar cache de bairros
+            const mapaBairros = { ...bairrosPorNomeECidade.current };
+            mapaBairros[nomeBairroNormalizado] = { id: bairroId, cidade_id: cidadeId };
+            bairrosPorNomeECidade.current = mapaBairros;
+          }
+        } catch (error) {
+          console.error('[LOCALIZAÇÃO] Erro ao criar bairro:', error);
+        }
+      }
+    }
+    
+    // Atualizar logradouro
+    if (dadosCEP.logradouro) {
+      handleChange('logradouro', dadosCEP.logradouro);
+    }
+    
+    // Mover foco para o campo número
+    const numeroInput = document.querySelector('input[name="numero"]');
+    if (numeroInput) {
+      (numeroInput as HTMLInputElement).focus();
+    }
+  };
+
   // Função para buscar endereço por CEP usando a API ViaCEP
   const buscarEnderecoPorCEP = async (cep: string) => {
     // Verifica se o CEP tem 8 dígitos
@@ -217,27 +757,52 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     setCepSuccess(false);
     
     try {
-      // Busca o endereço na API ViaCEP
-      const endereco = await buscarCEP(cep);
+      // Busca o endereço na API ViaCEP diretamente
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data: ViaCEPResponse = await response.json();
       
-      // Atualiza o formulário com os dados retornados
-      const novosDados = {
-        estado: endereco.uf,
-        cidade: endereco.cidade,
-        bairro: endereco.bairro,
-        logradouro: endereco.logradouro
+      if (data.erro) {
+        throw new Error('CEP não encontrado.');
+      }
+      
+      // CEP já está sem hífen para a API
+      
+      // Criar payload diretamente dos dados do ViaCEP
+      const dadosViaCEP = {
+        cep: cep, // Manter sem hífen para API
+        estado: data.uf,
+        cidade: data.localidade,
+        bairro: data.bairro,
+        logradouro: data.logradouro
       };
       
-      setFormData(prev => ({
-        ...prev,
-        ...novosDados
-      }));
+      console.log('[LOCALIZAÇÃO] Dados originais do ViaCEP:', data);
+      console.log('[LOCALIZAÇÃO] Payload inicial:', dadosViaCEP);
       
-      // Salva todos os campos atualizados de uma vez
-      await saveMultipleFields({
-        cep,
-        ...novosDados
-      });
+      // Processar dados do CEP para verificar/criar cidade e bairro
+      await processarDadosCEP(data);
+      
+      // Aguardar um momento para garantir que todas as atualizações de estado foram aplicadas
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // IMPORTANTE: Coletar os dados ATUALIZADOS após o processamento
+      // Usar os dados do ViaCEP diretamente, com os IDs obtidos do processamento
+      const dadosAtualizados = {
+        cep: cep,
+        estado: data.uf,
+        cidade: data.localidade,
+        bairro: data.bairro,
+        logradouro: data.logradouro,
+        cidade_id: formData.cidade_id,
+        bairro_id: formData.bairro_id
+      };
+      
+      console.log('[LOCALIZAÇÃO] Dados que serão enviados à API:', dadosAtualizados);
+      
+      // Salvar todos os campos atualizados de uma vez
+      if (imovelId) {
+        await saveMultipleFields(dadosAtualizados);
+      }
       
       // Indica sucesso na busca
       setCepSuccess(true);
@@ -266,15 +831,28 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
     }
   };
 
-  // Função para pegar localização atual (simulação)
+  // Função para pegar localização atual
   const pegarLocalizacaoAtual = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        
         setFormData(prev => ({
           ...prev,
-          latitude: position.coords.latitude.toString(),
-          longitude: position.coords.longitude.toString()
+          latitude: lat.toString(),
+          longitude: lng.toString()
         }));
+        
+        // Salvar coordenadas se houver um imóvel
+        if (imovelId) {
+          saveMultipleFields({
+            latitude: lat.toString(),
+            longitude: lng.toString()
+          });
+        }
+        
+        console.log(`[LOCALIZAÇÃO] Coordenadas obtidas: ${lat}, ${lng}`);
       }, () => {
         alert('Não foi possível obter sua localização atual.');
       });
@@ -327,29 +905,41 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
             label="Estado *"
             options={estados}
             value={formData.estado}
-            onChange={(e) => handleChange('estado', e.target.value)}
-            required
+            onChange={(e) => handleUFChange(e.target.value)}
+            disabled={loadingLocalidades}
           />
+          {loadingLocalidades && (
+            <p className="text-xs text-blue-600 mt-1 flex items-center">
+              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              Carregando cidades...
+            </p>
+          )}
         </div>
-
         <div>
           <Select
-            label="Cidade *"
+            label="Cidade"
+            name="cidade_id"
+            value={formData.cidade_id || ''}
+            onChange={(e) => handleCidadeChange(e.target.value)}
             options={cidades}
-            value={formData.cidade}
-            onChange={(e) => handleChange('cidade', e.target.value)}
-            required
+            disabled={loadingLocalidades}
           />
         </div>
-
         <div>
           <Select
-            label="Bairro *"
-            options={bairros}
-            value={formData.bairro}
-            onChange={(e) => handleChange('bairro', e.target.value)}
-            required
+            label="Bairro"
+            name="bairro_id"
+            value={formData.bairro_id || ''}
+            onChange={(e) => handleBairroChange(e.target.value)}
+            options={bairrosFiltrados}
+            disabled={loadingBairros}
           />
+          {loadingBairros && (
+            <p className="text-xs text-blue-600 mt-1 flex items-center">
+              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              Carregando bairros...
+            </p>
+          )}
         </div>
 
         <div>
