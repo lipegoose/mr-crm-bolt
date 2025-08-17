@@ -961,20 +961,24 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="flex items-end space-x-3">
+        <div className="flex space-x-3">
           <div className="flex-1">
-            <Input
-              label="CEP *"
-              placeholder="00000-000"
-              value={formData.cep}
-              onChange={(e) => handleChange('cep', e.target.value.replace(/\D/g, ''))}
-              maxLength={8}
-              required
-              error={cepError || undefined}
-              helperText={cepSuccess ? 'CEP encontrado com sucesso!' : undefined}
-            />
+            <div>
+              <Input
+                label="CEP *"
+                placeholder="00000-000"
+                value={formData.cep}
+                onChange={(e) => handleChange('cep', e.target.value.replace(/\D/g, ''))}
+                maxLength={8}
+                required
+                error={cepError || undefined}
+              />
+              {cepSuccess && (
+                <p className="text-xs text-green-600 mt-1">CEP encontrado com sucesso!</p>
+              )}
+            </div>
           </div>
-          <div className="pb-1">
+          <div className="flex items-start pt-6">
             <Button 
               variant="secondary"
               onClick={buscarCEPManual}
