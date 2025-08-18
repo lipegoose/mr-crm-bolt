@@ -197,14 +197,26 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
       
       const cidadesResponse = await LocalidadesService.getCidadesPorUF(uf);
       
-      if (cidadesResponse?.success && cidadesResponse?.data) {
-        // Log para debug
-        
+      // Determinar o formato da resposta e extrair o array de cidades
+      let cidadesArray;
+      
+      if (Array.isArray(cidadesResponse)) {
+        // Resposta é um array direto
+        cidadesArray = cidadesResponse;
+      } else if (cidadesResponse?.data && Array.isArray(cidadesResponse.data)) {
+        // Resposta é um objeto com propriedade data contendo um array
+        cidadesArray = cidadesResponse.data;
+      } else {
+        // Formato não reconhecido
+        cidadesArray = null;
+      }
+      
+      if (cidadesArray && cidadesArray.length > 0) {
         
         // Mapear dados para o formato esperado pelo select
         const cidadesUF = [
           { value: '', label: 'Selecione', id: 0, uf: '' },
-          ...cidadesResponse.data.map(cidade => ({
+          ...cidadesArray.map(cidade => ({
             value: cidade.value || '',
             label: cidade.label || '',
             id: parseInt(cidade.value || '0'),
@@ -216,7 +228,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
         
         // Criar mapa de cidades para pesquisa rápida
         const mapaCidades: Record<string, { id: number; uf: string }> = {};
-        cidadesResponse.data.forEach(cidade => {
+        cidadesArray.forEach(cidade => {
           if (cidade.label && cidade.value) {
             const chave = normalizarTexto(`${cidade.label}-${uf}`);
             mapaCidades[chave] = { 
@@ -249,15 +261,28 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
       
       setLoadingLocalidades(true);
       try {
-        
         const cidadesResponse = await LocalidadesService.getCidadesPorUF(ufInicial);
         
-        if (cidadesResponse?.success && cidadesResponse?.data) {
+        // Determinar o formato da resposta e extrair o array de cidades
+        let cidadesArray;
+        
+        if (Array.isArray(cidadesResponse)) {
+          // Resposta é um array direto
+          cidadesArray = cidadesResponse;
+        } else if (cidadesResponse?.data && Array.isArray(cidadesResponse.data)) {
+          // Resposta é um objeto com propriedade data contendo um array
+          cidadesArray = cidadesResponse.data;
+        } else {
+          // Formato não reconhecido
+          cidadesArray = null;
+        }
+        
+        if (cidadesArray && cidadesArray.length > 0) {
           
           // Mapear dados para o formato esperado pelo select
           const cidadesUF = [
             { value: '', label: 'Selecione', id: 0, uf: '' },
-            ...cidadesResponse.data.map(cidade => ({
+            ...cidadesArray.map(cidade => ({
               value: cidade.value || '',
               label: cidade.label || '',
               id: parseInt(cidade.value || '0'),
@@ -269,7 +294,7 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
           
           // Criar mapa de cidades para pesquisa rápida
           const mapaCidades: Record<string, { id: number; uf: string }> = {};
-          cidadesResponse.data.forEach(cidade => {
+          cidadesArray.forEach(cidade => {
             if (cidade.label && cidade.value) {
               const chave = normalizarTexto(`${cidade.label}-${ufInicial}`);
               mapaCidades[chave] = { 
@@ -283,31 +308,12 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
           // Carregar bairros iniciais se houver cidade_id nos dados iniciais
           const cidadeId = initialData?.cidade_id ? Number(initialData.cidade_id) : 0;
           if (cidadeId > 0) {
-            
-            await carregarBairros(cidadeId);
-            
-            // Se houver um bairro_id nos dados iniciais, selecionar o bairro
+            // Se houver um bairro_id nos dados iniciais, passar para a função carregarBairros
             const bairroId = initialData?.bairro_id ? String(initialData.bairro_id) : '';
             const bairroNome = initialData?.bairro ? String(initialData.bairro) : '';
             
-            if (bairroId && bairroNome) {
-              
-              // Verificar se o bairro está na lista de opções do select
-              const bairroExistente = bairrosFiltrados.find(b => b.id === Number(bairroId) || b.value === bairroId);
-              
-              if (!bairroExistente && Number(bairroId) > 0) {
-                // Se o bairro não estiver na lista, adicioná-lo
-                setBairrosFiltrados(prev => [
-                  ...prev,
-                  { 
-                    value: bairroId, 
-                    label: bairroNome, 
-                    id: Number(bairroId),
-                    cidade_id: cidadeId
-                  }
-                ]);
-              }
-            }
+            // Carregar bairros já passando o bairro selecionado para evitar duplicação
+            await carregarBairros(cidadeId, bairroId, bairroNome);
           }
         } else {
           console.warn('[LOCALIZAÇÃO] Resposta vazia ou formato inesperado:', cidadesResponse);
@@ -326,23 +332,40 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
   }, []);
 
   // Função para carregar bairros por cidade
-  const carregarBairros = async (cidadeId: number) => {
+  const carregarBairros = async (cidadeId: number, bairroIdSelecionado?: string, bairroNomeSelecionado?: string) => {
+    console.log('[LOCALIZAÇÃO] carregarBairros - Iniciando com:', { cidadeId, bairroIdSelecionado, bairroNomeSelecionado });
+    
     if (!cidadeId) {
+      console.log('[LOCALIZAÇÃO] carregarBairros - Cidade ID inválido, retornando apenas "Selecione"');
       setBairrosFiltrados([{ value: '', label: 'Selecione', id: 0, cidade_id: 0 }]);
       return;
     }
     
     setLoadingBairros(true);
     try {
-      
       const bairrosResponse = await LocalidadesService.getBairrosPorCidade(cidadeId);
       
-      if (bairrosResponse?.success && bairrosResponse?.data) {
+      // Determinar o formato da resposta e extrair o array de bairros
+      let bairrosArray;
+      
+      if (Array.isArray(bairrosResponse)) {
+        // Resposta é um array direto
+        bairrosArray = bairrosResponse;
+      } else if (bairrosResponse?.data && Array.isArray(bairrosResponse.data)) {
+        // Resposta é um objeto com propriedade data contendo um array
+        bairrosArray = bairrosResponse.data;
+      } else {
+        // Formato não reconhecido
+        bairrosArray = null;
+      }
+      
+      if (bairrosArray && bairrosArray.length > 0) {
+        console.log(`[LOCALIZAÇÃO] carregarBairros - Encontrados ${bairrosArray.length} bairros para a cidade ID ${cidadeId}`);
         
-        // Criar lista de bairros para o select
-        const bairrosDaCidade = [
+        // Criar lista de bairros para o dropdown
+        const bairrosOptions = [
           { value: '', label: 'Selecione', id: 0, cidade_id: 0 },
-          ...bairrosResponse.data.map(bairro => ({
+          ...bairrosArray.map(bairro => ({
             value: bairro.value || '',
             label: bairro.label || '',
             id: parseInt(bairro.value || '0'),
@@ -350,11 +373,17 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
           }))
         ];
         
-        setBairrosFiltrados(bairrosDaCidade);
+        console.log('[LOCALIZAÇÃO] carregarBairros - Substituindo estado de bairros:', { 
+          antigos: bairrosFiltrados.length, 
+          novos: bairrosOptions.length 
+        });
         
-        // Atualizar o mapa de bairros
-        const mapaBairros: Record<string, { id: number; cidade_id: number }> = { ...bairrosPorNomeECidade.current };
-        bairrosResponse.data.forEach(bairro => {
+        // Substituir completamente o estado anterior para evitar duplicações
+        setBairrosFiltrados(bairrosOptions);
+        
+        // Atualizar o mapa de bairros por nome e cidade para pesquisa rápida
+        const mapaBairros: Record<string, { id: number; cidade_id: number }> = {};
+        bairrosArray.forEach(bairro => {
           if (bairro.label && bairro.value) {
             const chave = normalizarTexto(`${bairro.label}-${cidadeId}`);
             mapaBairros[chave] = { 
@@ -364,8 +393,44 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
           }
         });
         bairrosPorNomeECidade.current = mapaBairros;
+        console.log(`[LOCALIZAÇÃO] carregarBairros - Cache de bairros atualizado com ${Object.keys(mapaBairros).length} entradas`);
+        
+        // Se temos um bairro selecionado (ID e nome), verificar se ele está na lista
+        // Se não estiver, adicioná-lo para evitar perder a seleção
+        if (bairroIdSelecionado && bairroNomeSelecionado) {
+          const bairroIdInt = parseInt(bairroIdSelecionado);
+          const bairroExistente = bairrosOptions.find(b => b.id === bairroIdInt || b.value === bairroIdSelecionado);
+          
+          console.log('[LOCALIZAÇÃO] carregarBairros - Verificando bairro selecionado:', { 
+            bairroIdSelecionado, 
+            bairroNomeSelecionado, 
+            bairroExistente: !!bairroExistente 
+          });
+          
+          if (!bairroExistente && bairroIdInt > 0) {
+            console.log('[LOCALIZAÇÃO] carregarBairros - Adicionando bairro selecionado à lista');
+            
+            // Adicionar o bairro selecionado à lista se não estiver presente
+            setBairrosFiltrados(prev => [
+              ...prev,
+              { 
+                value: bairroIdSelecionado, 
+                label: bairroNomeSelecionado, 
+                id: bairroIdInt,
+                cidade_id: cidadeId
+              }
+            ]);
+            
+            // Adicionar ao mapa de bairros também
+            const chave = normalizarTexto(`${bairroNomeSelecionado}-${cidadeId}`);
+            const novoMapaBairros = { ...bairrosPorNomeECidade.current };
+            novoMapaBairros[chave] = { id: bairroIdInt, cidade_id: cidadeId };
+            bairrosPorNomeECidade.current = novoMapaBairros;
+            console.log('[LOCALIZAÇÃO] carregarBairros - Bairro adicionado ao cache com chave:', chave);
+          }
+        }
       } else {
-        console.warn('[LOCALIZAÇÃO] Resposta vazia ou formato inesperado para bairros:', bairrosResponse);
+        // Se não houver bairros, mostrar apenas a opção "Selecione"
         setBairrosFiltrados([{ value: '', label: 'Selecione', id: 0, cidade_id: 0 }]);
       }
     } catch (error) {
@@ -377,46 +442,17 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
   };
   
   // Handler para mudança de cidade
-  const handleCidadeChange = async (cidadeValue: string) => {
-    // Atualizar o campo cidade (texto) e cidade_id
-    const cidadeSelecionada = cidades.find(c => c.value === cidadeValue);
-    
-    if (cidadeSelecionada) {
-      // Atualizar formData diretamente para evitar múltiplas renderizações
+  const handleCidadeChange = async (cidadeId: number, cidadeNome: string) => {
+    if (!cidadeId) {
+      setBairrosFiltrados([{ value: '', label: 'Selecione', id: 0, cidade_id: 0 }]);
       setFormData(prev => ({
         ...prev,
-        cidade: cidadeSelecionada.label,
-        cidade_id: cidadeValue,
-        bairro: '',
-        bairro_id: ''
-      }));
-      
-      // Notificar mudança
-      onFieldChange?.();
-      
-      // Salvar os campos cidade e cidade_id
-      if (imovelId) {
-        saveFieldWithDebounce('cidade', cidadeSelecionada.label);
-        saveFieldWithDebounce('cidade_id', cidadeValue);
-        saveFieldWithDebounce('bairro', '');
-        saveFieldWithDebounce('bairro_id', '');
-      }
-      
-      // Carregar bairros da cidade selecionada
-      if (cidadeSelecionada.id) {
-        await carregarBairros(cidadeSelecionada.id);
-      }
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        cidade: '',
         cidade_id: '',
         bairro: '',
         bairro_id: ''
       }));
       
       onFieldChange?.();
-      setBairrosFiltrados([{ value: '', label: 'Selecione', id: 0, cidade_id: 0 }]);
       
       if (imovelId) {
         saveFieldWithDebounce('cidade', '');
@@ -424,7 +460,30 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
         saveFieldWithDebounce('bairro', '');
         saveFieldWithDebounce('bairro_id', '');
       }
+      return;
     }
+    
+    // Atualizar formData com a cidade selecionada
+    setFormData(prev => ({
+      ...prev,
+      cidade: cidadeNome,
+      cidade_id: cidadeId.toString(),
+      bairro: '',
+      bairro_id: ''
+    }));
+    
+    onFieldChange?.();
+    
+    if (imovelId) {
+      saveFieldWithDebounce('cidade', cidadeNome);
+      saveFieldWithDebounce('cidade_id', cidadeId.toString());
+      saveFieldWithDebounce('bairro', '');
+      saveFieldWithDebounce('bairro_id', '');
+    }
+    
+    // Carregar bairros para a cidade selecionada
+    // Passamos strings vazias para bairroId e bairroNome para evitar adicionar bairro duplicado
+    await carregarBairros(cidadeId, '', '');
   };
   
   // Handler para mudança de bairro
@@ -558,7 +617,16 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
 
   // Função para processar dados retornados da API ViaCEP usando o cache local
   const processarDadosCEP = async (dadosCEP: ViaCEPResponse) => {
-    if (!dadosCEP || dadosCEP.erro) return;
+    console.log('[LOCALIZAÇÃO] processarDadosCEP - Iniciando com dados:', { 
+      localidade: dadosCEP?.localidade, 
+      bairro: dadosCEP?.bairro, 
+      uf: dadosCEP?.uf 
+    });
+    
+    if (!dadosCEP || dadosCEP.erro) {
+      console.log('[LOCALIZAÇÃO] processarDadosCEP - Dados inválidos ou com erro');
+      return;
+    }
     
     // Dados temporários para atualização em lote após todas as operações
     const dadosAtualizados: Record<string, any> = {
@@ -585,10 +653,21 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
       try {
         const cidadesResponse = await LocalidadesService.getCidadesPorUF(ufAtual);
         
-        if (cidadesResponse?.success && cidadesResponse?.data) {
+        // Determinar o formato da resposta e extrair o array de cidades
+        let cidadesArray;
+        
+        if (Array.isArray(cidadesResponse)) {
+          cidadesArray = cidadesResponse;
+        } else if (cidadesResponse?.data && Array.isArray(cidadesResponse.data)) {
+          cidadesArray = cidadesResponse.data;
+        } else {
+          cidadesArray = null;
+        }
+        
+        if (cidadesArray && cidadesArray.length > 0) {
           const cidadesUF = [
             { value: '', label: 'Selecione', id: 0, uf: '' },
-            ...cidadesResponse.data.map(cidade => ({
+            ...cidadesArray.map(cidade => ({
               value: cidade.value || '',
               label: cidade.label || '',
               id: parseInt(cidade.value || '0'),
@@ -596,11 +675,12 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
             }))
           ];
           
+          // Substituir completamente o estado anterior para evitar duplicações
           setCidades(cidadesUF);
           
           // Atualizar cache de cidades
           const mapaCidades: Record<string, { id: number; uf: string }> = {};
-          cidadesResponse.data.forEach(cidade => {
+          cidadesArray.forEach(cidade => {
             if (cidade.label && cidade.value) {
               const chave = normalizarTexto(`${cidade.label}-${ufAtual}`);
               mapaCidades[chave] = { 
@@ -630,17 +710,31 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
       // Verificar se a cidade está na lista de opções do select
       const cidadeExistente = cidades.find(c => c.id === cidadeId || c.value === cidadeId.toString());
       
+      console.log('[LOCALIZAÇÃO] processarDadosCEP - Verificando cidade no select:', { 
+        cidadeId, 
+        cidadeExistente: !!cidadeExistente,
+        totalCidades: cidades.length
+      });
+      
       if (!cidadeExistente && cidadeId > 0) {
+        console.log('[LOCALIZAÇÃO] processarDadosCEP - Cidade não encontrada no select, adicionando');
+        
         // Se a cidade não estiver na lista, adicioná-la
-        setCidades(prev => [
-          ...prev,
+        // Importante: Substituir completamente o estado para evitar duplicações
+        const novasCidades = [
+          ...cidades.filter(c => c.id === 0 || (c.id !== cidadeId && c.value !== cidadeId.toString())),
           { 
             value: cidadeId.toString(), 
             label: dadosCEP.localidade, 
             id: cidadeId,
             uf: dadosCEP.uf 
           }
-        ]);
+        ];
+        console.log('[LOCALIZAÇÃO] processarDadosCEP - Atualizando lista de cidades:', { 
+          antes: cidades.length, 
+          depois: novasCidades.length 
+        });
+        setCidades(novasCidades);
       }
       
       // Atualizar formData diretamente para garantir que o select seja atualizado
@@ -656,7 +750,8 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
       dadosAtualizados.cidade_id = cidadeId;
       
       // Carregar bairros para a cidade selecionada
-      await carregarBairros(cidadeId);
+      // Importante: Passar strings vazias para evitar adicionar bairros duplicados
+      await carregarBairros(cidadeId, '', '');
     } else {
       // Cidade não encontrada, criar nova
       try {
@@ -670,15 +765,17 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
           cidadeId = cidadeResponse.data.id;
           
           // Adicionar a cidade recém-criada à lista de opções
-          setCidades(prev => [
-            ...prev,
+          // Importante: Substituir completamente o estado para evitar duplicações
+          const novasCidades = [
+            ...cidades.filter(c => c.id === 0 || (c.id !== cidadeId && c.value !== cidadeId.toString())),
             { 
               value: cidadeId.toString(), 
               label: dadosCEP.localidade, 
               id: cidadeId,
               uf: dadosCEP.uf 
             }
-          ]);
+          ];
+          setCidades(novasCidades);
           
           // Atualizar formData diretamente
           setFormData(prev => ({
@@ -698,7 +795,8 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
           cidadesPorNome.current = mapaCidades;
           
           // Carregar bairros para a cidade recém-criada
-          await carregarBairros(cidadeId);
+          // Importante: Passar strings vazias para evitar adicionar bairros duplicados
+          await carregarBairros(cidadeId, '', '');
         }
       } catch (error) {
         console.error('[LOCALIZAÇÃO] Erro ao criar cidade:', error);
@@ -717,17 +815,32 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
         // Verificar se o bairro está na lista de opções do select
         const bairroExistente = bairrosFiltrados.find((b: { id: number; value: string }) => b.id === bairroId || b.value === bairroId.toString());
         
+        console.log('[LOCALIZAÇÃO] processarDadosCEP - Verificando bairro no select:', { 
+          bairroId, 
+          bairroNome: dadosCEP.bairro,
+          bairroExistente: !!bairroExistente,
+          totalBairros: bairrosFiltrados.length
+        });
+        
         if (!bairroExistente && bairroId > 0) {
+          console.log('[LOCALIZAÇÃO] processarDadosCEP - Bairro não encontrado no select, adicionando');
+          
           // Se o bairro não estiver na lista, adicioná-lo
-          setBairrosFiltrados(prev => [
-            ...prev,
+          // Importante: Substituir completamente o estado para evitar duplicações
+          const novosBairros = [
+            ...bairrosFiltrados.filter(b => b.id === 0 || (b.id !== bairroId && b.value !== bairroId.toString())),
             { 
               value: bairroId.toString(), 
               label: dadosCEP.bairro, 
               id: bairroId,
               cidade_id: cidadeId
             }
-          ]);
+          ];
+          console.log('[LOCALIZAÇÃO] processarDadosCEP - Atualizando lista de bairros:', { 
+            antes: bairrosFiltrados.length, 
+            depois: novosBairros.length 
+          });
+          setBairrosFiltrados(novosBairros);
         }
         
         // Atualizar formData diretamente para garantir que o select seja atualizado
@@ -759,15 +872,17 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
             bairroId = bairroResponse.data.id;
             
             // Adicionar o bairro recém-criado à lista de opções
-            setBairrosFiltrados((prev: Array<{ value: string; label: string; id: number; cidade_id: number }>) => [
-              ...prev,
+            // Importante: Substituir completamente o estado para evitar duplicações
+            const novosBairros = [
+              ...bairrosFiltrados.filter(b => b.id === 0 || (b.id !== bairroId && b.value !== bairroId.toString())),
               { 
                 value: bairroId.toString(), 
                 label: dadosCEP.bairro, 
                 id: bairroId,
                 cidade_id: cidadeId
               }
-            ]);
+            ];
+            setBairrosFiltrados(novosBairros);
             
             // Atualizar formData diretamente
             setFormData(prev => ({
@@ -872,9 +987,9 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
   };
   
   // Função para buscar CEP manualmente (botão de fallback)
-  const buscarCEPManual = () => {
+  const buscarCEPManual = async () => {
     if (formData.cep.length === 8) {
-      buscarEnderecoPorCEP(formData.cep);
+      await buscarEnderecoPorCEP(formData.cep);
     }
   };
 
@@ -977,7 +1092,12 @@ const Localizacao: React.FC<LocalizacaoProps> = ({ onUpdate, onFieldChange, imov
             label="Cidade"
             name="cidade_id"
             value={formData.cidade_id || ''}
-            onChange={(e) => handleCidadeChange(e.target.value)}
+            onChange={(e) => {
+              const cidadeId = parseInt(e.target.value) || 0;
+              const cidadeSelecionada = cidades.find(c => c.value === e.target.value);
+              const cidadeNome = cidadeSelecionada?.label || '';
+              handleCidadeChange(cidadeId, cidadeNome);
+            }}
             options={cidades}
             disabled={loadingLocalidades}
           />
