@@ -1,21 +1,95 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TextArea } from '../ui/TextArea';
 import { Input } from '../ui/Input';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { ImovelService } from '../../services/ImovelService';
+import logger from '../../utils/logger';
 
-interface ComplementosProps {
-  onUpdate: (data: any) => void;
-  onFieldChange?: () => void;
+// Interfaces para tipagem correta dos dados
+interface Video {
+  id?: number;
+  titulo: string;
+  url: string;
+  ordem?: number;
 }
 
-const Complementos: React.FC<ComplementosProps> = ({ onUpdate, onFieldChange }) => {
-  const [formData, setFormData] = useState({
-    observacoes: '',
-    videos: [] as { titulo: string; url: string }[],
-    tourVirtual: '',
-    plantas: [] as { titulo: string; url: string }[],
+interface Planta {
+  id?: number;
+  titulo: string;
+  caminho?: string;
+  url?: string; // Para compatibilidade com o frontend
+  ordem?: number;
+}
+
+// Interface para o formato interno do componente
+interface FormDataType {
+  observacoes: string;
+  videos: Video[];
+  tourVirtual: string;
+  plantas: Array<{
+    id?: number;
+    titulo: string;
+    url: string;
+  }>;
+}
+
+// Interface para os dados enviados à API - usando a interface do ImovelService
+
+// Usando a interface do ImovelService para tipagem correta
+type Complementos = {
+  id: number;
+  complementos: string[];
+  created_at: string;
+  updated_at: string;
+  observacoes_internas?: string;
+  tour_virtual_url?: string;
+  videos?: Video[];
+  plantas?: Array<{
+    id?: number;
+    titulo: string;
+    caminho: string;
+  }>;
+}
+
+interface ComplementosProps {
+  onUpdate: (data: Record<string, unknown>) => void;
+  onFieldChange?: () => void;
+  imovelId?: number;
+  initialData?: Record<string, unknown>;
+}
+
+const Complementos: React.FC<ComplementosProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
+  if (!imovelId) {
+    throw new Error('ImovelId é obrigatório');
+  }
+
+  // Processamento dos dados iniciais
+  const initialObservacoes = initialData?.observacoes_internas as string || '';
+  const initialVideos = initialData?.videos as Video[] || [];
+  const initialTourVirtual = initialData?.tour_virtual_url as string || '';
+  
+  // Converter plantas para o formato interno
+  const initialPlantas = (initialData?.plantas as Planta[] || []).map(planta => ({
+    id: planta.id,
+    titulo: planta.titulo,
+    url: planta.caminho || planta.url || '', // Usar caminho do backend ou url do frontend
+  }));
+  
+  const [formData, setFormData] = useState<FormDataType>({
+    observacoes: initialObservacoes,
+    videos: initialVideos,
+    tourVirtual: initialTourVirtual,
+    plantas: initialPlantas,
   });
+  
+  // Log para debug
+  useEffect(() => {
+    logger.debug('[COMPLEMENTOS] Dados iniciais recebidos:', initialData);
+  }, [initialData]);
+  
+  // Referência para controlar o timeout de salvamento por campo
+  const savingTimeoutsRef = useRef<Record<string, NodeJS.Timeout | number>>({});
 
   const [novoVideo, setNovoVideo] = useState({ titulo: '', url: '' });
   const [novaPlanta, setNovaPlanta] = useState({ titulo: '', url: '' });
@@ -24,54 +98,205 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate, onFieldChange }) 
   // Removemos onUpdate da lista de dependências para evitar o loop infinito
   useEffect(() => {
     // Chamamos onUpdate apenas quando formData mudar
-    onUpdate(formData);
+    // Convertemos explicitamente para Record<string, unknown>
+    onUpdate(formData as unknown as Record<string, unknown>);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData]);
+  
+  // Função para salvar dados na API com o formato correto
+  const salvarNaAPI = async (data: Partial<FormDataType> & Record<string, unknown>) => {
+    console.log('[COMPLEMENTOS] Iniciando salvarNaAPI com dados:', data);
+    
+    if (!imovelId) {
+      console.log('[COMPLEMENTOS] Erro: Tentativa de salvar sem imovelId');
+      return;
+    }
+    
+    try {
+      // Converter do formato interno para o formato da API
+      const apiData: Partial<Complementos> = {};
+      console.log('[COMPLEMENTOS] imovelId:', imovelId);
+      
+      // Mapear campos para o formato esperado pela API
+      if ('observacoes' in data) {
+        apiData.observacoes_internas = data.observacoes;
+        console.log(`[COMPLEMENTOS] Preparando observações para API: ${data.observacoes}`);
+      }
+      
+      if ('tourVirtual' in data) {
+        apiData.tour_virtual_url = data.tourVirtual;
+        console.log(`[COMPLEMENTOS] Preparando tour virtual para API: ${data.tourVirtual}`);
+      }
+      
+      if ('videos' in data && data.videos) {
+        apiData.videos = data.videos;
+        console.log(`[COMPLEMENTOS] Preparando vídeos para API: ${data.videos.length} vídeos`);
+      }
+      
+      if ('plantas' in data && data.plantas) {
+        // Converter plantas do formato interno para o formato da API
+        apiData.plantas = data.plantas.map(planta => ({
+          id: planta.id,
+          titulo: planta.titulo,
+          caminho: planta.url, // No backend é caminho, no frontend é url
+        }));
+        console.log(`[COMPLEMENTOS] Preparando plantas para API: ${data.plantas.length} plantas`);
+      }
+      
+      console.log(`[COMPLEMENTOS] Enviando dados para API:`, apiData);
+      console.log(`[COMPLEMENTOS] Chamando ImovelService.updateEtapaComplementos(${imovelId}, ...)`);
+      const response = await ImovelService.updateEtapaComplementos(imovelId, apiData);
+      console.log(`[COMPLEMENTOS] Dados salvos com sucesso:`, response);
+    } catch (error) {
+      console.error(`[COMPLEMENTOS] Erro ao salvar dados:`, error);
+    }
+  };
 
+  // Função de debounce para evitar chamadas excessivas à API
+  const debounceSave = (fieldName: string, data: Partial<FormDataType>) => {
+    // Log para debug com console.log direto
+    console.log(`[COMPLEMENTOS] Iniciando debounce para o campo: ${fieldName}`, data);
+    
+    // Cancelar timeout anterior se existir
+    if (savingTimeoutsRef.current[fieldName]) {
+      console.log(`[COMPLEMENTOS] Cancelando timeout anterior para o campo: ${fieldName}`);
+      clearTimeout(savingTimeoutsRef.current[fieldName] as NodeJS.Timeout);
+    }
+    
+    // Configurar novo timeout
+    console.log(`[COMPLEMENTOS] Configurando novo timeout para o campo: ${fieldName}`);
+    savingTimeoutsRef.current[fieldName] = setTimeout(() => {
+      console.log(`[COMPLEMENTOS] Executando salvamento para o campo: ${fieldName} após debounce`);
+      salvarNaAPI(data);
+      // Limpar a referência após executar
+      delete savingTimeoutsRef.current[fieldName];
+    }, 500); // Reduzindo para 500ms para ser mais responsivo
+  };
+  
   // Função para adicionar um novo vídeo
-  const adicionarVideo = () => {
+  const adicionarVideo = async () => {
     if (novoVideo.titulo && novoVideo.url) {
+      // Criar nova lista de vídeos com o novo vídeo adicionado
+      const updatedVideos = [...formData.videos, novoVideo];
+      
+      // Atualizar o estado local
       setFormData(prev => ({
         ...prev,
-        videos: [...prev.videos, novoVideo]
+        videos: updatedVideos
       }));
+      
       setNovoVideo({ titulo: '', url: '' });
+      
       // Notificar que houve mudança no campo
       onFieldChange?.();
+      
+      // Salvar na API com debounce
+      if (imovelId) {
+        debounceSave('videos', { videos: updatedVideos });
+      }
     }
   };
 
   // Função para remover um vídeo
-  const removerVideo = (index: number) => {
+  const removerVideo = async (index: number) => {
+    // Criar nova lista de vídeos sem o vídeo removido
+    const updatedVideos = formData.videos.filter((_, i) => i !== index);
+    
+    // Atualizar o estado local
     setFormData(prev => ({
       ...prev,
-      videos: prev.videos.filter((_, i) => i !== index)
+      videos: updatedVideos
     }));
+    
     // Notificar que houve mudança no campo
     onFieldChange?.();
+    
+    // Salvar na API com debounce
+    if (imovelId) {
+      debounceSave('videos', { videos: updatedVideos });
+    }
   };
 
   // Função para adicionar uma nova planta
-  const adicionarPlanta = () => {
+  const adicionarPlanta = async () => {
     if (novaPlanta.titulo && novaPlanta.url) {
+      // Criar nova lista de plantas com a nova planta adicionada
+      const updatedPlantas = [...formData.plantas, novaPlanta];
+      
+      // Atualizar o estado local
       setFormData(prev => ({
         ...prev,
-        plantas: [...prev.plantas, novaPlanta]
+        plantas: updatedPlantas
       }));
+      
       setNovaPlanta({ titulo: '', url: '' });
+      
       // Notificar que houve mudança no campo
       onFieldChange?.();
+      
+      // Salvar na API com debounce
+      if (imovelId) {
+        debounceSave('plantas', { plantas: updatedPlantas });
+      }
     }
   };
 
   // Função para remover uma planta
-  const removerPlanta = (index: number) => {
+  const removerPlanta = async (index: number) => {
+    // Criar nova lista de plantas sem a planta removida
+    const updatedPlantas = formData.plantas.filter((_, i) => i !== index);
+    
+    // Atualizar o estado local
     setFormData(prev => ({
       ...prev,
-      plantas: prev.plantas.filter((_, i) => i !== index)
+      plantas: updatedPlantas
     }));
+    
     // Notificar que houve mudança no campo
     onFieldChange?.();
+    
+    // Salvar na API com debounce
+    if (imovelId) {
+      debounceSave('plantas', { plantas: updatedPlantas });
+    }
+  };
+
+  // Função para lidar com a alteração das observações internas
+  const handleObservacoesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    
+    // Atualizar o estado local
+    setFormData(prev => ({
+      ...prev,
+      observacoes: newValue
+    }));
+    
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
+    
+    // Salvar na API com debounce
+    if (imovelId) {
+      debounceSave('observacoes', { observacoes: newValue });
+    }
+  };
+  
+  // Função para lidar com a alteração do tour virtual
+  const handleTourVirtualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    
+    // Atualizar o estado local
+    setFormData(prev => ({
+      ...prev,
+      tourVirtual: newValue
+    }));
+    
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
+    
+    // Salvar na API com debounce
+    if (imovelId) {
+      debounceSave('tourVirtual', { tourVirtual: newValue });
+    }
   };
 
   return (
@@ -87,10 +312,7 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate, onFieldChange }) 
             label="Observações internas (não aparece no site)"
             placeholder="Adicione observações internas sobre o imóvel..."
             value={formData.observacoes}
-            onChange={(e) => {
-              setFormData(prev => ({ ...prev, observacoes: e.target.value }));
-              onFieldChange?.();
-            }}
+            onChange={handleObservacoesChange}
             rows={4}
           />
         </div>
@@ -157,7 +379,7 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate, onFieldChange }) 
             label="URL do Tour Virtual (360°)"
             placeholder="https://..."
             value={formData.tourVirtual}
-            onChange={(e) => setFormData(prev => ({ ...prev, tourVirtual: e.target.value }))}
+            onChange={handleTourVirtualChange}
           />
           <p className="text-xs text-neutral-gray-medium mt-1">
             Adicione o link do tour virtual em 360° do imóvel, se disponível.
