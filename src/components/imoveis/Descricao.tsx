@@ -16,11 +16,11 @@ interface DescricaoProps {
 
 const Descricao: React.FC<DescricaoProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
   // Processamento dos dados iniciais
-  const initialTitulo = initialData?.titulo as string || '';
+  const initialTitulo = initialData?.titulo_anuncio as string || '';
   const initialDescricao = initialData?.descricao as string || '';
   const initialPalavrasChave = initialData?.palavras_chave as string || '';
-  const initialMostrarDescricaoSite = initialData?.mostrar_descricao_site === false ? 'nao' : 'sim';
-  const initialMostrarTituloSite = initialData?.mostrar_titulo_site === false ? 'nao' : 'sim';
+  const initialMostrarDescricaoSite = initialData?.mostrar_descricao === false ? 'nao' : 'sim';
+  const initialMostrarTituloSite = initialData?.mostrar_titulo === false ? 'nao' : 'sim';
   
   const [formData, setFormData] = useState({
     titulo: initialTitulo,
@@ -73,7 +73,7 @@ const Descricao: React.FC<DescricaoProps> = ({ onUpdate, onFieldChange, imovelId
           // Mapear o nome do campo do formulário para o nome do campo na API
           switch (field) {
             case 'titulo':
-              apiData.titulo = value;
+              apiData.titulo_anuncio = value;
               break;
             case 'descricao':
               apiData.descricao = value;
@@ -82,10 +82,10 @@ const Descricao: React.FC<DescricaoProps> = ({ onUpdate, onFieldChange, imovelId
               apiData.palavras_chave = value;
               break;
             case 'mostrarDescricaoSite':
-              apiData.mostrar_descricao_site = value === 'sim';
+              apiData.mostrar_descricao = value === 'sim';
               break;
             case 'mostrarTituloSite':
-              apiData.mostrar_titulo_site = value === 'sim';
+              apiData.mostrar_titulo = value === 'sim';
               break;
             default:
               return;
@@ -102,21 +102,63 @@ const Descricao: React.FC<DescricaoProps> = ({ onUpdate, onFieldChange, imovelId
   };
 
   // Função para gerar descrição automática (simulação)
-  const gerarDescricaoAutomatica = () => {
+  const gerarDescricaoAutomatica = async () => {
     // Simulação de geração de descrição
     const descricaoGerada = "Excelente imóvel localizado em área privilegiada, com ótima infraestrutura e fácil acesso aos principais pontos da cidade. Ambiente aconchegante e bem iluminado, ideal para quem busca conforto e qualidade de vida. Não perca esta oportunidade única!";
     
-    // Usar handleChange para garantir que o salvamento automático seja acionado
-    handleChange('descricao', descricaoGerada);
+    // Atualizar o estado local com a descrição gerada
+    setFormData(prev => ({
+      ...prev,
+      descricao: descricaoGerada
+    }));
+    
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
+    
+    // Salvar na API se houver um ID de imóvel
+    if (imovelId) {
+      try {
+        const apiData = {
+          descricao: descricaoGerada,
+          gerar_descricao_automatica: true
+        };
+        
+        await ImovelService.updateEtapaDescricao(imovelId, apiData);
+        logger.info(`[DESCRICAO] Descrição gerada automaticamente com sucesso.`);
+      } catch (error) {
+        logger.error(`[DESCRICAO] Erro ao gerar descrição automaticamente:`, error);
+      }
+    }
   };
 
   // Função para gerar título automático (simulação)
-  const gerarTituloAutomatico = () => {
+  const gerarTituloAutomatico = async () => {
     // Simulação de geração de título
     const tituloGerado = "Excelente Imóvel em Localização Privilegiada - Pronto para Morar";
     
-    // Usar handleChange para garantir que o salvamento automático seja acionado
-    handleChange('titulo', tituloGerado);
+    // Atualizar o estado local com o título gerado
+    setFormData(prev => ({
+      ...prev,
+      titulo: tituloGerado
+    }));
+    
+    // Notificar que houve mudança no campo
+    onFieldChange?.();
+    
+    // Salvar na API se houver um ID de imóvel
+    if (imovelId) {
+      try {
+        const apiData = {
+          titulo_anuncio: tituloGerado,
+          gerar_titulo_automatico: true
+        };
+        
+        await ImovelService.updateEtapaDescricao(imovelId, apiData);
+        logger.info(`[DESCRICAO] Título gerado automaticamente com sucesso.`);
+      } catch (error) {
+        logger.error(`[DESCRICAO] Erro ao gerar título automaticamente:`, error);
+      }
+    }
   };
 
   return (

@@ -186,8 +186,13 @@ export interface Proximidades {
 
 export interface Descricao {
   id: number;
-  titulo: string | null;
+  titulo_anuncio: string | null;
+  mostrar_titulo: boolean;
   descricao: string | null;
+  mostrar_descricao: boolean;
+  palavras_chave: string | null;
+  gerar_titulo_automatico?: boolean;
+  gerar_descricao_automatica?: boolean;
   observacoes: string | null;
   created_at: string;
   updated_at: string;
