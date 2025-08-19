@@ -1,23 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TextArea } from '../ui/TextArea';
 import { Input } from '../ui/Input';
 import { RadioGroup } from '../ui/RadioGroup';
 import { Wand2 } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { ImovelService } from '../../services/ImovelService';
+import logger from '../../utils/logger';
 
 interface DescricaoProps {
   onUpdate: (data: any) => void;
   onFieldChange?: () => void;
+  imovelId?: number;
+  initialData?: Record<string, unknown>;
 }
 
-const Descricao: React.FC<DescricaoProps> = ({ onUpdate, onFieldChange }) => {
+const Descricao: React.FC<DescricaoProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
+  // Processamento dos dados iniciais
+  const initialTitulo = initialData?.titulo as string || '';
+  const initialDescricao = initialData?.descricao as string || '';
+  const initialPalavrasChave = initialData?.palavras_chave as string || '';
+  const initialMostrarDescricaoSite = initialData?.mostrar_descricao_site === false ? 'nao' : 'sim';
+  const initialMostrarTituloSite = initialData?.mostrar_titulo_site === false ? 'nao' : 'sim';
+  
   const [formData, setFormData] = useState({
-    titulo: '',
-    descricao: '',
-    palavrasChave: '',
-    mostrarDescricaoSite: 'sim',
-    mostrarTituloSite: 'sim',
+    titulo: initialTitulo,
+    descricao: initialDescricao,
+    palavrasChave: initialPalavrasChave,
+    mostrarDescricaoSite: initialMostrarDescricaoSite,
+    mostrarTituloSite: initialMostrarTituloSite,
   });
+  
+  // Referência para controlar o timeout de salvamento por campo
+  const savingTimeoutsRef = useRef<Record<string, NodeJS.Timeout | number>>({});
 
   // Atualiza os dados do formulário quando há mudanças
   // Removemos onUpdate da lista de dependências para evitar o loop infinito
@@ -27,14 +41,64 @@ const Descricao: React.FC<DescricaoProps> = ({ onUpdate, onFieldChange }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData]);
 
-  // Função para atualizar os dados do formulário
+  // Função para atualizar os dados do formulário e salvar na API
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
+    // Calcular os novos dados antes de atualizar o estado
+    const newFormData = {
+      ...formData,
       [field]: value
-    }));
+    };
+    
+    // Atualizar o estado com os novos dados
+    setFormData(newFormData);
+    
     // Notificar que houve mudança no campo
-    onFieldChange?.();
+    setTimeout(() => {
+      onFieldChange?.();
+    }, 0);
+    
+    // Salvar na API se houver um ID de imóvel
+    if (imovelId) {
+      // Cancelar qualquer timeout de salvamento pendente para este campo
+      if (savingTimeoutsRef.current[field]) clearTimeout(savingTimeoutsRef.current[field] as number);
+      
+      // Configurar um novo timeout para salvar após um breve atraso
+      savingTimeoutsRef.current[field] = setTimeout(async () => {
+        try {
+          logger.debug(`[DESCRICAO] Salvando alterações no campo ${field}: ${value}`);
+          
+          // Preparar os dados para envio à API - apenas o campo alterado
+          const apiData: Record<string, unknown> = {};
+          
+          // Mapear o nome do campo do formulário para o nome do campo na API
+          switch (field) {
+            case 'titulo':
+              apiData.titulo = value;
+              break;
+            case 'descricao':
+              apiData.descricao = value;
+              break;
+            case 'palavrasChave':
+              apiData.palavras_chave = value;
+              break;
+            case 'mostrarDescricaoSite':
+              apiData.mostrar_descricao_site = value === 'sim';
+              break;
+            case 'mostrarTituloSite':
+              apiData.mostrar_titulo_site = value === 'sim';
+              break;
+            default:
+              return;
+          }
+          
+          // Enviar apenas o campo alterado para a API
+          await ImovelService.updateEtapaDescricao(imovelId, apiData);
+          logger.info(`[DESCRICAO] Campo ${field} atualizado com sucesso.`);
+        } catch (error) {
+          logger.error(`[DESCRICAO] Erro ao atualizar campo ${field}:`, error);
+        }
+      }, 300);
+    }
   };
 
   // Função para gerar descrição automática (simulação)
@@ -42,12 +106,8 @@ const Descricao: React.FC<DescricaoProps> = ({ onUpdate, onFieldChange }) => {
     // Simulação de geração de descrição
     const descricaoGerada = "Excelente imóvel localizado em área privilegiada, com ótima infraestrutura e fácil acesso aos principais pontos da cidade. Ambiente aconchegante e bem iluminado, ideal para quem busca conforto e qualidade de vida. Não perca esta oportunidade única!";
     
-    setFormData(prev => ({
-      ...prev,
-      descricao: descricaoGerada
-    }));
-    // Notificar que houve mudança no campo
-    onFieldChange?.();
+    // Usar handleChange para garantir que o salvamento automático seja acionado
+    handleChange('descricao', descricaoGerada);
   };
 
   // Função para gerar título automático (simulação)
@@ -55,12 +115,8 @@ const Descricao: React.FC<DescricaoProps> = ({ onUpdate, onFieldChange }) => {
     // Simulação de geração de título
     const tituloGerado = "Excelente Imóvel em Localização Privilegiada - Pronto para Morar";
     
-    setFormData(prev => ({
-      ...prev,
-      titulo: tituloGerado
-    }));
-    // Notificar que houve mudança no campo
-    onFieldChange?.();
+    // Usar handleChange para garantir que o salvamento automático seja acionado
+    handleChange('titulo', tituloGerado);
   };
 
   return (
