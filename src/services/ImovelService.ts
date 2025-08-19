@@ -1,4 +1,5 @@
 import api from './api';
+import logger from '../utils/logger';
 
 // Interfaces principais
 export interface Imovel {
@@ -176,7 +177,9 @@ export interface Localizacao {
 
 export interface Proximidades {
   id: number;
-  proximidades: string[];
+  proximidades: number[] | {id: number, nome: string}[];
+  customProximidades?: {nome: string, distancia: string}[];
+  mostrar_proximidades?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -317,8 +320,42 @@ export class ImovelService {
   }
 
   static async getEtapaProximidades(id: number): Promise<ApiResponse<Proximidades>> {
-    const response = await api.get(`/imoveis/${id}/etapas/proximidades`);
-    return response.data;
+    // Log para identificar chamadas
+    logger.debug(`[IMOVEL_SERVICE] Chamada getEtapaProximidades para imóvel ${id}`);
+    
+    // Verificar se já existe uma requisição pendente para este imóvel
+    // Isso evita chamadas duplicadas durante o mesmo ciclo de renderização
+    const pendingRequest = this.pendingEtapaProximidadesRequests[id];
+    if (pendingRequest) {
+      logger.debug(`[IMOVEL_SERVICE] Reaproveitando requisição pendente para etapaProximidades do imóvel ${id}`);
+      return pendingRequest;
+    }
+    
+    // Criar nova requisição e armazená-la
+    logger.debug(`[IMOVEL_SERVICE] Criando nova requisição para etapaProximidades do imóvel ${id}`);
+    this.pendingEtapaProximidadesRequests[id] = (async () => {
+      try {
+        // Sempre buscar dados atualizados da API
+        const response = await api.get(`/imoveis/${id}/etapas/proximidades`);
+        
+        // Limpar o cache anterior e armazenar os novos dados
+        delete this.etapaProximidadesCache[id];
+        this.etapaProximidadesCache[id] = response.data;
+        
+        logger.debug(`[IMOVEL_SERVICE] Dados de proximidades do imóvel ${id} atualizados com sucesso`);
+        return response.data;
+      } catch (error) {
+        // Em caso de erro, propaga o erro
+        logger.error(`[IMOVEL_SERVICE] Erro ao buscar proximidades do imóvel ${id}:`, error);
+        throw error;
+      } finally {
+        // Limpar a referência da Promise quando concluída (sucesso ou erro)
+        delete this.pendingEtapaProximidadesRequests[id];
+      }
+    })();
+    
+    // Retornar a Promise armazenada
+    return this.pendingEtapaProximidadesRequests[id];
   }
 
   static async getEtapaDescricao(id: number): Promise<ApiResponse<Descricao>> {
@@ -464,9 +501,13 @@ export class ImovelService {
 
   // Cache para evitar chamadas duplicadas à API
   private static caracteristicasCache: Record<string, ApiResponse<Caracteristica[]>> = {};
+  private static proximidadesCache: ApiResponse<Proximidade[]> | null = null;
+  private static etapaProximidadesCache: Record<number, ApiResponse<Proximidades>> = {};
   
   // Rastreamento de chamadas à API pendentes
   private static pendingRequests: Record<string, Promise<ApiResponse<Caracteristica[]>>> = {};
+  private static pendingProximidadesRequest: Promise<ApiResponse<Proximidade[]>> | null = null;
+  private static pendingEtapaProximidadesRequests: Record<number, Promise<ApiResponse<Proximidades>>> = {};
   
   static async getCaracteristicas(escopo: 'IMOVEL' | 'CONDOMINIO', forceCache: boolean = false): Promise<ApiResponse<Caracteristica[]>> {
     // 1. Verificar cache primeiro
@@ -507,9 +548,42 @@ export class ImovelService {
     return this.pendingRequests[escopo];
   }
 
-  static async getProximidades(): Promise<ApiResponse<Proximidade[]>> {
-    const response = await api.get('/imoveis/opcoes/proximidades');
-    return response.data;
+  static async getProximidades(forceCache: boolean = false): Promise<ApiResponse<Proximidade[]>> {
+    // 1. Verificar cache primeiro
+    if (this.proximidadesCache) {
+      return this.proximidadesCache;
+    }
+    
+    // 2. Se forceCache é true, mas não temos cache, lançamos um erro
+    if (forceCache) {
+      throw new Error('Não há dados em cache para proximidades');
+    }
+    
+    // 3. Verificar se já existe uma requisição pendente
+    if (this.pendingProximidadesRequest) {
+      return this.pendingProximidadesRequest;
+    }
+    
+    // 4. Criar nova requisição e armazená-la
+    this.pendingProximidadesRequest = (async () => {
+      try {
+        const response = await api.get('/imoveis/opcoes/proximidades');
+        
+        // Armazena no cache
+        this.proximidadesCache = response.data;
+        
+        return response.data;
+      } catch (error) {
+        // Em caso de erro, propaga o erro
+        throw error;
+      } finally {
+        // Limpar a referência da Promise quando concluída (sucesso ou erro)
+        this.pendingProximidadesRequest = null;
+      }
+    })();
+    
+    // Retornar a Promise armazenada
+    return this.pendingProximidadesRequest;
   }
 
   // Método para finalizar cadastro (ativar imóvel)

@@ -556,6 +556,8 @@ const ImovelCadastro: React.FC = () => {
             <Proximidades 
               onUpdate={(data) => handleUpdateFormData('proximidades', data)} 
               onFieldChange={() => markStepAsChanged('proximidades')}
+              imovelId={id ? Number(id) : undefined}
+              initialData={formData['proximidades'] as Record<string, unknown>}
             />
           </div>
         );

@@ -1,31 +1,116 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { ImovelService, Proximidade } from '../../services/ImovelService';
+import logger from '../../utils/logger';
 
 interface ProximidadesProps {
   onUpdate: (data: any) => void;
   onFieldChange?: () => void;
+  imovelId?: number;
+  initialData?: Record<string, unknown>;
 }
 
-const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate, onFieldChange }) => {
-  const [proximidadesSelecionadas, setProximidadesSelecionadas] = useState<string[]>([]);
+const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
+  // Processamento dos dados iniciais para extrair proximidades
+  let proximidadesIniciaisIds: number[] = [];
+  let customProximidadesIniciais: {nome: string, distancia: string}[] = [];
+  
+  if (initialData) {
+    // Extrair proximidades padrão
+    if (Array.isArray(initialData.proximidades)) {
+      // Processar os dados iniciais para extrair IDs
+      proximidadesIniciaisIds = initialData.proximidades.map((item: any) => {
+        // Caso 1: O item é um objeto com propriedade id (formato do retorno da API)
+        if (item && typeof item === 'object' && 'id' in item) {
+          return Number(item.id);
+        }
+        // Caso 2: O item já é um número ou string numérica
+        else if (typeof item === 'number' || (typeof item === 'string' && !isNaN(Number(item)))) {
+          return Number(item);
+        }
+        // Caso 3: Item inválido, será filtrado
+        else {
+          return NaN;
+        }
+      }).filter(id => !isNaN(id)); // Filtra quaisquer valores NaN
+    }
+    
+    // Extrair proximidades customizadas
+    if (Array.isArray(initialData.customProximidades)) {
+      customProximidadesIniciais = initialData.customProximidades as {nome: string, distancia: string}[];
+    }
+  }
+  
+  const [proximidadesSelecionadas, setProximidadesSelecionadas] = useState<number[]>(proximidadesIniciaisIds);
   const [novaProximidade, setNovaProximidade] = useState('');
   const [showNovaProximidadeForm, setShowNovaProximidadeForm] = useState(false);
-  const [customProximidades, setCustomProximidades] = useState<{nome: string, distancia: string}[]>([]);
+  const [customProximidades, setCustomProximidades] = useState<{nome: string, distancia: string}[]>(customProximidadesIniciais);
+  const savingTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
   const [novaCustomProximidade, setNovaCustomProximidade] = useState({nome: '', distancia: ''});
   const [showNovaCustomProximidadeForm, setShowNovaCustomProximidadeForm] = useState(false);
 
-  // Lista de proximidades disponíveis
-  const proximidadesDisponiveis = [
-    'Academia', 'Aeroporto', 'Banco', 'Biblioteca', 'Centro comercial', 
-    'Cinema', 'Escola', 'Estação de metrô', 'Estação de trem', 'Farmácia', 
-    'Hospital', 'Padaria', 'Parque', 'Ponto de ônibus', 'Posto de gasolina', 
-    'Praia', 'Restaurante', 'Shopping', 'Supermercado', 'Teatro', 'Universidade'
-  ];
+  // Estado para armazenar as opções de proximidades carregadas da API
+  const [opcoesProximidades, setOpcoesProximidades] = useState<Proximidade[]>([]);
+  
+  // Referência para controlar se o componente está montado
+  const isMountedRef = useRef<boolean>(true);
+
+  // Carregar opções de proximidades da API e dados iniciais do imóvel
+  useEffect(() => {
+    // Garantir que o componente está montado
+    isMountedRef.current = true;
+    
+    // Função para carregar opções de proximidades
+    const carregarOpcoes = async () => {
+      try {
+        logger.debug('[PROXIMIDADES] Carregando opções de proximidades');
+        const resp = await ImovelService.getProximidades();
+        
+        if (isMountedRef.current) {
+          setOpcoesProximidades(resp.data);
+          logger.debug('[PROXIMIDADES] Opções carregadas com sucesso');
+        }
+      } catch (error) {
+        if (isMountedRef.current) {
+          logger.error('[PROXIMIDADES] Erro ao carregar opções:', error);
+        }
+      }
+    };
+    
+    // Função para carregar dados do imóvel
+    const carregarDadosImovel = async () => {
+      if (!imovelId) return;
+      
+      try {
+        logger.debug(`[PROXIMIDADES] Carregando dados do imóvel ${imovelId}`);
+        const resp = await ImovelService.getEtapaProximidades(imovelId);
+        
+        if (isMountedRef.current && resp.data && resp.data.proximidades) {
+          // Extrair IDs das proximidades
+          const proximidadesIds = resp.data.proximidades.map((item: any) => Number(item.id));
+          setProximidadesSelecionadas(proximidadesIds);
+          logger.debug(`[PROXIMIDADES] Dados do imóvel ${imovelId} carregados com sucesso: ${JSON.stringify(proximidadesIds)}`);
+        }
+      } catch (error) {
+        if (isMountedRef.current) {
+          logger.error('[PROXIMIDADES] Erro ao carregar dados do imóvel:', error);
+        }
+      }
+    };
+    
+    // Executar carregamento de dados
+    carregarOpcoes();
+    carregarDadosImovel();
+    
+    // Cleanup para evitar atualização de estado em componente desmontado
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [imovelId]); // Dependência em imovelId para recarregar quando mudar
 
   // Atualiza os dados do formulário quando há mudanças
-  // Removemos onUpdate da lista de dependências para evitar o loop infinito
   useEffect(() => {
     // Chamamos onUpdate apenas quando proximidadesSelecionadas ou customProximidades mudar
     onUpdate({ 
@@ -35,46 +120,87 @@ const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate, onFieldChange }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proximidadesSelecionadas, customProximidades]);
 
+  // Função para salvar os dados na API com debounce foi movida diretamente para dentro do toggleProximidade
+  // para garantir que sempre usamos os dados mais recentes
+
   // Função para alternar a seleção de uma proximidade
-  const toggleProximidade = (proximidade: string) => {
-    if (proximidadesSelecionadas.includes(proximidade)) {
-      setProximidadesSelecionadas(prev => 
-        prev.filter(item => item !== proximidade)
-      );
-    } else {
-      setProximidadesSelecionadas(prev => [...prev, proximidade]);
+  const toggleProximidade = (proximidadeId: number) => {
+    // Calcular a nova seleção antes de atualizar o estado
+    const newSelection = proximidadesSelecionadas.includes(proximidadeId)
+      ? proximidadesSelecionadas.filter(item => item !== proximidadeId)
+      : [...proximidadesSelecionadas, proximidadeId];
+    
+    logger.debug(`[PROXIMIDADES] Toggle proximidade ${proximidadeId}, nova seleção: ${JSON.stringify(newSelection)}`);
+    
+    // Atualizar o estado com a nova seleção
+    setProximidadesSelecionadas(newSelection);
+    
+    // Notificar que houve mudança - movido para fora do setState para evitar atualização durante renderização
+    setTimeout(() => {
+      onFieldChange?.();
+    }, 0);
+    
+    // Salvar na API se houver um ID de imóvel
+    if (imovelId) {
+      // Usar a nova seleção calculada diretamente no salvamento
+      if (savingTimeoutRef.current) clearTimeout(savingTimeoutRef.current as number);
+      savingTimeoutRef.current = setTimeout(async () => {
+        try {
+          logger.debug(`[PROXIMIDADES] Salvando proximidades após toggle: ${JSON.stringify(newSelection)}`);
+          
+          // Enviar a nova seleção diretamente, sem depender do estado que pode ter sido alterado
+          await ImovelService.updateEtapaProximidades(imovelId, {
+            proximidades: newSelection
+          });
+          logger.info('[PROXIMIDADES] Proximidades atualizadas com sucesso após toggle.');
+        } catch (error) {
+          logger.error('[PROXIMIDADES] Erro ao atualizar proximidades após toggle:', error);
+        }
+      }, 300);
     }
-    // Notificar que houve mudança no campo
-    onFieldChange?.();
   };
 
   // Função para adicionar uma nova proximidade
   const adicionarProximidade = () => {
-    if (novaProximidade && !proximidadesDisponiveis.includes(novaProximidade)) {
-      setProximidadesSelecionadas(prev => [...prev, novaProximidade]);
+    if (novaProximidade && !opcoesProximidades.some(p => p.nome === novaProximidade)) {
+      // No contexto atual, sem endpoint para criar proximidade. Apenas fechar o formulário.
       setNovaProximidade('');
       setShowNovaProximidadeForm(false);
+      
       // Notificar que houve mudança no campo
       onFieldChange?.();
+      
+      // Nota: Não implementamos a criação de novas proximidades no backend
+      // Esta funcionalidade pode ser implementada no futuro
     }
   };
 
   // Função para adicionar uma nova proximidade personalizada com distância
   const adicionarCustomProximidade = () => {
     if (novaCustomProximidade.nome && novaCustomProximidade.distancia) {
-      setCustomProximidades(prev => [...prev, novaCustomProximidade]);
+      const newCustomProximidades = [...customProximidades, novaCustomProximidade];
+      setCustomProximidades(newCustomProximidades);
       setNovaCustomProximidade({nome: '', distancia: ''});
       setShowNovaCustomProximidadeForm(false);
+      
       // Notificar que houve mudança no campo
       onFieldChange?.();
+      
+      // Nota: O backend não suporta mais customProximidades
+      // Esta funcionalidade pode ser implementada no futuro
     }
   };
 
   // Função para remover uma proximidade personalizada
   const removerCustomProximidade = (index: number) => {
-    setCustomProximidades(prev => prev.filter((_, i) => i !== index));
+    const newCustomProximidades = customProximidades.filter((_, i) => i !== index);
+    setCustomProximidades(newCustomProximidades);
+    
     // Notificar que houve mudança no campo
     onFieldChange?.();
+    
+    // Nota: O backend não suporta mais customProximidades
+    // Esta funcionalidade pode ser implementada no futuro
   };
 
   return (
@@ -160,23 +286,23 @@ const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate, onFieldChange }) 
       <div className="mb-8">
         <h3 className="text-lg font-semibold mb-3">Proximidades gerais</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {proximidadesDisponiveis.map((proximidade) => (
+          {opcoesProximidades.map((proximidade) => (
             <div 
-              key={proximidade} 
+              key={proximidade.id} 
               className="flex items-center"
             >
               <input
                 type="checkbox"
-                id={`proximidade-${proximidade}`}
-                checked={proximidadesSelecionadas.includes(proximidade)}
-                onChange={() => toggleProximidade(proximidade)}
+                id={`proximidade-${proximidade.id}`}
+                checked={proximidadesSelecionadas.includes(proximidade.id)}
+                onChange={() => toggleProximidade(proximidade.id)}
                 className="w-4 h-4 text-primary-orange border-neutral-gray rounded focus:ring-primary-orange"
               />
               <label 
-                htmlFor={`proximidade-${proximidade}`}
+                htmlFor={`proximidade-${proximidade.id}`}
                 className="ml-2 text-sm text-neutral-black cursor-pointer"
               >
-                {proximidade}
+                {proximidade.nome}
               </label>
             </div>
           ))}
