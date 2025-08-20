@@ -6,6 +6,19 @@ import { Button } from '../ui/Button';
 import { ImovelService } from '../../services/ImovelService';
 import logger from '../../utils/logger';
 
+/**
+ * Componente Complementos
+ * 
+ * Este componente gerencia a etapa de Complementos do cadastro de imóveis.
+ * 
+ * Alterações realizadas:
+ * - Ajustado o formato do payload para corresponder ao esperado pela API
+ * - Corrigido o mapeamento dos campos entre frontend e backend
+ * - Implementado auto-save com debounce para todos os campos
+ * - Adicionado suporte para ambos os formatos de dados (url/caminho) para compatibilidade
+ * - Melhorado o sistema de logs para facilitar depuração
+ */
+
 // Interfaces para tipagem correta dos dados
 interface Video {
   id?: number;
@@ -14,11 +27,11 @@ interface Video {
   ordem?: number;
 }
 
-interface Planta {
+// Interface para plantas no formato da API
+interface PlantaAPI {
   id?: number;
   titulo: string;
-  caminho?: string;
-  url?: string; // Para compatibilidade com o frontend
+  url: string;
   ordem?: number;
 }
 
@@ -39,17 +52,13 @@ interface FormDataType {
 // Usando a interface do ImovelService para tipagem correta
 type Complementos = {
   id: number;
-  complementos: string[];
+  complementos?: string[];
   created_at: string;
   updated_at: string;
   observacoes_internas?: string;
   tour_virtual_url?: string;
   videos?: Video[];
-  plantas?: Array<{
-    id?: number;
-    titulo: string;
-    caminho: string;
-  }>;
+  plantas?: PlantaAPI[];
 }
 
 interface ComplementosProps {
@@ -70,10 +79,11 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate, onFieldChange, im
   const initialTourVirtual = initialData?.tour_virtual_url as string || '';
   
   // Converter plantas para o formato interno
-  const initialPlantas = (initialData?.plantas as Planta[] || []).map(planta => ({
+  // O campo pode ser 'url' ou 'caminho' dependendo da origem dos dados
+  const initialPlantas = (initialData?.plantas as Array<any> || []).map(planta => ({
     id: planta.id,
     titulo: planta.titulo,
-    url: planta.caminho || planta.url || '', // Usar caminho do backend ou url do frontend
+    url: planta.url || planta.caminho || '', // Usar url (do payload) ou caminho (legado)
   }));
   
   const [formData, setFormData] = useState<FormDataType>({
@@ -114,7 +124,7 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate, onFieldChange, im
     
     try {
       // Converter do formato interno para o formato da API
-      const apiData: Partial<Complementos> = {};
+      const apiData: Record<string, any> = {};
       console.log('[COMPLEMENTOS] imovelId:', imovelId);
       
       // Mapear campos para o formato esperado pela API
@@ -129,16 +139,22 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate, onFieldChange, im
       }
       
       if ('videos' in data && data.videos) {
-        apiData.videos = data.videos;
+        // Manter a estrutura exata conforme o payload do Postman
+        apiData.videos = data.videos.map(video => ({
+          titulo: video.titulo,
+          url: video.url,
+          ...(video.id ? { id: video.id } : {})
+        }));
         console.log(`[COMPLEMENTOS] Preparando vídeos para API: ${data.videos.length} vídeos`);
       }
       
       if ('plantas' in data && data.plantas) {
         // Converter plantas do formato interno para o formato da API
+        // Conforme o payload do Postman, o campo é 'url' e não 'caminho'
         apiData.plantas = data.plantas.map(planta => ({
-          id: planta.id,
           titulo: planta.titulo,
-          caminho: planta.url, // No backend é caminho, no frontend é url
+          url: planta.url,
+          ...(planta.id ? { id: planta.id } : {})
         }));
         console.log(`[COMPLEMENTOS] Preparando plantas para API: ${data.plantas.length} plantas`);
       }
