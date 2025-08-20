@@ -213,6 +213,15 @@ export interface DadosPrivativos {
   corretor: Record<string, unknown> | null;
   data_captacao: string | null;
   data_disponibilidade: string | null;
+  matricula: string | null;
+  inscricao_municipal: string | null;
+  inscricao_estadual: string | null;
+  valor_comissao: string | null;
+  tipo_comissao: string | null;
+  exclusividade: boolean;
+  data_inicio_exclusividade: string | null;
+  data_fim_exclusividade: string | null;
+  observacoes_privadas: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -435,8 +444,15 @@ export class ImovelService {
   }
 
   static async updateEtapaDadosPrivativos(id: number, data: Partial<DadosPrivativos>): Promise<ApiResponse<DadosPrivativos>> {
-    const response = await api.put(`/imoveis/${id}/etapas/dados-privativos`, data);
-    return response.data;
+    logger.info(`[IMOVEL_SERVICE] Atualizando dados privativos do imóvel ${id}: ${JSON.stringify(data)}`);
+    try {
+      const response = await api.put(`/imoveis/${id}/etapas/dados-privativos`, data);
+      logger.info(`[IMOVEL_SERVICE] Dados privativos atualizados com sucesso: ${JSON.stringify(response.data)}`);
+      return response.data;
+    } catch (error) {
+      logger.error(`[IMOVEL_SERVICE] Erro ao atualizar dados privativos do imóvel ${id}:`, error);
+      throw error;
+    }
   }
 
   static async updateEtapaPublicacao(id: number, data: Partial<PublicacaoEtapa>): Promise<ApiResponse<PublicacaoEtapa>> {

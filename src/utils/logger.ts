@@ -22,22 +22,22 @@ const logger: Logger = {
   },
   
   info: (message: string, ...args: unknown[]) => {
-    // Filtrar logs para mostrar apenas os relacionados a condomínio
-    if (isDevelopment && message.includes('[CONDOMINIO]')) {
+    // Filtrar logs para mostrar apenas os relacionados a condomínio ou dados privativos
+    if (isDevelopment && (message.includes('[CONDOMINIO]') || message.includes('[DADOS_PRIVATIVOS]') || message.includes('[USUARIO_SERVICE]'))) {
       console.info(`[INFO] ${message}`, ...args);
     }
   },
   
   warn: (message: string, ...args: unknown[]) => {
-    // Filtrar logs de aviso para mostrar apenas os relacionados a condomínio
-    if (message.includes('[CONDOMINIO]')) {
+    // Filtrar logs de aviso para mostrar apenas os relacionados a condomínio ou dados privativos
+    if (message.includes('[CONDOMINIO]') || message.includes('[DADOS_PRIVATIVOS]') || message.includes('[USUARIO_SERVICE]')) {
       console.warn(`[WARN] ${message}`, ...args);
     }
   },
   
   error: (message: string, ...args: unknown[]) => {
-    // Filtrar logs de erro para mostrar apenas os relacionados a condomínio
-    if (message.includes('[CONDOMINIO]')) {
+    // Filtrar logs de erro para mostrar apenas os relacionados a condomínio ou dados privativos
+    if (message.includes('[CONDOMINIO]') || message.includes('[DADOS_PRIVATIVOS]') || message.includes('[USUARIO_SERVICE]')) {
       console.error(`[ERROR] ${message}`, ...args);
     }
   },

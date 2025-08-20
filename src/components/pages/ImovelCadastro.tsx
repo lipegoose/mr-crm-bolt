@@ -604,6 +604,8 @@ const ImovelCadastro: React.FC = () => {
             <DadosPrivativos 
               onUpdate={(data, hasChanges) => handleUpdateFormData('dados-privativos', { ...data }, hasChanges)} 
               onFieldChange={() => markStepAsChanged('dados-privativos')}
+              imovelId={id ? Number(id) : undefined}
+              initialData={formData['dados-privativos'] as Record<string, unknown>}
             />
           </div>
         );

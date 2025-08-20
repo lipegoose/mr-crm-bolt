@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
 
-interface Option {
+export interface Option {
   value: string;
   label: string;
 }
