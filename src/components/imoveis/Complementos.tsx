@@ -4,7 +4,6 @@ import { Input } from '../ui/Input';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ImovelService } from '../../services/ImovelService';
-import logger from '../../utils/logger';
 
 /**
  * Componente Complementos
@@ -16,7 +15,6 @@ import logger from '../../utils/logger';
  * - Corrigido o mapeamento dos campos entre frontend e backend
  * - Implementado auto-save com debounce para todos os campos
  * - Adicionado suporte para ambos os formatos de dados (url/caminho) para compatibilidade
- * - Melhorado o sistema de logs para facilitar depuração
  */
 
 // Interfaces para tipagem correta dos dados
@@ -93,10 +91,6 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate, onFieldChange, im
     plantas: initialPlantas,
   });
   
-  // Log para debug
-  useEffect(() => {
-    logger.debug('[COMPLEMENTOS] Dados iniciais recebidos:', initialData);
-  }, [initialData]);
   
   // Referência para controlar o timeout de salvamento por campo
   const savingTimeoutsRef = useRef<Record<string, NodeJS.Timeout | number>>({});
@@ -115,27 +109,21 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate, onFieldChange, im
   
   // Função para salvar dados na API com o formato correto
   const salvarNaAPI = async (data: Partial<FormDataType> & Record<string, unknown>) => {
-    console.log('[COMPLEMENTOS] Iniciando salvarNaAPI com dados:', data);
-    
     if (!imovelId) {
-      console.log('[COMPLEMENTOS] Erro: Tentativa de salvar sem imovelId');
       return;
     }
     
     try {
       // Converter do formato interno para o formato da API
       const apiData: Record<string, any> = {};
-      console.log('[COMPLEMENTOS] imovelId:', imovelId);
       
       // Mapear campos para o formato esperado pela API
       if ('observacoes' in data) {
         apiData.observacoes_internas = data.observacoes;
-        console.log(`[COMPLEMENTOS] Preparando observações para API: ${data.observacoes}`);
       }
       
       if ('tourVirtual' in data) {
         apiData.tour_virtual_url = data.tourVirtual;
-        console.log(`[COMPLEMENTOS] Preparando tour virtual para API: ${data.tourVirtual}`);
       }
       
       if ('videos' in data && data.videos) {
@@ -145,7 +133,6 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate, onFieldChange, im
           url: video.url,
           ...(video.id ? { id: video.id } : {})
         }));
-        console.log(`[COMPLEMENTOS] Preparando vídeos para API: ${data.videos.length} vídeos`);
       }
       
       if ('plantas' in data && data.plantas) {
@@ -156,33 +143,23 @@ const Complementos: React.FC<ComplementosProps> = ({ onUpdate, onFieldChange, im
           url: planta.url,
           ...(planta.id ? { id: planta.id } : {})
         }));
-        console.log(`[COMPLEMENTOS] Preparando plantas para API: ${data.plantas.length} plantas`);
       }
       
-      console.log(`[COMPLEMENTOS] Enviando dados para API:`, apiData);
-      console.log(`[COMPLEMENTOS] Chamando ImovelService.updateEtapaComplementos(${imovelId}, ...)`);
-      const response = await ImovelService.updateEtapaComplementos(imovelId, apiData);
-      console.log(`[COMPLEMENTOS] Dados salvos com sucesso:`, response);
+      await ImovelService.updateEtapaComplementos(imovelId, apiData);
     } catch (error) {
-      console.error(`[COMPLEMENTOS] Erro ao salvar dados:`, error);
+      // Erro silencioso
     }
   };
 
   // Função de debounce para evitar chamadas excessivas à API
   const debounceSave = (fieldName: string, data: Partial<FormDataType>) => {
-    // Log para debug com console.log direto
-    console.log(`[COMPLEMENTOS] Iniciando debounce para o campo: ${fieldName}`, data);
-    
     // Cancelar timeout anterior se existir
     if (savingTimeoutsRef.current[fieldName]) {
-      console.log(`[COMPLEMENTOS] Cancelando timeout anterior para o campo: ${fieldName}`);
       clearTimeout(savingTimeoutsRef.current[fieldName] as NodeJS.Timeout);
     }
     
     // Configurar novo timeout
-    console.log(`[COMPLEMENTOS] Configurando novo timeout para o campo: ${fieldName}`);
     savingTimeoutsRef.current[fieldName] = setTimeout(() => {
-      console.log(`[COMPLEMENTOS] Executando salvamento para o campo: ${fieldName} após debounce`);
       salvarNaAPI(data);
       // Limpar a referência após executar
       delete savingTimeoutsRef.current[fieldName];
