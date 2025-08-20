@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TextArea } from '../ui/TextArea';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { RadioGroup } from '../ui/RadioGroup';
-import { Button } from '../ui/Button';
 import { ImovelService } from '../../services/ImovelService';
 import { UsuarioService, SelectOption } from '../../services/UsuarioService';
 import type { Option } from '../ui/Select';
@@ -55,9 +54,6 @@ const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate: _onUpdate, 
     observacoesPrivadas: initialObservacoesPrivadas,
   });
 
-  // Estado para controlar se o formulário foi modificado pelo usuário
-  const [formChanged, setFormChanged] = useState(false);
-
   // Estado para armazenar a lista de corretores da API
   const [corretores, setCorretores] = useState<Option[]>([
     { value: '', label: 'Selecione' },
@@ -94,33 +90,6 @@ const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate: _onUpdate, 
   }, []);
 
 
-  // Verifica se há mudanças reais
-  const hasRealChanges = useCallback(() => {
-    // Comparamos com os dados iniciais recebidos via props
-    if (!initialData) return false;
-    
-    // Verificar cada campo
-    if (formData.matricula !== (initialData.matricula as string || '')) return true;
-    if (formData.inscricaoMunicipal !== (initialData.inscricao_municipal as string || '')) return true;
-    if (formData.inscricaoEstadual !== (initialData.inscricao_estadual as string || '')) return true;
-    if (formData.valorComissao !== (initialData.valor_comissao as string || '')) return true;
-    if (formData.tipoComissao !== (initialData.tipo_comissao as string || 'PORCENTAGEM')) return true;
-    if (formData.corretorResponsavel !== (initialData.corretor_id ? String(initialData.corretor_id) : '')) return true;
-    if (formData.exclusividade !== (initialData.exclusividade === true ? 'sim' : 'nao')) return true;
-    if (formData.dataInicioExclusividade !== (initialData.data_inicio_exclusividade as string || '')) return true;
-    if (formData.dataFimExclusividade !== (initialData.data_fim_exclusividade as string || '')) return true;
-    if (formData.observacoesPrivadas !== (initialData.observacoes_privadas as string || '')) return true;
-    
-    return false;
-  }, [formData, initialData]);
-
-  // Atualiza os dados do formulário quando há mudanças reais
-  // Removemos onUpdate da lista de dependências para evitar o loop infinito
-  useEffect(() => {
-    // Evitar salvamento global pelo container; salvamos por campo via debounce
-    // Mantemos apenas a marcação de que houve mudança (feita em handleChange)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData, formChanged, hasRealChanges]);
 
   // Função para salvar dados na API com o formato correto
   const salvarNaAPI = async (field: string, value: string) => {
@@ -192,9 +161,6 @@ const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate: _onUpdate, 
       ...prev,
       [field]: value
     }));
-    
-    // Marca o formulário como modificado
-    setFormChanged(true);
     // Notificar que houve mudança no campo
     onFieldChange?.();
     
@@ -204,26 +170,6 @@ const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate: _onUpdate, 
     } else {
       // Sem imovelId, não salva
     }
-  };
-
-  // Função para resetar o formulário aos dados iniciais
-  const resetForm = () => {
-    if (!initialData) return;
-    
-    // Resetar para os valores iniciais
-    setFormData({
-      matricula: initialData.matricula as string || '',
-      inscricaoMunicipal: initialData.inscricao_municipal as string || '',
-      inscricaoEstadual: initialData.inscricao_estadual as string || '',
-      valorComissao: initialData.valor_comissao as string || '',
-      tipoComissao: initialData.tipo_comissao as string || 'PORCENTAGEM',
-      corretorResponsavel: initialData.corretor_id ? String(initialData.corretor_id) : '',
-      exclusividade: initialData.exclusividade === true ? 'sim' : 'nao',
-      dataInicioExclusividade: initialData.data_inicio_exclusividade as string || '',
-      dataFimExclusividade: initialData.data_fim_exclusividade as string || '',
-      observacoesPrivadas: initialData.observacoes_privadas as string || '',
-    });
-    setFormChanged(false);
   };
 
   return (
@@ -346,16 +292,7 @@ const DadosPrivativos: React.FC<DadosPrivativosProps> = ({ onUpdate: _onUpdate, 
           </p>
         </div>
 
-        <div className="md:col-span-2 flex justify-end space-x-3 pt-4">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={resetForm}
-            disabled={!hasRealChanges()}
-          >
-            Resetar Formulário
-          </Button>
-        </div>
+        
       </div>
     </div>
   );
