@@ -72,6 +72,29 @@ export interface ImagemImovel {
   ordem: number;
 }
 
+// Etapa Imagens (shape conforme ImagensResource no backend)
+export interface ImagemEtapaItem {
+  id: number;
+  titulo: string | null;
+  caminho: string;
+  url: string;
+  ordem: number;
+  principal: boolean;
+}
+
+export interface ImagensEtapa {
+  id: number;
+  imagens: ImagemEtapaItem[];
+  imagem_principal: {
+    id: number;
+    titulo: string | null;
+    caminho: string;
+    url: string;
+  } | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // Interfaces para etapas específicas
 export interface InformacoesIniciais {
   id: number;
@@ -333,6 +356,30 @@ export class ImovelService {
     return response.data;
   }
 
+  static async getEtapaImagens(id: number): Promise<ApiResponse<ImagensEtapa>> {
+    // Controle de requisição pendente para evitar duplicações (StrictMode)
+    const pending = this.pendingEtapaImagensRequests[id];
+    if (pending) {
+      logger.debug(`[IMOVEL_SERVICE] Reaproveitando requisição pendente para etapaImagens do imóvel ${id}`);
+      return pending;
+    }
+
+    logger.debug(`[IMOVEL_SERVICE] Buscando etapaImagens do imóvel ${id}`);
+    this.pendingEtapaImagensRequests[id] = (async () => {
+      try {
+        const response = await api.get(`/imoveis/${id}/etapas/imagens`);
+        return response.data;
+      } catch (error) {
+        logger.error(`[IMOVEL_SERVICE] Erro ao buscar etapaImagens do imóvel ${id}:`, error);
+        throw error;
+      } finally {
+        delete this.pendingEtapaImagensRequests[id];
+      }
+    })();
+
+    return this.pendingEtapaImagensRequests[id];
+  }
+
   static async getEtapaProximidades(id: number): Promise<ApiResponse<Proximidades>> {
     // Log para identificar chamadas
     logger.debug(`[IMOVEL_SERVICE] Chamada getEtapaProximidades para imóvel ${id}`);
@@ -486,16 +533,31 @@ export class ImovelService {
         'Content-Type': 'multipart/form-data',
       },
     });
-    return response.data;
+    // Alguns backends podem responder como { success, data }, outros como { message, imagem }
+    // ou até retornar diretamente o objeto da imagem. Normalizamos aqui.
+    const payload = response.data as any;
+    const imagem: ImagemImovel = (payload?.data ?? payload?.imagem ?? payload) as ImagemImovel;
+
+    return {
+      success: payload?.success ?? true,
+      data: imagem,
+      message: payload?.message,
+    };
   }
 
-  static async reordenarImagens(id: number, imagens: { id: number; ordem: number }[]): Promise<ApiResponse<ImagemImovel[]>> {
-    const response = await api.put(`/imoveis/${id}/imagens/reordenar`, { imagens });
+  static async reordenarImagens(id: number, imagensIds: number[]): Promise<ApiResponse<ImagemImovel[]>> {
+    // Backend espera apenas array de IDs na ordem desejada
+    const response = await api.put(`/imoveis/${id}/imagens/reordenar`, { imagens: imagensIds });
     return response.data;
   }
 
   static async definirImagemPrincipal(id: number, imagemId: number): Promise<ApiResponse<ImagemImovel>> {
     const response = await api.put(`/imoveis/${id}/imagens/${imagemId}/principal`);
+    return response.data;
+  }
+
+  static async updateImagem(id: number, imagemId: number, data: { titulo?: string | null }): Promise<ApiResponse<{ message: string; imagem: ImagemImovel }>> {
+    const response = await api.put(`/imoveis/${id}/imagens/${imagemId}`, data);
     return response.data;
   }
 
@@ -529,6 +591,7 @@ export class ImovelService {
   private static pendingRequests: Record<string, Promise<ApiResponse<Caracteristica[]>>> = {};
   private static pendingProximidadesRequest: Promise<ApiResponse<Proximidade[]>> | null = null;
   private static pendingEtapaProximidadesRequests: Record<number, Promise<ApiResponse<Proximidades>>> = {};
+  private static pendingEtapaImagensRequests: Record<number, Promise<ApiResponse<ImagensEtapa>>> = {};
   
   static async getCaracteristicas(escopo: 'IMOVEL' | 'CONDOMINIO', forceCache: boolean = false): Promise<ApiResponse<Caracteristica[]>> {
     // 1. Verificar cache primeiro

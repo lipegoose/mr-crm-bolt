@@ -1,22 +1,66 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Upload, X, Image as ImageIcon, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { ImovelService, ImagensEtapa } from '../../services/ImovelService';
+import logger from '../../utils/logger';
 
 interface ImagensImovelProps {
   onUpdate: (data: any) => void;
   onFieldChange?: () => void;
+  imovelId?: number;
+  initialData?: ImagensEtapa | Record<string, unknown>;
 }
 
-const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange }) => {
-  const [imagens, setImagens] = useState<Array<{
-    id: string;
-    url: string;
-    titulo: string;
-    principal: boolean;
-  }>>([]);
+type UIImagem = { id: number; url: string; titulo: string | null; principal: boolean };
+
+const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
+  const [imagens, setImagens] = useState<UIImagem[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const tituloDebounceTimers = useRef<Record<number, any>>({});
+  const reorderDebounceTimer = useRef<any>(null);
+
+  // Normaliza initialData caso venha como Record
+  const normalizedInitial = useMemo(() => {
+    if (!initialData) return undefined;
+    if ('imagens' in (initialData as any)) return initialData as ImagensEtapa;
+    return undefined;
+  }, [initialData]);
+
+  // Carregar imagens do backend quando inicializar a etapa
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        if (normalizedInitial && normalizedInitial.imagens) {
+          const list = normalizedInitial.imagens.map(img => ({
+            id: img.id,
+            url: img.url,
+            titulo: img.titulo ?? null,
+            principal: !!img.principal,
+          } as UIImagem));
+          if (mounted) setImagens(list);
+          return;
+        }
+        if (imovelId) {
+          logger.debug(`[IMAGENS] Buscando etapaImagens do imóvel ${imovelId}`);
+          const resp = await ImovelService.getEtapaImagens(imovelId);
+          const list = (resp.data.imagens || []).map(img => ({
+            id: img.id,
+            url: img.url,
+            titulo: img.titulo ?? null,
+            principal: !!img.principal,
+          } as UIImagem));
+          if (mounted) setImagens(list);
+        }
+      } catch (error) {
+        logger.error('[IMAGENS] Erro ao carregar imagens:', error);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [imovelId, normalizedInitial]);
 
   // Atualiza os dados do formulário quando há mudanças
   // Removemos onUpdate da lista de dependências para evitar o loop infinito
@@ -27,21 +71,36 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange }
   }, [imagens]);
 
   // Função para adicionar novas imagens
-  const adicionarImagens = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const adicionarImagens = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
 
-    const novasImagens = Array.from(files).map(file => {
-      const id = Math.random().toString(36).substring(2, 15);
-      return {
-        id,
-        url: URL.createObjectURL(file),
-        titulo: '',
-        principal: imagens.length === 0, // A primeira imagem será a principal
-      };
-    });
+    if (!imovelId) {
+      logger.warn('[IMAGENS] imovelId ausente, não é possível fazer upload');
+      return;
+    }
 
-    setImagens(prev => [...prev, ...novasImagens]);
+    for (const file of Array.from(files)) {
+      try {
+        const resp = await ImovelService.uploadImagem(imovelId, file);
+        const img = resp.data; // ImagemImovel normalizado no service
+        // Fallback para URL: prioriza url_completa, depois url, depois monta de caminho
+        const url = (img as any)?.url_completa
+          || (img as any)?.url
+          || (img?.caminho ? `/storage/${img.caminho}` : '');
+        setImagens(prev => [
+          ...prev,
+          {
+            id: img.id,
+            url,
+            titulo: img.titulo ?? null,
+            principal: !!img.principal,
+          },
+        ]);
+      } catch (error) {
+        logger.error('[IMAGENS] Erro ao enviar imagem:', error);
+      }
+    }
     
     // Limpa o input para permitir selecionar os mesmos arquivos novamente
     event.target.value = '';
@@ -51,7 +110,7 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange }
   };
 
   // Função para remover uma imagem
-  const removerImagem = (id: string) => {
+  const removerImagem = async (id: number) => {
     setImagens(prev => {
       const novasImagens = prev.filter(img => img.id !== id);
       
@@ -62,33 +121,71 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange }
       
       return novasImagens;
     });
+    if (imovelId) {
+      try {
+        await ImovelService.deletarImagem(imovelId, id);
+      } catch (error) {
+        logger.error('[IMAGENS] Erro ao deletar imagem:', error);
+      }
+    }
     
     // Notificar que houve mudança no campo
     onFieldChange?.();
   };
 
   // Função para definir uma imagem como principal
-  const definirPrincipal = (id: string) => {
+  const definirPrincipal = async (id: number) => {
     setImagens(prev => prev.map(img => ({
       ...img,
       principal: img.id === id
     })));
+    if (imovelId) {
+      try {
+        await ImovelService.definirImagemPrincipal(imovelId, id);
+      } catch (error) {
+        logger.error('[IMAGENS] Erro ao definir principal:', error);
+      }
+    }
     
     // Notificar que houve mudança no campo
     onFieldChange?.();
   };
 
   // Função para atualizar o título da imagem
-  const atualizarTitulo = (id: string, titulo: string) => {
-    setImagens(prev => prev.map(img => 
-      img.id === id ? { ...img, titulo } : img
-    ));
+  const atualizarTitulo = (id: number, titulo: string) => {
+    setImagens(prev => prev.map(img => (img.id === id ? { ...img, titulo } : img)));
+    if (imovelId) {
+      // debounce por imagem
+      if (tituloDebounceTimers.current[id]) {
+        clearTimeout(tituloDebounceTimers.current[id]);
+      }
+      tituloDebounceTimers.current[id] = setTimeout(async () => {
+        try {
+          await ImovelService.updateImagem(imovelId, id, { titulo });
+        } catch (error) {
+          logger.error('[IMAGENS] Erro ao atualizar título:', error);
+        }
+      }, 500);
+    }
     
     // Notificar que houve mudança no campo
     onFieldChange?.();
   };
 
   // Funções para reordenar imagens
+  const callReorder = (imgs: UIImagem[]) => {
+    if (!imovelId) return;
+    const ids = imgs.map(i => i.id);
+    if (reorderDebounceTimer.current) clearTimeout(reorderDebounceTimer.current);
+    reorderDebounceTimer.current = setTimeout(async () => {
+      try {
+        await ImovelService.reordenarImagens(imovelId, ids);
+      } catch (error) {
+        logger.error('[IMAGENS] Erro ao reordenar imagens:', error);
+      }
+    }, 400);
+  };
+
   const moverParaCima = (index: number) => {
     if (index === 0) return;
     
@@ -97,6 +194,7 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange }
       const temp = novasImagens[index];
       novasImagens[index] = novasImagens[index - 1];
       novasImagens[index - 1] = temp;
+      callReorder(novasImagens);
       return novasImagens;
     });
     
@@ -112,6 +210,7 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange }
       const temp = novasImagens[index];
       novasImagens[index] = novasImagens[index + 1];
       novasImagens[index + 1] = temp;
+      callReorder(novasImagens);
       return novasImagens;
     });
     
@@ -137,6 +236,7 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange }
       const novasImagens = [...prev];
       const [itemRemovido] = novasImagens.splice(draggedIndex, 1);
       novasImagens.splice(index, 0, itemRemovido);
+      callReorder(novasImagens);
       return novasImagens;
     });
     
@@ -198,7 +298,7 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange }
                 <div className="w-24 h-24 bg-gray-100 rounded-md flex-shrink-0 mr-4 overflow-hidden">
                   <img 
                     src={imagem.url} 
-                    alt={imagem.titulo || `Imagem ${index + 1}`} 
+                    alt={imagem.titulo || `Imagem ${index + 1}`}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -207,7 +307,7 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange }
                   <Input
                     label="Título da imagem"
                     placeholder="Ex: Vista da sala, Fachada, Quarto principal..."
-                    value={imagem.titulo}
+                    value={imagem.titulo ?? ''}
                     onChange={(e) => atualizarTitulo(imagem.id, e.target.value)}
                   />
                   

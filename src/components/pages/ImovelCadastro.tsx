@@ -145,6 +145,7 @@ const ImovelCadastro: React.FC = () => {
     'caracteristicas-imovel': ImovelService.getEtapaCaracteristicas,
     'caracteristicas-condominio': ImovelService.getEtapaCaracteristicasCondominio,
     'localizacao': ImovelService.getEtapaLocalizacao,
+    'imagens': ImovelService.getEtapaImagens,
     'proximidades': ImovelService.getEtapaProximidades,
     'descricao': ImovelService.getEtapaDescricao,
     'complementos': ImovelService.getEtapaComplementos,
@@ -620,6 +621,8 @@ const ImovelCadastro: React.FC = () => {
             <ImagensImovel 
               onUpdate={(data) => handleUpdateFormData('imagens', data)} 
               onFieldChange={() => markStepAsChanged('imagens')}
+              imovelId={id ? Number(id) : undefined}
+              initialData={formData['imagens'] as Record<string, unknown>}
             />
           </div>
         );
