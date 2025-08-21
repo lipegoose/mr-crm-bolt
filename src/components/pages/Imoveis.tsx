@@ -5,6 +5,8 @@ import { Button } from '../ui/Button';
 import { Plus, Search, Filter, Edit, Trash2, MapPin, DollarSign, Home, Loader2 } from 'lucide-react';
 import FiltersModal from '../imoveis/FiltersModal';
 import { ImovelService, type Imovel as ImovelApi, type ImoveisListResponse } from '../../services/ImovelService';
+import ConfirmDialog from '../ui/ConfirmDialog';
+import Toast from '../ui/Toast';
 
 interface ImovelUI {
   id: number;
@@ -27,6 +29,10 @@ export const Imoveis: React.FC = () => {
   const [page, setPage] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingIds, setDeletingIds] = useState<Record<number, boolean>>({});
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTargetId, setConfirmTargetId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<{
@@ -61,6 +67,7 @@ export const Imoveis: React.FC = () => {
       cancelled = true;
     };
   }, [page]);
+
 
   // Função para criar novo imóvel
   const handleNovoImovel = async () => {
@@ -189,6 +196,48 @@ export const Imoveis: React.FC = () => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price || 0);
   };
 
+  // Título do imóvel alvo da confirmação
+  const confirmTitle = useMemo(() => {
+    if (confirmTargetId == null) return '';
+    const item = imoveisUI.find((i) => i.id === confirmTargetId);
+    return item?.titulo || '';
+  }, [confirmTargetId, imoveisUI]);
+
+  const handleDelete = async (id: number) => {
+    // Abre diálogo de confirmação amigável
+    setConfirmTargetId(id);
+    setConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    const id = confirmTargetId;
+    if (id == null) return;
+    setConfirmOpen(false);
+    setDeletingIds((prev) => ({ ...prev, [id]: true }));
+    try {
+      await ImovelService.deleteImovel(id);
+      // Recarrega a página atual
+      const res = await ImovelService.listImoveis({ page });
+      setImoveisApi(res.data || []);
+      setPagination(res.pagination || null);
+      // Se a página ficou vazia e existe anterior, volta uma página
+      if ((res.data || []).length === 0 && page > 1) {
+        setPage((p) => Math.max(1, p - 1));
+      }
+      setSuccessMsg(`Imóvel "${confirmTitle}" excluído com sucesso.`);
+    } catch (e) {
+      console.error('Erro ao excluir imóvel:', e);
+      setError('Erro ao excluir imóvel. Tente novamente.');
+    } finally {
+      setDeletingIds((prev) => {
+        const n = { ...prev };
+        delete n[id];
+        return n;
+      });
+      setConfirmTargetId(null);
+    }
+  };
+
   return (
     <div className="space-y-section">
       {/* Header */}
@@ -249,6 +298,14 @@ export const Imoveis: React.FC = () => {
           <div className="text-status-error">{error}</div>
         </Card>
       )}
+      {/* Toast de sucesso */}
+  <Toast
+        open={!!successMsg}
+        message={successMsg || ''}
+        type="success"
+        duration={3000}
+        onClose={() => setSuccessMsg(null)}
+      />
       {loading && (
         <div className="flex items-center gap-2 text-neutral-gray-medium">
           <Loader2 className="w-4 h-4 animate-spin" /> Carregando imóveis...
@@ -295,8 +352,17 @@ export const Imoveis: React.FC = () => {
                     <button className="p-1 text-neutral-gray-medium hover:text-primary-orange" onClick={() => navigate(`/imoveis/${imovel.id}`)}>
                       <Edit className="w-4 h-4" />
                     </button>
-                    <button className="p-1 text-neutral-gray-medium hover:text-status-error">
-                      <Trash2 className="w-4 h-4" />
+                    <button
+                      className="p-1 text-neutral-gray-medium hover:text-status-error disabled:opacity-50"
+                      onClick={() => handleDelete(imovel.id)}
+                      disabled={!!deletingIds[imovel.id]}
+                      title="Excluir imóvel"
+                    >
+                      {deletingIds[imovel.id] ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -348,6 +414,17 @@ export const Imoveis: React.FC = () => {
         </div>
       )}
       
+      {/* Dialogo de confirmação de exclusão */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Excluir imóvel"
+        description={`Tem certeza que deseja excluir o imóvel "${confirmTitle}"? Esta ação não pode ser desfeita.`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        loading={confirmTargetId != null && !!deletingIds[confirmTargetId]}
+        onConfirm={confirmDelete}
+        onCancel={() => { setConfirmOpen(false); setConfirmTargetId(null); }}
+      />
     </div>
   );
 };

@@ -331,6 +331,8 @@ export interface CodigoReferenciaResponse {
 export class ImovelService {
   // Rastreamento de requisições pendentes para listagem (evita duplicações em StrictMode)
   private static pendingListRequests: Record<string, Promise<ImoveisListResponse>> = {};
+  // Rastreamento de deleções em andamento por imóvel
+  private static pendingDeleteRequests: Record<number, Promise<ApiResponse<void>>> = {};
   // Método principal para iniciar cadastro
   static async iniciarCadastro(): Promise<IniciarCadastroResponse> {
     const response = await api.post('/imoveis/iniciar');
@@ -374,6 +376,31 @@ export class ImovelService {
   static async updateImovel(id: number, data: Partial<Imovel>): Promise<ApiResponse<Imovel>> {
     const response = await api.put(`/imoveis/${id}`, data);
     return response.data;
+  }
+
+  // Excluir imóvel por ID
+  static async deleteImovel(id: number): Promise<ApiResponse<void>> {
+    // Reaproveita requisição se já houver uma deleção em andamento para o mesmo id
+    const pending = this.pendingDeleteRequests[id];
+    if (pending) {
+      logger.debug(`[IMOVEL_SERVICE] Reaproveitando deleção pendente do imóvel ${id}`);
+      return pending;
+    }
+
+    logger.debug(`[IMOVEL_SERVICE] Deletando imóvel ${id}`);
+    this.pendingDeleteRequests[id] = (async () => {
+      try {
+        const response = await api.delete(`/imoveis/${id}`);
+        return response.data as ApiResponse<void>;
+      } catch (error) {
+        logger.error(`[IMOVEL_SERVICE] Erro ao deletar imóvel ${id}:`, error);
+        throw error;
+      } finally {
+        delete this.pendingDeleteRequests[id];
+      }
+    })();
+
+    return this.pendingDeleteRequests[id];
   }
 
   // Métodos para etapas específicas - GET
