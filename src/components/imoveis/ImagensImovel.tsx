@@ -18,6 +18,8 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange, 
   const [imagens, setImagens] = useState<UIImagem[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [isUploadDragActive, setIsUploadDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const tituloDebounceTimers = useRef<Record<number, any>>({});
   const reorderDebounceTimer = useRef<any>(null);
 
@@ -70,25 +72,21 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imagens]);
 
-  // Função para adicionar novas imagens
-  const adicionarImagens = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
-
+  // Helper para processar uma lista de arquivos (input ou DnD)
+  const processFiles = async (files: FileList | File[]) => {
     if (!imovelId) {
       logger.warn('[IMAGENS] imovelId ausente, não é possível fazer upload');
       return;
     }
-
-    for (const file of Array.from(files)) {
+    const arr = Array.from(files as any as File[]);
+    for (const file of arr) {
       try {
         const resp = await ImovelService.uploadImagem(imovelId, file);
         const img = resp.data; // ImagemImovel normalizado no service
-        // Fallback para URL: prioriza url_completa, depois url, depois monta de caminho
         const url = (img as any)?.url_completa
           || (img as any)?.url
           || (img?.caminho ? `/storage/${img.caminho}` : '');
-        setImagens(prev => [
+        setImagens(prev => ([
           ...prev,
           {
             id: img.id,
@@ -96,17 +94,44 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange, 
             titulo: img.titulo ?? null,
             principal: !!img.principal,
           },
-        ]);
+        ]));
       } catch (error) {
         logger.error('[IMAGENS] Erro ao enviar imagem:', error);
       }
     }
-    
+  };
+
+  // Função para adicionar novas imagens via input
+  const adicionarImagens = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+    await processFiles(files);
     // Limpa o input para permitir selecionar os mesmos arquivos novamente
     event.target.value = '';
-    
-    // Notificar que houve mudança no campo
     onFieldChange?.();
+  };
+
+  // Drag-and-drop na área de upload
+  const onUploadDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+  const onUploadDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsUploadDragActive(true);
+  };
+  const onUploadDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsUploadDragActive(false);
+  };
+  const onUploadDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsUploadDragActive(false);
+    if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+      await processFiles(e.dataTransfer.files);
+      onFieldChange?.();
+      // Limpamos os itens de DnD para evitar manter referência a arquivos
+      e.dataTransfer.clearData();
+    }
   };
 
   // Função para remover uma imagem
@@ -257,24 +282,42 @@ const ImagensImovel: React.FC<ImagensImovelProps> = ({ onUpdate, onFieldChange, 
       </p>
 
       <div className="mb-8">
-        <div className="border-2 border-dashed border-neutral-gray rounded-lg p-8 text-center">
+        <div
+          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isUploadDragActive ? 'border-primary-orange bg-orange-50' : 'border-neutral-gray'}`}
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={onUploadDragOver}
+          onDragEnter={onUploadDragEnter}
+          onDragLeave={onUploadDragLeave}
+          onDrop={onUploadDrop}
+          role="button"
+          aria-label="Área para soltar ou selecionar imagens"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+        >
           <input
             type="file"
             id="upload-imagens"
             multiple
             accept="image/*"
             className="hidden"
+            ref={fileInputRef}
             onChange={adicionarImagens}
           />
-          <label 
-            htmlFor="upload-imagens"
+          <div
             className="cursor-pointer flex flex-col items-center"
           >
             <Upload size={48} className="text-neutral-gray-medium mb-2" />
             <p className="text-lg font-medium mb-2">Clique para adicionar imagens</p>
             <p className="text-neutral-gray-medium">ou arraste e solte aqui</p>
-            <Button className="mt-4">Selecionar arquivos</Button>
-          </label>
+            <Button
+              className="mt-4"
+              type="button"
+              onMouseDown={(e) => { e.stopPropagation(); }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); fileInputRef.current?.click(); }}
+            >
+              Selecionar arquivos
+            </Button>
+          </div>
         </div>
       </div>
 
