@@ -420,16 +420,24 @@ const InformacoesIniciais: React.FC<InformacoesIniciaisProps> = ({ onUpdate, sub
     }
 
     try {
-      // Extrair ID do código atual (formato: "ID-SIGLA")
-      const partes = codigoAtual.split('-');
-      if (partes.length !== 2) {
-        // Formato de código inválido, não atualizar
-        return;
+      // Determinar o ID de forma robusta:
+      // 1) Priorizar o imovelId vindo das props (fonte de verdade)
+      // 2) Caso não exista, tentar extrair parte numérica do código atual
+      let idStr: string | null = imovelId ? String(imovelId) : null;
+
+      if (!idStr) {
+        const partes = (codigoAtual || '').split('-');
+        // Procurar parte totalmente numérica (ex.: "123") entre as partes
+        const parteNumerica = partes.find(p => /^\d+$/.test(p));
+        if (!parteNumerica) {
+          // Não foi possível determinar o ID, não atualizar
+          return;
+        }
+        idStr = parteNumerica;
       }
 
-      const id = partes[0];
       const novaSigla = gerarSiglaTipo(tipo);
-      const novoCodigo = `${id}-${novaSigla}`;
+      const novoCodigo = `${novaSigla}-${idStr}`;
 
       // Verificar se o novo código está disponível
       const validacao = await ImovelService.validarCodigoReferencia(novoCodigo, imovelId);
