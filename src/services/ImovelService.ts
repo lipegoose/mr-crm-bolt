@@ -296,6 +296,28 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+// Tipos para listagem com paginação
+export interface PaginationInfo {
+  total: number;
+  count: number;
+  per_page: number;
+  current_page: number;
+  total_pages: number;
+  has_more_pages: boolean;
+}
+
+export interface ImoveisListResponse {
+  data: Imovel[];
+  pagination: PaginationInfo;
+  links: {
+    first: string;
+    last: string;
+    prev: string | null;
+    next: string | null;
+  };
+  meta: any;
+}
+
 export interface IniciarCadastroResponse {
   message: string;
   imovel: Imovel;
@@ -307,10 +329,39 @@ export interface CodigoReferenciaResponse {
 }
 
 export class ImovelService {
+  // Rastreamento de requisições pendentes para listagem (evita duplicações em StrictMode)
+  private static pendingListRequests: Record<string, Promise<ImoveisListResponse>> = {};
   // Método principal para iniciar cadastro
   static async iniciarCadastro(): Promise<IniciarCadastroResponse> {
     const response = await api.post('/imoveis/iniciar');
     return response.data;
+  }
+
+  // Listagem de imóveis com paginação
+  static async listImoveis(params?: { page?: number; per_page?: number; q?: string }): Promise<ImoveisListResponse> {
+    const key = JSON.stringify(params || {});
+
+    // Se já houver uma requisição idêntica em andamento, reutiliza
+    const pending = this.pendingListRequests[key];
+    if (pending) {
+      logger.debug(`[IMOVEL_SERVICE] Reaproveitando requisição pendente listImoveis params=${key}`);
+      return pending;
+    }
+
+    logger.debug(`[IMOVEL_SERVICE] Buscando listImoveis params=${key}`);
+    this.pendingListRequests[key] = (async () => {
+      try {
+        const response = await api.get('/imoveis', { params });
+        return response.data as ImoveisListResponse;
+      } catch (error) {
+        logger.error('[IMOVEL_SERVICE] Erro em listImoveis:', error);
+        throw error;
+      } finally {
+        delete this.pendingListRequests[key];
+      }
+    })();
+
+    return this.pendingListRequests[key];
   }
 
   // Obter imóvel por ID

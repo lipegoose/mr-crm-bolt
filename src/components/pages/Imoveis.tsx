@@ -1,64 +1,32 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Plus, Search, Filter, Edit, Trash2, MapPin, DollarSign, Home, Loader2 } from 'lucide-react';
 import FiltersModal from '../imoveis/FiltersModal';
-import { ImovelService } from '../../services/ImovelService';
+import { ImovelService, type Imovel as ImovelApi, type ImoveisListResponse } from '../../services/ImovelService';
 
-interface Imovel {
+interface ImovelUI {
   id: number;
   titulo: string;
-  tipo: 'casa' | 'apartamento' | 'comercial';
+  tipo: string;
   endereco: string;
   preco: number;
+  precoFormatado?: string | null;
   area: number;
   quartos?: number;
   banheiros?: number;
-  status: 'disponivel' | 'vendido' | 'alugado' | 'reservado';
+  status: string;
   imagem: string;
 }
 
-const mockImoveis: Imovel[] = [
-  {
-    id: 1,
-    titulo: 'Apartamento Centro',
-    tipo: 'apartamento',
-    endereco: 'Rua das Flores, 123 - Centro',
-    preco: 450000,
-    area: 85,
-    quartos: 3,
-    banheiros: 2,
-    status: 'disponivel',
-    imagem: 'https://images.pexels.com/photos/1396122/pexels-photo-1396122.jpeg?auto=compress&cs=tinysrgb&w=400',
-  },
-  {
-    id: 2,
-    titulo: 'Casa Jardim América',
-    tipo: 'casa',
-    endereco: 'Av. Paulista, 456 - Jardim América',
-    preco: 850000,
-    area: 180,
-    quartos: 4,
-    banheiros: 3,
-    status: 'vendido',
-    imagem: 'https://images.pexels.com/photos/106399/pexels-photo-106399.jpeg?auto=compress&cs=tinysrgb&w=400',
-  },
-  {
-    id: 3,
-    titulo: 'Loja Comercial',
-    tipo: 'comercial',
-    endereco: 'Rua do Comércio, 789 - Vila Madalena',
-    preco: 320000,
-    area: 120,
-    status: 'disponivel',
-    imagem: 'https://images.pexels.com/photos/280229/pexels-photo-280229.jpeg?auto=compress&cs=tinysrgb&w=400',
-  },
-];
-
 export const Imoveis: React.FC = () => {
   const navigate = useNavigate();
-  const [imoveis] = useState<Imovel[]>(mockImoveis);
+  const [imoveisApi, setImoveisApi] = useState<ImovelApi[]>([]);
+  const [pagination, setPagination] = useState<ImoveisListResponse['pagination'] | null>(null);
+  const [page, setPage] = useState<number>(1);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<{
@@ -70,6 +38,29 @@ export const Imoveis: React.FC = () => {
     dormitorios?: number;
   } | null>(null);
   const [creatingImovel, setCreatingImovel] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await ImovelService.listImoveis({ page });
+        if (cancelled) return;
+        setImoveisApi(res.data || []);
+        setPagination(res.pagination || null);
+      } catch (e) {
+        console.error('Erro ao listar imóveis:', e);
+        if (!cancelled) setError('Falha ao carregar imóveis');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [page]);
 
   // Função para criar novo imóvel
   const handleNovoImovel = async () => {
@@ -86,7 +77,37 @@ export const Imoveis: React.FC = () => {
     }
   };
 
-  const filteredImoveis = imoveis.filter(imovel => {
+  const imoveisUI: ImovelUI[] = useMemo(() => {
+    return (imoveisApi || []).map((imovel) => {
+      const cf: any = imovel.caracteristicas_fisicas || {};
+      const areaRaw = cf.area_privativa ?? cf.area_total;
+      const areaNum = areaRaw != null ? Number(areaRaw) : 0;
+      const quartos = (cf.dormitorios ?? cf.quartos ?? 0) || undefined;
+      const banheiros = (cf.banheiros ?? 0) || undefined;
+      const end = imovel.endereco?.endereco_formatado || '';
+      const valores = imovel.valores || ({} as any);
+      const precoBase = valores.valor_venda ?? valores.valor_locacao ?? 0;
+      const precoFmt = valores.valor_venda_formatado || valores.valor_locacao_formatado || null;
+      const titulo = imovel.codigo_referencia || `${imovel.tipo}${imovel.subtipo ? ' - ' + imovel.subtipo : ''}`;
+      // Sem imagem no payload de listagem: usa placeholder
+      const imagem = '/image.png';
+      return {
+        id: imovel.id,
+        titulo,
+        tipo: imovel.tipo,
+        endereco: end || '—',
+        preco: Number(precoBase) || 0,
+        precoFormatado: precoFmt,
+        area: areaNum || 0,
+        quartos,
+        banheiros,
+        status: (imovel.status || '').toUpperCase(),
+        imagem,
+      } as ImovelUI;
+    });
+  }, [imoveisApi]);
+
+  const filteredImoveis = imoveisUI.filter(imovel => {
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = (
@@ -131,14 +152,20 @@ export const Imoveis: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'disponivel':
+      case 'ATIVO':
         return 'bg-status-success text-white';
-      case 'vendido':
+      case 'INATIVO':
         return 'bg-neutral-gray-medium text-white';
-      case 'alugado':
+      case 'ALUGADO':
         return 'bg-status-info text-white';
-      case 'reservado':
+      case 'RESERVADO':
         return 'bg-primary-orange text-white';
+      case 'EM_NEGOCIACAO':
+        return 'bg-primary-orange text-white';
+      case 'VENDIDO':
+        return 'bg-neutral-gray-medium text-white';
+      case 'RASCUNHO':
+        return 'bg-neutral-gray text-neutral-black';
       default:
         return 'bg-neutral-gray text-neutral-black';
     }
@@ -157,11 +184,9 @@ export const Imoveis: React.FC = () => {
     }
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(price);
+  const formatPrice = (price: number, formatted?: string | null) => {
+    if (formatted) return formatted;
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price || 0);
   };
 
   return (
@@ -218,6 +243,18 @@ export const Imoveis: React.FC = () => {
         totalImoveis={filteredImoveis.length}
       />
 
+      {/* Estado de carregamento/erro */}
+      {error && (
+        <Card>
+          <div className="text-status-error">{error}</div>
+        </Card>
+      )}
+      {loading && (
+        <div className="flex items-center gap-2 text-neutral-gray-medium">
+          <Loader2 className="w-4 h-4 animate-spin" /> Carregando imóveis...
+        </div>
+      )}
+
       {/* Properties Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredImoveis.map((imovel) => {
@@ -234,7 +271,7 @@ export const Imoveis: React.FC = () => {
                 />
                 <div className="absolute top-3 right-3">
                   <span className={`inline-block px-2 py-1 text-xs rounded-full ${getStatusColor(imovel.status)}`}>
-                    {imovel.status.charAt(0).toUpperCase() + imovel.status.slice(1)}
+                    {imovel.status}
                   </span>
                 </div>
                 <div className="absolute top-3 left-3">
@@ -255,7 +292,7 @@ export const Imoveis: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex space-x-1">
-                    <button className="p-1 text-neutral-gray-medium hover:text-primary-orange">
+                    <button className="p-1 text-neutral-gray-medium hover:text-primary-orange" onClick={() => navigate(`/imoveis/${imovel.id}`)}>
                       <Edit className="w-4 h-4" />
                     </button>
                     <button className="p-1 text-neutral-gray-medium hover:text-status-error">
@@ -267,7 +304,7 @@ export const Imoveis: React.FC = () => {
                 <div className="space-y-2">
                   <div className="flex items-center text-lg font-semibold text-primary-orange">
                     <DollarSign className="w-4 h-4 mr-1" />
-                    {formatPrice(imovel.preco)}
+                    {formatPrice(imovel.preco, imovel.precoFormatado)}
                   </div>
                   
                   <div className="flex items-center justify-between text-sm text-neutral-gray-medium">
@@ -285,6 +322,31 @@ export const Imoveis: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Paginação */}
+      {pagination && (
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-neutral-gray-medium">
+            Página {pagination.current_page} de {pagination.total_pages} • Total: {pagination.total}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={loading || page <= 1}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setPage((p) => (pagination.has_more_pages ? p + 1 : p))}
+              disabled={loading || !pagination.has_more_pages}
+            >
+              Próxima
+            </Button>
+          </div>
+        </div>
+      )}
       
     </div>
   );
