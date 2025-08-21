@@ -64,12 +64,14 @@ export interface Negociacao {
 
 export interface ImagemImovel {
   id: number;
-  imovel_id: number;
-  caminho: string;
-  url_completa: string;
+  imovel_id?: number;
+  caminho?: string;
+  url_completa?: string;
+  // Alguns endpoints retornam apenas `url` (listagem)
+  url?: string;
   titulo: string | null;
-  principal: boolean;
-  ordem: number;
+  principal?: boolean;
+  ordem?: number;
 }
 
 // Etapa Imagens (shape conforme ImagensResource no backend)

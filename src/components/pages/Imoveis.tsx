@@ -96,8 +96,8 @@ export const Imoveis: React.FC = () => {
       const precoBase = valores.valor_venda ?? valores.valor_locacao ?? 0;
       const precoFmt = valores.valor_venda_formatado || valores.valor_locacao_formatado || null;
       const titulo = imovel.codigo_referencia || `${imovel.tipo}${imovel.subtipo ? ' - ' + imovel.subtipo : ''}`;
-      // Sem imagem no payload de listagem: usa placeholder
-      const imagem = '/image.png';
+      // Usa imagem principal se disponível; fallback para placeholder
+      const imagem = imovel.imagem_principal?.url || imovel.imagem_principal?.url_completa || '/image.png';
       return {
         id: imovel.id,
         titulo,
