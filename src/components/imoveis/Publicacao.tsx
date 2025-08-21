@@ -1,40 +1,105 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { RadioGroup } from '../ui/RadioGroup';
 import { Select } from '../ui/Select';
 import { Input } from '../ui/Input';
+import { ImovelService } from '../../services/ImovelService';
 
 interface PublicacaoProps {
-  onUpdate: (data: any) => void;
+  onUpdate: (data: Record<string, unknown>, hasChanges?: boolean) => void;
   onFieldChange?: () => void;
+  imovelId?: number;
+  initialData?: Record<string, unknown>;
 }
 
-const Publicacao: React.FC<PublicacaoProps> = ({ onUpdate, onFieldChange }) => {
+const Publicacao: React.FC<PublicacaoProps> = ({ onUpdate: _onUpdate, onFieldChange, imovelId, initialData }) => {
+  // Preparar valores iniciais a partir de initialData (da API)
+  const initialPublicarSite = (initialData?.publicar_site as boolean | undefined) === true ? 'sim' : 'nao';
+  const initialPublicarPortais = (initialData?.publicar_portais as boolean | undefined) === true ? 'sim' : 'nao';
+  const initialDestaque = (initialData?.destaque_site as boolean | undefined) === true ? 'sim' : 'nao';
+  const initialStatus = (initialData?.status as string | undefined) || 'ATIVO';
+  const initialDataPublicacao = (initialData?.data_publicacao as string | null | undefined) || '';
+  const initialDataExpiracao = (initialData?.data_expiracao as string | null | undefined) || '';
+
   const [formData, setFormData] = useState({
-    publicarNoSite: 'sim',
-    publicarPortais: 'sim',
-    destaque: 'nao',
-    status: 'ativo',
-    dataPublicacao: '',
-    dataExpiracao: '',
+    publicarNoSite: initialPublicarSite,
+    publicarPortais: initialPublicarPortais,
+    destaque: initialDestaque,
+    status: initialStatus,
+    dataPublicacao: initialDataPublicacao,
+    dataExpiracao: initialDataExpiracao,
   });
 
-  // Lista de status
+  // Referência para timeouts de debounce por campo
+  const savingTimeoutsRef = useRef<Record<string, NodeJS.Timeout | number>>({});
+
+  // Lista de status (valores conforme backend)
   const statusOptions = [
-    { value: 'ativo', label: 'Ativo' },
-    { value: 'inativo', label: 'Inativo' },
-    { value: 'vendido', label: 'Vendido' },
-    { value: 'alugado', label: 'Alugado' },
-    { value: 'reservado', label: 'Reservado' },
-    { value: 'em-negociacao', label: 'Em negociação' },
+    { value: 'ATIVO', label: 'Ativo' },
+    { value: 'INATIVO', label: 'Inativo' },
+    { value: 'VENDIDO', label: 'Vendido' },
+    { value: 'ALUGADO', label: 'Alugado' },
+    { value: 'RESERVADO', label: 'Reservado' },
+    { value: 'EM_NEGOCIACAO', label: 'Em negociação' },
+    { value: 'RASCUNHO', label: 'Rascunho' },
   ];
 
-  // Atualiza os dados do formulário quando há mudanças
-  // Removemos onUpdate da lista de dependências para evitar o loop infinito
+  // Caso initialData mude (troca de imóvel), atualizar estado local
   useEffect(() => {
-    // Chamamos onUpdate apenas quando formData mudar
-    onUpdate(formData);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData]);
+    setFormData({
+      publicarNoSite: (initialData?.publicar_site as boolean | undefined) === true ? 'sim' : 'nao',
+      publicarPortais: (initialData?.publicar_portais as boolean | undefined) === true ? 'sim' : 'nao',
+      destaque: (initialData?.destaque_site as boolean | undefined) === true ? 'sim' : 'nao',
+      status: (initialData?.status as string | undefined) || 'ATIVO',
+      dataPublicacao: (initialData?.data_publicacao as string | null | undefined) || '',
+      dataExpiracao: (initialData?.data_expiracao as string | null | undefined) || '',
+    });
+  }, [initialData]);
+
+  // Função para salvar na API um único campo
+  const salvarNaAPI = async (field: string, value: string) => {
+    if (!imovelId) return;
+
+    // Mapeamento de campos do formulário -> API
+    const fieldMapping: Record<string, string> = {
+      publicarNoSite: 'publicar_site',
+      publicarPortais: 'publicar_portais',
+      destaque: 'destaque_site',
+      status: 'status',
+      dataPublicacao: 'data_publicacao',
+      dataExpiracao: 'data_expiracao',
+    };
+
+    const apiField = fieldMapping[field];
+    if (!apiField) return;
+
+    const payload: Record<string, unknown> = {};
+    if (field === 'publicarNoSite' || field === 'publicarPortais' || field === 'destaque') {
+      payload[apiField] = value === 'sim';
+    } else if (field === 'dataPublicacao' || field === 'dataExpiracao') {
+      payload[apiField] = value || null; // enviar null quando vazio
+    } else if (field === 'status') {
+      payload[apiField] = value; // já está em maiúsculas conforme options
+    }
+
+    try {
+      await ImovelService.updateEtapaPublicacao(imovelId, payload);
+      // Notificar parent que os dados foram salvos (sem solicitar full save)
+      _onUpdate?.(payload, false);
+    } catch (err) {
+      // Falha silenciosa para não quebrar UX
+    }
+  };
+
+  // Debounce por campo
+  const debounceSave = (field: string, value: string) => {
+    if (savingTimeoutsRef.current[field]) {
+      clearTimeout(savingTimeoutsRef.current[field] as NodeJS.Timeout);
+    }
+    savingTimeoutsRef.current[field] = setTimeout(() => {
+      void salvarNaAPI(field, value);
+      delete savingTimeoutsRef.current[field];
+    }, 300);
+  };
 
   // Função para atualizar os dados do formulário
   const handleChange = (field: string, value: string) => {
@@ -44,6 +109,11 @@ const Publicacao: React.FC<PublicacaoProps> = ({ onUpdate, onFieldChange }) => {
     }));
     // Notificar que houve mudança no campo
     onFieldChange?.();
+
+    // Salvar na API campo a campo com debounce
+    if (imovelId) {
+      debounceSave(field, value);
+    }
   };
 
   return (

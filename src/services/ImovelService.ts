@@ -253,8 +253,13 @@ export interface PublicacaoEtapa {
   id: number;
   publicar_site: boolean;
   destaque_site: boolean;
-  aceita_financiamento: boolean;
-  aceita_permuta: boolean;
+  publicar_portais?: boolean;
+  portais?: string[];
+  publicar_redes_sociais?: boolean;
+  redes_sociais?: string[];
+  data_publicacao?: string | null;
+  data_expiracao?: string | null;
+  status?: string; // ATIVO, INATIVO, VENDIDO, ALUGADO, RESERVADO, EM_NEGOCIACAO, RASCUNHO
   created_at: string;
   updated_at: string;
 }
