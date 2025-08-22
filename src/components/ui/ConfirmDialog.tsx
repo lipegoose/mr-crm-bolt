@@ -4,12 +4,15 @@ import { X, AlertTriangle } from 'lucide-react';
 interface ConfirmDialogProps {
   open: boolean;
   title?: string;
-  description?: string;
+  description?: React.ReactNode;
   confirmText?: string;
   cancelText?: string;
   loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  reverseButtons?: boolean;
+  confirmVariant?: 'danger' | 'primary' | 'secondary';
+  cancelVariant?: 'primary' | 'secondary';
 }
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -21,8 +24,43 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   loading = false,
   onConfirm,
   onCancel,
+  reverseButtons = false,
+  confirmVariant = 'danger',
+  cancelVariant = 'secondary',
 }) => {
   if (!open) return null;
+
+  const variantClass = (v: 'danger' | 'primary' | 'secondary') => {
+    switch (v) {
+      case 'danger':
+        return 'bg-status-error text-white hover:opacity-90 disabled:opacity-50';
+      case 'primary':
+        return 'bg-primary-orange text-white hover:opacity-90 disabled:opacity-50';
+      case 'secondary':
+      default:
+        return 'border border-neutral-gray hover:bg-neutral-gray/10 disabled:opacity-50';
+    }
+  };
+
+  const CancelBtn = (
+    <button
+      className={`px-3 py-2 text-sm rounded-default ${variantClass(cancelVariant === 'primary' ? 'primary' : 'secondary')}`}
+      onClick={onCancel}
+      disabled={loading}
+    >
+      {cancelText}
+    </button>
+  );
+
+  const ConfirmBtn = (
+    <button
+      className={`px-3 py-2 text-sm rounded-default ${variantClass(confirmVariant)}`}
+      onClick={onConfirm}
+      disabled={loading}
+    >
+      {loading ? 'Processando...' : confirmText}
+    </button>
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ marginTop: 0 }}>
@@ -46,20 +84,17 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           {description}
         </div>
         <div className="flex items-center justify-end gap-2 p-4 border-t">
-          <button
-            className="px-3 py-2 text-sm rounded-default border border-neutral-gray hover:bg-neutral-gray/10 disabled:opacity-50"
-            onClick={onCancel}
-            disabled={loading}
-          >
-            {cancelText}
-          </button>
-          <button
-            className="px-3 py-2 text-sm rounded-default bg-status-error text-white hover:opacity-90 disabled:opacity-50"
-            onClick={onConfirm}
-            disabled={loading}
-          >
-            {loading ? 'Processando...' : confirmText}
-          </button>
+          {reverseButtons ? (
+            <>
+              {ConfirmBtn}
+              {CancelBtn}
+            </>
+          ) : (
+            <>
+              {CancelBtn}
+              {ConfirmBtn}
+            </>
+          )}
         </div>
       </div>
     </div>

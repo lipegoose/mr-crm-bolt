@@ -25,6 +25,36 @@ import Complementos from '../imoveis/Complementos';
 import DadosPrivativos from '../imoveis/DadosPrivativos';
 import ImagensImovel from '../imoveis/ImagensImovel';
 import Publicacao from '../imoveis/Publicacao';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+
+// Helper para transformar keys em rótulos amigáveis
+function prettyFieldLabel(key: string): string {
+  if (!key) return '';
+  // Mapeamentos específicos quando necessário
+  const map: Record<string, string> = {
+    titulo: 'Título',
+    descricao: 'Descrição',
+    preco: 'Preço',
+    endereco: 'Endereço',
+    cidade: 'Cidade',
+    estado: 'Estado',
+    cep: 'CEP',
+    tipo_imovel: 'Tipo do Imóvel',
+    quartos: 'Quartos',
+    banheiros: 'Banheiros',
+    vagas: 'Vagas',
+    area_total: 'Área total',
+    area_util: 'Área útil',
+    imagem_principal: 'Imagem principal',
+    proprietario_id: 'Proprietário',
+    uf: 'UF',
+    bairro: 'Bairro',
+    logradouro: 'Logradouro',
+  };
+  if (map[key]) return map[key];
+  const spaced = key.replace(/[_-]+/g, ' ');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
 
 const ImovelCadastro: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +64,10 @@ const ImovelCadastro: React.FC = () => {
   const [stepsCompleted, setStepsCompleted] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Estado para diálogo de erro de ativação (422)
+  const [publishErrorOpen, setPublishErrorOpen] = useState(false);
+  const [publishErrorMsg, setPublishErrorMsg] = useState<string>('');
+  const [publishMissingFields, setPublishMissingFields] = useState<string[]>([]);
   
   // Estado para controlar mudanças não salvas em cada etapa
   const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set());
@@ -378,11 +412,25 @@ const ImovelCadastro: React.FC = () => {
     try {
       // Finalizar cadastro (ativar imóvel)
       await ImovelService.finalizarCadastro(Number(id));
-      alert('Imóvel cadastrado com sucesso!');
       navigate('/imoveis');
     } catch (error) {
       logger.error('Erro ao finalizar cadastro:', error);
-      alert('Erro ao finalizar cadastro. Tente novamente.');
+      // Tenta extrair payload de validação 422
+      const anyErr = error as any;
+      const status = anyErr?.response?.status;
+      const data = anyErr?.response?.data;
+      if (status === 422 && data) {
+        const msg: string = data.message || 'Campos obrigatórios não preenchidos.';
+        const missing: string[] = Array.isArray(data.missing_required_fields) ? data.missing_required_fields : [];
+        setPublishErrorMsg(msg);
+        setPublishMissingFields(missing);
+        setPublishErrorOpen(true);
+      } else {
+        // Erro genérico
+        setPublishErrorMsg('Não foi possível finalizar o cadastro agora. Tente novamente.');
+        setPublishMissingFields([]);
+        setPublishErrorOpen(true);
+      }
     } finally {
       setSaving(false);
     }
@@ -737,6 +785,34 @@ const ImovelCadastro: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Diálogo amigável para erro de ativação (422) */}
+      <ConfirmDialog
+        open={publishErrorOpen}
+        title="Informações pendentes para ativar o imóvel"
+        description={(
+          <div className="text-sm">
+            <p className="mb-2 text-neutral-black">{publishErrorMsg}</p>
+            {publishMissingFields.length > 0 && (
+              <div>
+                <p className="mb-1">Preencha os campos abaixo:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  {publishMissingFields.map((f) => (
+                    <li key={f}><span className="font-medium">{prettyFieldLabel(f)}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="mt-3 text-neutral-gray-medium">Você pode continuar o cadastro agora ou voltar para a lista mantendo este imóvel como rascunho.</p>
+          </div>
+        )}
+        confirmText="Continuar como rascunho"
+        cancelText="Corrigir cadastro"
+        reverseButtons
+        cancelVariant="primary"
+        onConfirm={() => navigate('/imoveis')}
+        onCancel={() => setPublishErrorOpen(false)}
+      />
     </div>
   );
 };
