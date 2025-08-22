@@ -12,9 +12,10 @@ interface PrecoProps {
   onFieldChange?: () => void;
   imovelId?: number;
   initialData?: Record<string, unknown>;
+  showPrecoCondominio?: boolean;
 }
 
-const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
+const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initialData, showPrecoCondominio = true }) => {
   const [formData, setFormData] = useState({
     // tipo_negocio backend: 'VENDA' | 'ALUGUEL' | 'VENDA_ALUGUEL' | 'TEMPORADA'
     tipoNegocio: (() => {
@@ -364,16 +365,18 @@ const Preco: React.FC<PrecoProps> = ({ onUpdate, onFieldChange, imovelId, initia
           </div>
         </div>
 
-        <div>
-          <Input
-            label="Preço Condomínio (R$)"
-            placeholder="0,00"
-            type="text"
-            value={formData.precoCondominio}
-            onChange={(e) => handleMoneyChange('precoCondominio', e.target.value)}
-            onKeyDown={preventDotKey}
-          />
-        </div>
+        {showPrecoCondominio && (
+          <div>
+            <Input
+              label="Preço Condomínio (R$)"
+              placeholder="0,00"
+              type="text"
+              value={formData.precoCondominio}
+              onChange={(e) => handleMoneyChange('precoCondominio', e.target.value)}
+              onKeyDown={preventDotKey}
+            />
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-semibold mb-1">

@@ -543,6 +543,7 @@ const ImovelCadastro: React.FC = () => {
               onFieldChange={() => markStepAsChanged('preco')}
               imovelId={id ? Number(id) : undefined}
               initialData={formData['preco'] as Record<string, unknown>}
+              showPrecoCondominio={hasValidCondominio()}
             />
           </div>
         );
