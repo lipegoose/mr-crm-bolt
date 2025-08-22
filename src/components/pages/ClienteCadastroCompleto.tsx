@@ -1,15 +1,48 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { InputMask } from '../ui/InputMask';
 import { Select } from '../ui/Select';
 import { TextArea } from '../ui/TextArea';
 import { RadioGroup } from '../ui/RadioGroup';
+import ClienteService, { Cliente, ClienteCategoria, ClienteOrigemCaptacao } from '../../services/ClienteService';
+import Toast, { ToastType } from '../ui/Toast';
 
 const ClienteCadastroCompleto: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
   const [tipoPessoa, setTipoPessoa] = useState('fisica');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const loadedOnceRef = useRef(false);
+
+  // Toast
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastType, setToastType] = useState<ToastType>('info');
+  const showToast = (message: string, type: ToastType = 'info') => {
+    setToastMsg(message);
+    setToastType(type);
+    setToastOpen(true);
+  };
+
+  // Estados dos campos suportados no backend
+  const [nome, setNome] = useState('');
+  const [telefone, setTelefone] = useState('');
+  const [email, setEmail] = useState('');
+  const [origemCaptacao, setOrigemCaptacao] = useState<ClienteOrigemCaptacao | ''>('');
+  const [categoria, setCategoria] = useState<ClienteCategoria | ''>('');
+
+  // Endereço (UI + ViaCEP)
+  const [cep, setCep] = useState('');
+  const [pais, setPais] = useState('Brasil');
+  const [uf, setUf] = useState('');
+  const [cidade, setCidade] = useState('');
+  const [bairro, setBairro] = useState('');
+  const [rua, setRua] = useState('');
+  const [numero, setNumero] = useState('');
+  const [complemento, setComplemento] = useState('');
 
   // Opções para os selects
   const origemOptions = [
@@ -68,18 +101,118 @@ const ClienteCadastroCompleto: React.FC = () => {
     { value: 'TO', label: 'TO' },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const load = async () => {
+      if (!id) return;
+      if (loadedOnceRef.current) return; // evita duplicação no StrictMode
+      loadedOnceRef.current = true;
+      try {
+        setLoading(true);
+        const cli = await ClienteService.getCliente(Number(id));
+        // Preenche campos suportados
+        setNome(cli.nome || '');
+        setTelefone(cli.telefone || '');
+        setEmail(cli.email || '');
+        setOrigemCaptacao((cli.origem_captacao as ClienteOrigemCaptacao) || '');
+        setCategoria((cli.categoria as ClienteCategoria) || '');
+        // Ajusta tipoPessoa apenas para UI
+        if ((cli.tipo || '').toString().toUpperCase() === 'PESSOA_JURIDICA') setTipoPessoa('juridica');
+        else setTipoPessoa('fisica');
+      } catch (e) {
+        console.error('Erro ao carregar cliente', e);
+        showToast('Erro ao carregar cliente.', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [id]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Aqui iria a lógica para salvar os dados do cliente
-    alert('Cliente cadastrado com sucesso!');
-    navigate('/clientes');
+    try {
+      setSaving(true);
+      if (id) {
+        await ClienteService.updateCliente(Number(id), {
+          nome: nome.trim(),
+          telefone: telefone || undefined,
+          email: email || undefined,
+          categoria: (categoria || undefined) as ClienteCategoria | undefined,
+          origem_captacao: (origemCaptacao || undefined) as ClienteOrigemCaptacao | undefined,
+        } as Partial<Cliente>);
+      } else {
+        await ClienteService.createCliente({
+          nome: nome.trim(),
+          telefone: telefone || undefined,
+          email: email || undefined,
+          categoria: (categoria || undefined) as ClienteCategoria | undefined,
+          origem_captacao: (origemCaptacao || undefined) as ClienteOrigemCaptacao | undefined,
+        });
+      }
+      showToast('Cliente salvo com sucesso.', 'success');
+      navigate('/clientes');
+    } catch (err) {
+      console.error('Erro ao salvar cliente', err);
+      showToast('Erro ao salvar cliente.', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  // Autosave com debounce por campo (somente campos suportados no backend)
+  const debounceRefs = useRef<Record<string, number | undefined>>({});
+  const autoSaveField = (field: keyof Cliente, value: any) => {
+    if (!id) return; // autosave só no modo edição
+    const key = String(field);
+    if (debounceRefs.current[key]) {
+      window.clearTimeout(debounceRefs.current[key]);
+    }
+    debounceRefs.current[key] = window.setTimeout(async () => {
+      try {
+        await ClienteService.updateCliente(Number(id), { [field]: value } as Partial<Cliente>);
+        if (field === 'nome') {
+          showToast('Nome salvo automaticamente.', 'success');
+        }
+      } catch (error) {
+        console.error(`Erro ao salvar campo ${key}`, error);
+        showToast(`Erro ao salvar ${key}.`, 'error');
+      }
+    }, 600);
+  };
+
+  // ViaCEP: observa CEP completo e busca endereço
+  useEffect(() => {
+    const sanitized = (cep || '').replace(/\D/g, '');
+    if (sanitized.length !== 8) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await fetch(`https://viacep.com.br/ws/${sanitized}/json/`);
+        const data = await resp.json();
+        if (cancelled) return;
+        if (data?.erro) {
+          showToast('CEP não encontrado.', 'warning');
+          return;
+        }
+        setUf((data.uf ?? '').toString());
+        setCidade((data.localidade ?? '').toString());
+        setBairro((data.bairro ?? '').toString());
+        setRua((data.logradouro ?? '').toString());
+      } catch (error) {
+        console.error('Erro ao consultar ViaCEP', error);
+        showToast('Erro ao consultar CEP.', 'error');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cep]);
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold">Cadastro Completo de Cliente</h1>
+          <h1 className="text-2xl font-semibold">{id ? 'Editar Cliente' : 'Cadastro Completo de Cliente'}</h1>
           <Button 
             variant="secondary"
             onClick={() => navigate('/clientes')}
@@ -97,7 +230,12 @@ const ClienteCadastroCompleto: React.FC = () => {
                 <Input 
                   label="Nome" 
                   placeholder="Digite o nome completo" 
-                  required 
+                  required
+                  value={nome}
+                  onChange={(e) => {
+                    setNome(e.target.value);
+                    autoSaveField('nome', e.target.value.trim());
+                  }}
                 />
               </div>
               <div>
@@ -105,6 +243,11 @@ const ClienteCadastroCompleto: React.FC = () => {
                   label="Telefone" 
                   placeholder="(00) 00000-0000" 
                   mask="(##) #####-####" 
+                  value={telefone}
+                  onChange={(e: any) => {
+                    setTelefone(e.target.value);
+                    autoSaveField('telefone', e.target.value || undefined);
+                  }}
                 />
               </div>
               <div>
@@ -112,19 +255,34 @@ const ClienteCadastroCompleto: React.FC = () => {
                   label="E-mail" 
                   type="email" 
                   placeholder="email@exemplo.com" 
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    autoSaveField('email', e.target.value || undefined);
+                  }}
                 />
               </div>
               <div>
                 <Select 
                   label="Origem da captação" 
-                  required 
+                  value={origemCaptacao}
+                  onChange={(e) => {
+                    const v = e.target.value as ClienteOrigemCaptacao | '';
+                    setOrigemCaptacao(v);
+                    autoSaveField('origem_captacao' as any, v || undefined);
+                  }}
                   options={origemOptions} 
                 />
               </div>
               <div>
                 <Select 
                   label="Categoria" 
-                  required 
+                  value={categoria}
+                  onChange={(e) => {
+                    const v = e.target.value as ClienteCategoria | '';
+                    setCategoria(v);
+                    autoSaveField('categoria', v || undefined);
+                  }}
                   options={categoriaOptions} 
                 />
               </div>
@@ -245,49 +403,64 @@ const ClienteCadastroCompleto: React.FC = () => {
                   label="CEP" 
                   placeholder="00000-000" 
                   mask="#####-###" 
+                  value={cep}
+                  onChange={(e: any) => setCep(e.target.value)}
                 />
               </div>
               <div>
                 <Input 
                   label="País" 
                   placeholder="Brasil" 
-                  defaultValue="Brasil"
+                  value={pais}
+                  onChange={(e) => setPais(e.target.value)}
                 />
               </div>
               <div>
                 <Select 
                   label="UF" 
                   options={ufOptions} 
+                  value={uf}
+                  onChange={(e) => setUf(e.target.value)}
                 />
               </div>
               <div>
                 <Input 
                   label="Cidade" 
                   placeholder="Digite a cidade" 
+                  value={cidade}
+                  onChange={(e) => setCidade(e.target.value)}
                 />
               </div>
               <div>
                 <Input 
                   label="Bairro" 
                   placeholder="Digite o bairro" 
+                  value={bairro}
+                  onChange={(e) => setBairro(e.target.value)}
                 />
               </div>
               <div>
                 <Input 
                   label="Rua" 
                   placeholder="Digite a rua" 
+                  value={rua}
+                  onChange={(e) => setRua(e.target.value)}
                 />
               </div>
               <div>
                 <Input 
                   label="Número" 
                   placeholder="Digite o número" 
+                  value={numero}
+                  onChange={(e) => setNumero(e.target.value)}
                 />
               </div>
               <div>
                 <Input 
                   label="Complemento" 
                   placeholder="Apto, bloco, etc." 
+                  value={complemento}
+                  onChange={(e) => setComplemento(e.target.value)}
                 />
               </div>
             </div>
@@ -370,12 +543,14 @@ const ClienteCadastroCompleto: React.FC = () => {
             <Button 
               variant="primary" 
               type="submit"
+              disabled={saving || loading || !nome.trim()}
             >
-              Cadastrar
+              {id ? (saving ? 'Salvando...' : 'Salvar') : (saving ? 'Cadastrando...' : 'Cadastrar')}
             </Button>
           </div>
         </form>
       </div>
+      <Toast open={toastOpen} message={toastMsg} type={toastType} onClose={() => setToastOpen(false)} />
     </div>
   );
 };
