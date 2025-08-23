@@ -244,9 +244,9 @@ const ClienteCadastroCompleto: React.FC = () => {
                   placeholder="(00) 00000-0000" 
                   mask="(##) #####-####" 
                   value={telefone}
-                  onChange={(e: any) => {
-                    setTelefone(e.target.value);
-                    autoSaveField('telefone', e.target.value || undefined);
+                  onChange={(val: string) => {
+                    setTelefone(val);
+                    autoSaveField('telefone', val || undefined);
                   }}
                 />
               </div>
@@ -404,7 +404,7 @@ const ClienteCadastroCompleto: React.FC = () => {
                   placeholder="00000-000" 
                   mask="#####-###" 
                   value={cep}
-                  onChange={(e: any) => setCep(e.target.value)}
+                  onChange={(val: string) => setCep(val)}
                 />
               </div>
               <div>
