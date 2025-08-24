@@ -44,6 +44,32 @@ const ClienteCadastroCompleto: React.FC = () => {
   const [numero, setNumero] = useState('');
   const [complemento, setComplemento] = useState('');
 
+  // Tipo de Pessoa - estados e helpers
+  const [cpfCnpj, setCpfCnpj] = useState('');
+  const [rgIe, setRgIe] = useState('');
+  const [dataNascimento, setDataNascimento] = useState(''); // dd/mm/yyyy
+  const [profissao, setProfissao] = useState('');
+  const [estadoCivil, setEstadoCivil] = useState('');
+  const [rendaMensal, setRendaMensal] = useState(''); // R$ 0,00
+  const [razaoSocial, setRazaoSocial] = useState('');
+  const [nomeFantasia, setNomeFantasia] = useState('');
+  const [dataFundacao, setDataFundacao] = useState(''); // dd/mm/yyyy
+  const [ramoAtividade, setRamoAtividade] = useState('');
+
+  const onlyDigits = (s: string) => s.replace(/\D/g, '');
+  const toIsoDate = (ptbr: string): string | undefined => {
+    const m = ptbr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return undefined;
+    const [_, d, mo, y] = m;
+    return `${y}-${mo}-${d}`;
+  };
+  const currencyPtBrToNumber = (s: string): number | undefined => {
+    if (!s) return undefined;
+    const n = s.replace(/[^0-9,]/g, '').replace(/\./g, '').replace(',', '.');
+    const v = Number(n);
+    return isNaN(v) ? undefined : v;
+  };
+
   // Opções para os selects
   const origemOptions = [
     { value: '', label: 'Selecione' },
@@ -118,6 +144,17 @@ const ClienteCadastroCompleto: React.FC = () => {
         // Ajusta tipoPessoa apenas para UI
         if ((cli.tipo || '').toString().toUpperCase() === 'PESSOA_JURIDICA') setTipoPessoa('juridica');
         else setTipoPessoa('fisica');
+        // PF/PJ
+        setCpfCnpj(cli.cpf_cnpj || '');
+        setRgIe(cli.rg_ie || '');
+        setDataNascimento(cli.data_nascimento ? (() => { const [y, m, d] = cli.data_nascimento.split('-'); return `${d}/${m}/${y}`; })() : '');
+        setProfissao(cli.profissao || '');
+        setEstadoCivil((cli.estado_civil as any) || '');
+        setRendaMensal(cli.renda_mensal ? `R$ ${Number(cli.renda_mensal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '');
+        setRazaoSocial(cli.razao_social || '');
+        setNomeFantasia(cli.nome_fantasia || '');
+        setDataFundacao(cli.data_fundacao ? (() => { const [y, m, d] = cli.data_fundacao.split('-'); return `${d}/${m}/${y}`; })() : '');
+        setRamoAtividade(cli.ramo_atividade || '');
       } catch (e) {
         console.error('Erro ao carregar cliente', e);
         showToast('Erro ao carregar cliente.', 'error');
@@ -301,7 +338,10 @@ const ClienteCadastroCompleto: React.FC = () => {
                   { value: 'juridica', label: 'Pessoa Jurídica' },
                 ]}
                 value={tipoPessoa}
-                onChange={(value) => setTipoPessoa(value)}
+                onChange={(value) => {
+                  setTipoPessoa(value);
+                  autoSaveField('tipo', value === 'juridica' ? 'PESSOA_JURIDICA' : 'PESSOA_FISICA');
+                }}
               />
             </div>
 
@@ -313,12 +353,22 @@ const ClienteCadastroCompleto: React.FC = () => {
                       label="CPF" 
                       placeholder="000.000.000-00" 
                       mask="###.###.###-##" 
+                      value={cpfCnpj}
+                      onChange={(val: string) => {
+                        setCpfCnpj(val);
+                        autoSaveField('cpf_cnpj', onlyDigits(val) || undefined);
+                      }}
                     />
                   </div>
                   <div>
                     <Input 
                       label="RG" 
                       placeholder="Digite o RG" 
+                      value={rgIe}
+                      onChange={(e) => {
+                        setRgIe(e.target.value);
+                        autoSaveField('rg_ie', e.target.value || undefined);
+                      }}
                     />
                   </div>
                   <div>
@@ -326,18 +376,34 @@ const ClienteCadastroCompleto: React.FC = () => {
                       label="Data de Nascimento" 
                       placeholder="00/00/0000" 
                       mask="##/##/####" 
+                      value={dataNascimento}
+                      onChange={(val: string) => {
+                        setDataNascimento(val);
+                        autoSaveField('data_nascimento', toIsoDate(val));
+                      }}
                     />
                   </div>
                   <div>
                     <Input 
                       label="Profissão" 
                       placeholder="Digite a profissão" 
+                      value={profissao}
+                      onChange={(e) => {
+                        setProfissao(e.target.value);
+                        autoSaveField('profissao', e.target.value || undefined);
+                      }}
                     />
                   </div>
                   <div>
                     <Select 
                       label="Estado Civil" 
                       options={estadoCivilOptions} 
+                      value={estadoCivil}
+                      onChange={(e) => {
+                        const v = (e.target.value || '') as any;
+                        setEstadoCivil(v);
+                        autoSaveField('estado_civil', v || undefined);
+                      }}
                     />
                   </div>
                   <div>
@@ -345,6 +411,12 @@ const ClienteCadastroCompleto: React.FC = () => {
                       label="Renda Mensal" 
                       placeholder="R$ 0,00" 
                       mask="R$ #.###.###,##" 
+                      value={rendaMensal}
+                      onChange={(val: string) => {
+                        setRendaMensal(val);
+                        const num = currencyPtBrToNumber(val);
+                        autoSaveField('renda_mensal', num);
+                      }}
                     />
                   </div>
                 </>
@@ -355,18 +427,33 @@ const ClienteCadastroCompleto: React.FC = () => {
                       label="CNPJ" 
                       placeholder="00.000.000/0000-00" 
                       mask="##.###.###/####-##" 
+                      value={cpfCnpj}
+                      onChange={(val: string) => {
+                        setCpfCnpj(val);
+                        autoSaveField('cpf_cnpj', onlyDigits(val) || undefined);
+                      }}
                     />
                   </div>
                   <div>
                     <Input 
                       label="Razão Social" 
                       placeholder="Digite a razão social" 
+                      value={razaoSocial}
+                      onChange={(e) => {
+                        setRazaoSocial(e.target.value);
+                        autoSaveField('razao_social', e.target.value || undefined);
+                      }}
                     />
                   </div>
                   <div>
                     <Input 
                       label="Nome Fantasia" 
                       placeholder="Digite o nome fantasia" 
+                      value={nomeFantasia}
+                      onChange={(e) => {
+                        setNomeFantasia(e.target.value);
+                        autoSaveField('nome_fantasia', e.target.value || undefined);
+                      }}
                     />
                   </div>
                   <div>
@@ -374,6 +461,11 @@ const ClienteCadastroCompleto: React.FC = () => {
                       label="Inscrição Estadual" 
                       placeholder="000.000.000.000" 
                       mask="###.###.###.###"
+                      value={rgIe}
+                      onChange={(val: string) => {
+                        setRgIe(val);
+                        autoSaveField('rg_ie', onlyDigits(val) || undefined);
+                      }}
                     />
                   </div>
                   <div>
@@ -381,12 +473,22 @@ const ClienteCadastroCompleto: React.FC = () => {
                       label="Data de Fundação" 
                       placeholder="00/00/0000" 
                       mask="##/##/####" 
+                      value={dataFundacao}
+                      onChange={(val: string) => {
+                        setDataFundacao(val);
+                        autoSaveField('data_fundacao', toIsoDate(val));
+                      }}
                     />
                   </div>
                   <div>
                     <Input 
                       label="Ramo de Atividade" 
                       placeholder="Digite o ramo de atividade" 
+                      value={ramoAtividade}
+                      onChange={(e) => {
+                        setRamoAtividade(e.target.value);
+                        autoSaveField('ramo_atividade', e.target.value || undefined);
+                      }}
                     />
                   </div>
                 </>

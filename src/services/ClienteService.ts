@@ -17,6 +17,16 @@ export interface Cliente {
   status: ClienteStatus;
   categoria?: ClienteCategoria;
   origem_captacao?: ClienteOrigemCaptacao;
+  // Novos campos PF/PJ
+  rg_ie?: string;
+  data_nascimento?: string; // YYYY-MM-DD
+  profissao?: string;
+  estado_civil?: 'solteiro' | 'casado' | 'divorciado' | 'viuvo' | 'uniao_estavel';
+  renda_mensal?: string | number; // decimal
+  razao_social?: string;
+  nome_fantasia?: string;
+  data_fundacao?: string; // YYYY-MM-DD
+  ramo_atividade?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -157,12 +167,21 @@ export class ClienteService {
     nome: string;
     tipo?: ClienteTipo;
     cpf_cnpj?: string;
+    rg_ie?: string;
     email?: string;
     telefone?: string;
     celular?: string;
     status?: ClienteStatus;
     categoria?: ClienteCategoria;
     origem_captacao?: ClienteOrigemCaptacao;
+    data_nascimento?: string;
+    profissao?: string;
+    estado_civil?: 'solteiro' | 'casado' | 'divorciado' | 'viuvo' | 'uniao_estavel';
+    renda_mensal?: string | number;
+    razao_social?: string;
+    nome_fantasia?: string;
+    data_fundacao?: string;
+    ramo_atividade?: string;
   }): Promise<Cliente> {
     try {
       logger.info('Criando novo cliente');
@@ -192,12 +211,21 @@ export class ClienteService {
       nome: string;
       tipo: ClienteTipo;
       cpf_cnpj: string;
+      rg_ie?: string;
       email?: string;
       telefone?: string;
       celular?: string;
       status?: ClienteStatus;
       categoria?: ClienteCategoria;
       origem_captacao?: ClienteOrigemCaptacao;
+      data_nascimento?: string;
+      profissao?: string;
+      estado_civil?: 'solteiro' | 'casado' | 'divorciado' | 'viuvo' | 'uniao_estavel';
+      renda_mensal?: string | number;
+      razao_social?: string;
+      nome_fantasia?: string;
+      data_fundacao?: string;
+      ramo_atividade?: string;
     }>
   ): Promise<Cliente> {
     try {
