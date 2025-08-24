@@ -46,6 +46,8 @@ const ClienteCadastroCompleto: React.FC = () => {
   const [loadingCep, setLoadingCep] = useState(false);
   const [cepError, setCepError] = useState<string | null>(null);
   const [cepSuccess, setCepSuccess] = useState(false);
+  // Observações
+  const [observacoes, setObservacoes] = useState('');
 
   // Tipo de Pessoa - estados e helpers
   const [cpfCnpj, setCpfCnpj] = useState('');
@@ -167,6 +169,7 @@ const ClienteCadastroCompleto: React.FC = () => {
         setNumero(cli.numero || '');
         setComplemento(cli.complemento || '');
         if ((cli as any).pais) setPais((cli as any).pais as string);
+        setObservacoes(cli.observacoes || '');
       } catch (e) {
         console.error('Erro ao carregar cliente', e);
         showToast('Erro ao carregar cliente.', 'error');
@@ -633,6 +636,11 @@ const ClienteCadastroCompleto: React.FC = () => {
               label="Observações" 
               placeholder="Digite observações relevantes sobre este cliente..." 
               rows={4}
+              value={observacoes}
+              onChange={(e) => {
+                setObservacoes(e.target.value);
+                autoSaveField('observacoes' as any, e.target.value || undefined);
+              }}
             />
           </div>
 
