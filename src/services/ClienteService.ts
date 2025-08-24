@@ -17,6 +17,15 @@ export interface Cliente {
   status: ClienteStatus;
   categoria?: ClienteCategoria;
   origem_captacao?: ClienteOrigemCaptacao;
+  // Endereço
+  cep?: string;
+  uf?: string;
+  cidade?: string;
+  bairro?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  observacoes?: string;
   // Novos campos PF/PJ
   rg_ie?: string;
   data_nascimento?: string; // YYYY-MM-DD
@@ -174,6 +183,15 @@ export class ClienteService {
     status?: ClienteStatus;
     categoria?: ClienteCategoria;
     origem_captacao?: ClienteOrigemCaptacao;
+    // Endereço
+    cep?: string;
+    uf?: string;
+    cidade?: string;
+    bairro?: string;
+    logradouro?: string;
+    numero?: string;
+    complemento?: string;
+    observacoes?: string;
     data_nascimento?: string;
     profissao?: string;
     estado_civil?: 'solteiro' | 'casado' | 'divorciado' | 'viuvo' | 'uniao_estavel';
@@ -218,6 +236,15 @@ export class ClienteService {
       status?: ClienteStatus;
       categoria?: ClienteCategoria;
       origem_captacao?: ClienteOrigemCaptacao;
+      // Endereço
+      cep?: string;
+      uf?: string;
+      cidade?: string;
+      bairro?: string;
+      logradouro?: string;
+      numero?: string;
+      complemento?: string;
+      observacoes?: string;
       data_nascimento?: string;
       profissao?: string;
       estado_civil?: 'solteiro' | 'casado' | 'divorciado' | 'viuvo' | 'uniao_estavel';

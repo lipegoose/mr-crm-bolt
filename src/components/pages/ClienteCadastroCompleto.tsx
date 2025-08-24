@@ -43,6 +43,9 @@ const ClienteCadastroCompleto: React.FC = () => {
   const [rua, setRua] = useState('');
   const [numero, setNumero] = useState('');
   const [complemento, setComplemento] = useState('');
+  const [loadingCep, setLoadingCep] = useState(false);
+  const [cepError, setCepError] = useState<string | null>(null);
+  const [cepSuccess, setCepSuccess] = useState(false);
 
   // Tipo de Pessoa - estados e helpers
   const [cpfCnpj, setCpfCnpj] = useState('');
@@ -155,6 +158,15 @@ const ClienteCadastroCompleto: React.FC = () => {
         setNomeFantasia(cli.nome_fantasia || '');
         setDataFundacao(cli.data_fundacao ? (() => { const [y, m, d] = cli.data_fundacao.split('-'); return `${d}/${m}/${y}`; })() : '');
         setRamoAtividade(cli.ramo_atividade || '');
+        // Endereço
+        setCep((cli.cep || '').replace(/\D/g, '').slice(0, 8));
+        setUf(cli.uf || '');
+        setCidade(cli.cidade || '');
+        setBairro(cli.bairro || '');
+        setRua(cli.logradouro || '');
+        setNumero(cli.numero || '');
+        setComplemento(cli.complemento || '');
+        if ((cli as any).pais) setPais((cli as any).pais as string);
       } catch (e) {
         console.error('Erro ao carregar cliente', e);
         showToast('Erro ao carregar cliente.', 'error');
@@ -217,33 +229,42 @@ const ClienteCadastroCompleto: React.FC = () => {
     }, 600);
   };
 
-  // ViaCEP: observa CEP completo e busca endereço
-  useEffect(() => {
-    const sanitized = (cep || '').replace(/\D/g, '');
-    if (sanitized.length !== 8) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const resp = await fetch(`https://viacep.com.br/ws/${sanitized}/json/`);
-        const data = await resp.json();
-        if (cancelled) return;
-        if (data?.erro) {
-          showToast('CEP não encontrado.', 'warning');
-          return;
-        }
-        setUf((data.uf ?? '').toString());
-        setCidade((data.localidade ?? '').toString());
-        setBairro((data.bairro ?? '').toString());
-        setRua((data.logradouro ?? '').toString());
-      } catch (error) {
-        console.error('Erro ao consultar ViaCEP', error);
-        showToast('Erro ao consultar CEP.', 'error');
+  // Busca CEP (padrão Localizacao.tsx)
+  const buscarEnderecoPorCEP = async (cepDigits: string) => {
+    if (!cepDigits || cepDigits.length !== 8) return;
+    setLoadingCep(true);
+    setCepError(null);
+    setCepSuccess(false);
+    try {
+      const resp = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`);
+      const data = await resp.json();
+      if (data?.erro) {
+        setCepError('CEP não encontrado.');
+        return;
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [cep]);
+      const newUf = (data.uf ?? '').toString();
+      const newCidade = (data.localidade ?? '').toString();
+      const newBairro = (data.bairro ?? '').toString();
+      const newRua = (data.logradouro ?? '').toString();
+      setUf(newUf);
+      setCidade(newCidade);
+      setBairro(newBairro);
+      setRua(newRua);
+      // Autosave dos campos retornados
+      if (id) {
+        autoSaveField('uf' as any, newUf || undefined);
+        autoSaveField('cidade' as any, newCidade || undefined);
+        autoSaveField('bairro' as any, newBairro || undefined);
+        autoSaveField('logradouro' as any, newRua || undefined);
+      }
+      setCepSuccess(true);
+    } catch (error) {
+      console.error('Erro ao consultar ViaCEP', error);
+      setCepError('Erro ao consultar CEP.');
+    } finally {
+      setLoadingCep(false);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -501,13 +522,32 @@ const ClienteCadastroCompleto: React.FC = () => {
             <h2 className="text-xl font-semibold mb-4">Endereço</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <InputMask 
-                  label="CEP" 
-                  placeholder="00000-000" 
-                  mask="#####-###" 
+                <Input
+                  label="CEP"
+                  placeholder="00000000"
                   value={cep}
-                  onChange={(val: string) => setCep(val)}
+                  onChange={(e) => {
+                    const digits = (e.target.value || '').replace(/\D/g, '').slice(0, 8);
+                    setCep(digits);
+                    setCepError(null);
+                    setCepSuccess(false);
+                    // Autosave do CEP
+                    autoSaveField('cep' as any, digits || undefined);
+                    if (digits.length === 8) {
+                      buscarEnderecoPorCEP(digits);
+                    }
+                  }}
+                  maxLength={8}
                 />
+                {loadingCep && (
+                  <p className="text-xs text-neutral-gray-medium mt-1">Buscando CEP...</p>
+                )}
+                {cepError && (
+                  <p className="text-xs text-red-600 mt-1">{cepError}</p>
+                )}
+                {cepSuccess && (
+                  <p className="text-xs text-green-600 mt-1">CEP encontrado com sucesso!</p>
+                )}
               </div>
               <div>
                 <Input 
@@ -522,7 +562,10 @@ const ClienteCadastroCompleto: React.FC = () => {
                   label="UF" 
                   options={ufOptions} 
                   value={uf}
-                  onChange={(e) => setUf(e.target.value)}
+                  onChange={(e) => {
+                    setUf(e.target.value);
+                    autoSaveField('uf' as any, e.target.value || undefined);
+                  }}
                 />
               </div>
               <div>
@@ -530,7 +573,10 @@ const ClienteCadastroCompleto: React.FC = () => {
                   label="Cidade" 
                   placeholder="Digite a cidade" 
                   value={cidade}
-                  onChange={(e) => setCidade(e.target.value)}
+                  onChange={(e) => {
+                    setCidade(e.target.value);
+                    autoSaveField('cidade' as any, e.target.value || undefined);
+                  }}
                 />
               </div>
               <div>
@@ -538,7 +584,10 @@ const ClienteCadastroCompleto: React.FC = () => {
                   label="Bairro" 
                   placeholder="Digite o bairro" 
                   value={bairro}
-                  onChange={(e) => setBairro(e.target.value)}
+                  onChange={(e) => {
+                    setBairro(e.target.value);
+                    autoSaveField('bairro' as any, e.target.value || undefined);
+                  }}
                 />
               </div>
               <div>
@@ -546,7 +595,10 @@ const ClienteCadastroCompleto: React.FC = () => {
                   label="Rua" 
                   placeholder="Digite a rua" 
                   value={rua}
-                  onChange={(e) => setRua(e.target.value)}
+                  onChange={(e) => {
+                    setRua(e.target.value);
+                    autoSaveField('logradouro' as any, e.target.value || undefined);
+                  }}
                 />
               </div>
               <div>
@@ -554,7 +606,10 @@ const ClienteCadastroCompleto: React.FC = () => {
                   label="Número" 
                   placeholder="Digite o número" 
                   value={numero}
-                  onChange={(e) => setNumero(e.target.value)}
+                  onChange={(e) => {
+                    setNumero(e.target.value);
+                    autoSaveField('numero' as any, e.target.value || undefined);
+                  }}
                 />
               </div>
               <div>
@@ -562,7 +617,10 @@ const ClienteCadastroCompleto: React.FC = () => {
                   label="Complemento" 
                   placeholder="Apto, bloco, etc." 
                   value={complemento}
-                  onChange={(e) => setComplemento(e.target.value)}
+                  onChange={(e) => {
+                    setComplemento(e.target.value);
+                    autoSaveField('complemento' as any, e.target.value || undefined);
+                  }}
                 />
               </div>
             </div>
