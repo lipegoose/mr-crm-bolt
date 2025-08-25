@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -6,7 +6,8 @@ import { Input } from '../ui/Input';
 import { Avatar } from '../ui/Avatar';
 import { Select } from '../ui/Select';
 import { InputMask } from '../ui/InputMask';
-import { Plus, Search, Filter, Edit, Trash2, Phone, Mail } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Phone, Mail, Loader2 } from 'lucide-react';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import ClienteService, { Cliente, ClienteCategoria, ClienteOrigemCaptacao } from '../../services/ClienteService';
 
 // Lista de clientes será carregada da API
@@ -20,6 +21,9 @@ export const Clientes = () => {
   const [page, setPage] = useState(1);
   const [perPage] = useState(12);
   const [total, setTotal] = useState(0);
+  const [deletingIds, setDeletingIds] = useState<Record<number, boolean>>({});
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTargetId, setConfirmTargetId] = useState<number | null>(null);
 
   // Campos da Modal
   const [nome, setNome] = useState('');
@@ -28,6 +32,8 @@ export const Clientes = () => {
   const [categoria, setCategoria] = useState<ClienteCategoria | ''>('');
   const [origemCaptacao, setOrigemCaptacao] = useState<ClienteOrigemCaptacao | ''>('');
   const formRef = useRef<HTMLFormElement | null>(null);
+  // Evitar chamada dupla inicial: controla se houve busca ativa
+  const hasSearchedRef = useRef(false);
 
   const loadClientes = async (targetPage = 1) => {
     try {
@@ -43,18 +49,60 @@ export const Clientes = () => {
     }
   };
 
+  // Título do cliente alvo da confirmação
+  const confirmTitle = useMemo(() => {
+    if (confirmTargetId == null) return '';
+    const item = clientes.find((c) => c.id === confirmTargetId);
+    return item?.nome || '';
+  }, [confirmTargetId, clientes]);
+
+  const handleDelete = (id: number) => {
+    setConfirmTargetId(id);
+    setConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    const id = confirmTargetId;
+    if (id == null) return;
+    setConfirmOpen(false);
+    setDeletingIds((prev) => ({ ...prev, [id]: true }));
+    try {
+      await ClienteService.deleteCliente(id);
+      // Recarrega mantendo página corrente, mas se esvaziar a página, volta uma
+      const totalAfter = Math.max(total - 1, 0);
+      const lastPage = Math.max(Math.ceil(totalAfter / perPage), 1);
+      const nextPage = Math.min(page, lastPage);
+      await loadClientes(nextPage);
+    } catch (e) {
+      console.error('Erro ao excluir cliente', e);
+    } finally {
+      setDeletingIds((prev) => {
+        const n = { ...prev };
+        delete n[id];
+        return n;
+      });
+      setConfirmTargetId(null);
+    }
+  };
+
   useEffect(() => {
     loadClientes(1);
   }, []);
 
-  // Debounce de busca chamando a API
+  // Debounce de busca chamando a API (sem duplicar chamada inicial)
   useEffect(() => {
     const handler = setTimeout(async () => {
       const term = searchTerm.trim();
       if (!term) {
-        await loadClientes(1);
+        // Só recarrega lista se havia uma busca ativa anteriormente
+        if (hasSearchedRef.current) {
+          hasSearchedRef.current = false;
+          await loadClientes(1);
+        }
         return;
       }
+      // Marca que há uma busca ativa e executa search
+      hasSearchedRef.current = true;
       try {
         setLoading(true);
         const resp = await ClienteService.searchClientes({ page: 1, per_page: perPage, nome: term });
@@ -91,6 +139,18 @@ export const Clientes = () => {
           <h1 className="text-3xl font-title font-bold text-neutral-black">Clientes</h1>
           <p className="text-neutral-gray-medium mt-1">Gerencie seus clientes e prospects</p>
         </div>
+
+      {/* Diálogo de confirmação de exclusão */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Excluir cliente"
+        description={`Tem certeza que deseja excluir o cliente "${confirmTitle}"? Esta ação não pode ser desfeita.`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        loading={confirmTargetId != null && !!deletingIds[confirmTargetId]}
+        onConfirm={confirmDelete}
+        onCancel={() => { setConfirmOpen(false); setConfirmTargetId(null); }}
+      />
         <Button onClick={() => setShowForm(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Novo Cliente
@@ -145,28 +205,16 @@ export const Clientes = () => {
                   <Edit className="w-4 h-4" />
                 </button>
                 <button
-                  className="p-1 text-neutral-gray-medium hover:text-status-error"
-                  onClick={async () => {
-                    if (!cliente.id) return;
-                    const ok = window.confirm('Deseja realmente excluir este cliente?');
-                    if (!ok) return;
-                    try {
-                      setLoading(true);
-                      await ClienteService.deleteCliente(cliente.id);
-                      // Recarrega mantendo página corrente, mas se esvaziar a página, volta uma
-                      const totalAfter = Math.max(total - 1, 0);
-                      const lastPage = Math.max(Math.ceil(totalAfter / perPage), 1);
-                      const nextPage = Math.min(page, lastPage);
-                      await loadClientes(nextPage);
-                    } catch (e) {
-                      console.error('Erro ao excluir cliente', e);
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
+                  className="p-1 text-neutral-gray-medium hover:text-status-error disabled:opacity-50"
+                  onClick={() => cliente.id && handleDelete(cliente.id)}
+                  disabled={!!(cliente.id && deletingIds[cliente.id])}
                   title="Excluir"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  {cliente.id && deletingIds[cliente.id] ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>

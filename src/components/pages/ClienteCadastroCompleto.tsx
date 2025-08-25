@@ -13,8 +13,7 @@ const ClienteCadastroCompleto: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [tipoPessoa, setTipoPessoa] = useState('fisica');
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  // Removidos estados de loading/saving (não há mais submit)
   const loadedOnceRef = useRef(false);
 
   // Toast
@@ -138,7 +137,6 @@ const ClienteCadastroCompleto: React.FC = () => {
       if (loadedOnceRef.current) return; // evita duplicação no StrictMode
       loadedOnceRef.current = true;
       try {
-        setLoading(true);
         const cli = await ClienteService.getCliente(Number(id));
         // Preenche campos suportados
         setNome(cli.nome || '');
@@ -174,42 +172,12 @@ const ClienteCadastroCompleto: React.FC = () => {
         console.error('Erro ao carregar cliente', e);
         showToast('Erro ao carregar cliente.', 'error');
       } finally {
-        setLoading(false);
+        // loading removido
       }
     };
     load();
   }, [id]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setSaving(true);
-      if (id) {
-        await ClienteService.updateCliente(Number(id), {
-          nome: nome.trim(),
-          telefone: telefone || undefined,
-          email: email || undefined,
-          categoria: (categoria || undefined) as ClienteCategoria | undefined,
-          origem_captacao: (origemCaptacao || undefined) as ClienteOrigemCaptacao | undefined,
-        } as Partial<Cliente>);
-      } else {
-        await ClienteService.createCliente({
-          nome: nome.trim(),
-          telefone: telefone || undefined,
-          email: email || undefined,
-          categoria: (categoria || undefined) as ClienteCategoria | undefined,
-          origem_captacao: (origemCaptacao || undefined) as ClienteOrigemCaptacao | undefined,
-        });
-      }
-      showToast('Cliente salvo com sucesso.', 'success');
-      navigate('/clientes');
-    } catch (err) {
-      console.error('Erro ao salvar cliente', err);
-      showToast('Erro ao salvar cliente.', 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
+  // Removido handleSubmit: salvamento é dinâmico campo a campo
 
   // Autosave com debounce por campo (somente campos suportados no backend)
   const debounceRefs = useRef<Record<string, number | undefined>>({});
@@ -282,7 +250,7 @@ const ClienteCadastroCompleto: React.FC = () => {
           </Button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="space-y-8">
           {/* Seção: Campos Principais */}
           <div className="border-b pb-6">
             <h2 className="text-xl font-semibold mb-4">Informações Principais</h2>
@@ -699,24 +667,16 @@ const ClienteCadastroCompleto: React.FC = () => {
             </div>
           </div>
 
-          {/* Botões de Ação */}
-          <div className="flex justify-end space-x-4">
+          {/* Ação: Voltar (rodapé) */}
+          <div className="flex justify-end">
             <Button 
-              variant="secondary" 
-              type="button"
+              variant="secondary"
               onClick={() => navigate('/clientes')}
             >
-              Cancelar
-            </Button>
-            <Button 
-              variant="primary" 
-              type="submit"
-              disabled={saving || loading || !nome.trim()}
-            >
-              {id ? (saving ? 'Salvando...' : 'Salvar') : (saving ? 'Cadastrando...' : 'Cadastrar')}
+              Voltar
             </Button>
           </div>
-        </form>
+        </div>
       </div>
       <Toast open={toastOpen} message={toastMsg} type={toastType} onClose={() => setToastOpen(false)} />
     </div>

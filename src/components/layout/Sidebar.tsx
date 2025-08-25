@@ -14,6 +14,7 @@ import {
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
   { id: 'clientes', label: 'Clientes', icon: Users, path: '/clientes' },
+  { id: 'condominios', label: 'Condomínios', icon: Building, path: '/condominios' },
   { id: 'imoveis', label: 'Imóveis', icon: Building, path: '/imoveis' },
   { id: 'contratos', label: 'Contratos', icon: FileText, path: '/contratos' },
   { id: 'relatorios', label: 'Relatórios', icon: BarChart3, path: '/relatorios' },

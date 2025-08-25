@@ -8,6 +8,8 @@ import { Login } from './components/pages/Login';
 import { Dashboard } from './components/pages/Dashboard';
 import { Clientes } from './components/pages/Clientes';
 import ClienteCadastroCompleto from './components/pages/ClienteCadastroCompleto';
+import { Condominios } from './components/pages/Condominios';
+import CondominioCadastroCompleto from './components/pages/CondominioCadastroCompleto';
 import { Imoveis } from './components/pages/Imoveis';
 import ImovelCadastro from './components/pages/ImovelCadastro';
 import { Contratos } from './components/pages/Contratos';
@@ -26,8 +28,9 @@ const AppLayout: React.FC = () => {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/clientes" element={<Clientes />} />
-            <Route path="/clientes/novo" element={<ClienteCadastroCompleto />} />
             <Route path="/clientes/:id" element={<ClienteCadastroCompleto />} />
+            <Route path="/condominios" element={<Condominios />} />
+            <Route path="/condominios/:id" element={<CondominioCadastroCompleto />} />
             <Route path="/imoveis" element={<Imoveis />} />
             <Route path="/imoveis/:id" element={<ImovelCadastro />} />
             <Route path="/contratos" element={<Contratos />} />
