@@ -1,0 +1,35 @@
+# Configuração para Single Page Application (SPA)
+# Permite o roteamento no cliente com React Router
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  
+  # Não redirecionar arquivos ou diretórios que existam
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  
+  # Redirecionar todas as outras requisições para o index.html
+  RewriteRule . index.html [L]
+</IfModule>
+
+# Configurar cabeçalhos de segurança e cache
+<IfModule mod_headers.c>
+  # Habilitar CORS
+  Header set Access-Control-Allow-Origin "*"
+  
+  # Cache para recursos estáticos
+  <FilesMatch "\.(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$">
+    Header set Cache-Control "max-age=31536000, public"
+  </FilesMatch>
+  
+  # Evitar cache para o HTML
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# Comprimir conteúdo para melhor performance
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json
+</IfModule>
