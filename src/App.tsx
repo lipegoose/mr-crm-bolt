@@ -15,6 +15,8 @@ import ImovelCadastro from './components/pages/ImovelCadastro';
 import { Contratos } from './components/pages/Contratos';
 import { Relatorios } from './components/pages/Relatorios';
 import { Configuracoes } from './components/pages/Configuracoes';
+import { Caracteristicas } from './components/pages/Caracteristicas';
+import { Proximidades } from './components/pages/Proximidades';
 
 const AppLayout: React.FC = () => {
   return (
@@ -33,6 +35,8 @@ const AppLayout: React.FC = () => {
             <Route path="/condominios/:id" element={<CondominioCadastroCompleto />} />
             <Route path="/imoveis" element={<Imoveis />} />
             <Route path="/imoveis/:id" element={<ImovelCadastro />} />
+            <Route path="/caracteristicas" element={<Caracteristicas />} />
+            <Route path="/proximidades" element={<Proximidades />} />
             <Route path="/contratos" element={<Contratos />} />
             <Route path="/relatorios" element={<Relatorios />} />
             <Route path="/configuracoes" element={<Configuracoes />} />

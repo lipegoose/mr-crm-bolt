@@ -8,7 +8,8 @@ import {
   Settings, 
   Menu,
   X,
-  BarChart3
+  BarChart3,
+  Layers
 } from 'lucide-react';
 
 const menuItems = [
@@ -24,6 +25,7 @@ const menuItems = [
 export const Sidebar: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [caracteristicasOpen, setCaracteristicasOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -31,6 +33,14 @@ export const Sidebar: React.FC = () => {
     navigate(path);
     setIsMobileOpen(false);
   };
+
+  // Abre o submenu de Características automaticamente quando estamos na rota
+  // de características, para evidenciar o contexto atual.
+  React.useEffect(() => {
+    if (location.pathname === '/caracteristicas') {
+      setCaracteristicasOpen(true);
+    }
+  }, [location.pathname]);
 
   return (
     <>
@@ -104,6 +114,70 @@ export const Sidebar: React.FC = () => {
               </button>
             );
           })}
+
+          {/* Grupo: Características */}
+          <div className="mt-2">
+            <button
+              onClick={() => setCaracteristicasOpen(!caracteristicasOpen)}
+              className={`
+                w-full flex items-center px-4 py-3 text-left
+                hover:bg-gray-700 transition-colors text-gray-300
+                ${location.pathname === '/caracteristicas' ? 'bg-gray-800 text-white' : ''}
+                ${isCollapsed ? 'justify-center' : ''}
+              `}
+              aria-expanded={caracteristicasOpen}
+            >
+              <Layers className="w-5 h-5 flex-shrink-0" />
+              {!isCollapsed && (
+                <span className="ml-3 font-body">Características</span>
+              )}
+            </button>
+
+            {/* Subitens */}
+            {!isCollapsed && caracteristicasOpen && (
+              <div className="ml-6 mr-3 mt-1 flex flex-col bg-gray-800/60 rounded-md p-2 border border-gray-700">
+                {(() => {
+                  const escopo = new URLSearchParams(location.search).get('escopo');
+                  const isImovel = location.pathname === '/caracteristicas' && escopo === 'IMOVEL';
+                  const isCondominio = location.pathname === '/caracteristicas' && escopo === 'CONDOMINIO';
+                  return (
+                    <>
+                      <button
+                        onClick={() => handleNavigation('/caracteristicas?escopo=IMOVEL')}
+                        className={`text-left py-2 text-sm rounded px-3 transition-colors
+                          ${isImovel ? 'bg-primary-orange/20 text-primary-orange border-l-2 border-primary-orange' : 'text-gray-300 hover:text-white hover:bg-gray-700/60'}`}
+                      >
+                        Imóvel
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/caracteristicas?escopo=CONDOMINIO')}
+                        className={`text-left py-2 text-sm rounded px-3 transition-colors mt-1
+                          ${isCondominio ? 'bg-primary-orange/20 text-primary-orange border-l-2 border-primary-orange' : 'text-gray-300 hover:text-white hover:bg-gray-700/60'}`}
+                      >
+                        Condomínio
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* Item Proximidades */}
+          <button
+            onClick={() => handleNavigation('/proximidades')}
+            className={`
+              w-full flex items-center px-4 py-3 text-left mt-2
+              hover:bg-gray-700 transition-colors
+              ${location.pathname === '/proximidades' ? 'bg-primary-orange text-white' : 'text-gray-300'}
+              ${isCollapsed ? 'justify-center' : ''}
+            `}
+          >
+            <Building className="w-5 h-5 flex-shrink-0" />
+            {!isCollapsed && (
+              <span className="ml-3 font-body">Proximidades</span>
+            )}
+          </button>
         </nav>
       </aside>
     </>
