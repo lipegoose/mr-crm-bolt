@@ -99,6 +99,21 @@ Regras:
       $router->delete('{id}/fotos/{fotoId}', 'DestaqueFotoController@delete');
   });
   ```
+  Comentários detalhados dos endpoints acima:
+  - Section
+    - GET `/api/cms/destaques/section` — retorna a seção "destaques" e seus itens.
+    - PUT `/api/cms/destaques/section` — update parcial de `titulo`/`descricao`/`published_at`.
+  - Destaques (CRUD)
+    - GET `/api/cms/destaques` — lista com filtros `q`, `ativo`; ordenação e paginação.
+    - POST `/api/cms/destaques` — cria um item vinculado à seção "destaques"; retorna `id`.
+    - GET `/api/cms/destaques/{id}` — obtém um destaque específico.
+    - PUT `/api/cms/destaques/{id}` — update parcial do destaque.
+    - DELETE `/api/cms/destaques/{id}` — remove o destaque.
+  - Fotos
+    - GET `/api/cms/destaques/{id}/fotos` — lista fotos do destaque.
+    - POST `/api/cms/destaques/{id}/fotos` — upload multipart/form-data `files[]` (múltiplas imagens).
+    - PUT `/api/cms/destaques/{id}/fotos/{fotoId}` — atualiza metadados: `{ principal?: boolean, ordem?: number, alt_text?: string }`. Se `principal=true`, desmarcar as demais.
+    - DELETE `/api/cms/destaques/{id}/fotos/{fotoId}` — exclui a foto.
   - Middleware `auth` com JWT (`tymon/jwt-auth`) configurado no `bootstrap/app.php`.
 
 6) Endpoint público (sem auth) consumido pelo site
