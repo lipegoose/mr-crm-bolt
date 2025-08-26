@@ -673,7 +673,7 @@ export class ImovelService {
   private static etapaProximidadesCache: Record<number, ApiResponse<Proximidades>> = {};
   
   // Rastreamento de chamadas à API pendentes
-  private static pendingRequests: Record<string, Promise<ApiResponse<Caracteristica[]>>> = {};
+  private static pendingRequests: Record<string, Promise<ApiResponse<Caracteristica[]>> | undefined> = {};
   private static pendingProximidadesRequest: Promise<ApiResponse<Proximidade[]>> | null = null;
   private static pendingEtapaProximidadesRequests: Record<number, Promise<ApiResponse<Proximidades>>> = {};
   private static pendingEtapaImagensRequests: Record<number, Promise<ApiResponse<ImagensEtapa>>> = {};
@@ -681,6 +681,7 @@ export class ImovelService {
   static async getCaracteristicas(escopo: 'IMOVEL' | 'CONDOMINIO', forceCache: boolean = false): Promise<ApiResponse<Caracteristica[]>> {
     // 1. Verificar cache primeiro
     if (this.caracteristicasCache[escopo]) {
+      logger.debug(`[IMOVEL_SERVICE] getCaracteristicas(${escopo}): HIT cache`);
       return this.caracteristicasCache[escopo];
     }
     
@@ -692,10 +693,12 @@ export class ImovelService {
     // 3. Verificar se já existe uma requisição pendente para este escopo
     const pendingRequest = this.pendingRequests[escopo];
     if (pendingRequest) {
+      logger.debug(`[IMOVEL_SERVICE] getCaracteristicas(${escopo}): reutilizando requisição pendente`);
       return pendingRequest;
     }
     
     // 4. Criar nova requisição e armazená-la
+    logger.debug(`[IMOVEL_SERVICE] getCaracteristicas(${escopo}): realizando novo GET`);
     this.pendingRequests[escopo] = (async () => {
       try {
         const response = await api.get(`/imoveis/opcoes/caracteristicas/${escopo}`);
@@ -715,6 +718,37 @@ export class ImovelService {
     
     // Retornar a Promise armazenada
     return this.pendingRequests[escopo];
+  }
+
+  // Invalida cache e requisição pendente para características
+  static invalidateCaracteristicasCache(escopo?: 'IMOVEL' | 'CONDOMINIO') {
+    if (escopo) {
+      delete this.caracteristicasCache[escopo];
+      delete this.pendingRequests[escopo];
+      logger.debug(`[IMOVEL_SERVICE] Cache de características invalidado para escopo ${escopo}`);
+    } else {
+      this.caracteristicasCache = {};
+      this.pendingRequests = {} as any;
+      logger.debug('[IMOVEL_SERVICE] Cache de características invalidado para todos os escopos');
+    }
+  }
+
+  // Força refresh (ignora cache) das características por escopo
+  static async refreshCaracteristicas(escopo: 'IMOVEL' | 'CONDOMINIO'): Promise<ApiResponse<Caracteristica[]>> {
+    // Se já existe uma requisição pendente, reutiliza (evita múltiplos GETs)
+    if (this.pendingRequests[escopo]) {
+      logger.debug(`[IMOVEL_SERVICE] refreshCaracteristicas(${escopo}): pendente detectado, reutilizando`);
+      return this.pendingRequests[escopo];
+    }
+    // Remove apenas o cache (não mexe no pending para não cancelar corrida de outro caller)
+    if (this.caracteristicasCache[escopo]) {
+      logger.debug(`[IMOVEL_SERVICE] refreshCaracteristicas(${escopo}): invalidando cache existente`);
+      delete this.caracteristicasCache[escopo];
+    } else {
+      logger.debug(`[IMOVEL_SERVICE] refreshCaracteristicas(${escopo}): sem cache para invalidar`);
+    }
+    // Dispara um novo GET sob o controle de pendingRequests
+    return this.getCaracteristicas(escopo);
   }
 
   static async getProximidades(forceCache: boolean = false): Promise<ApiResponse<Proximidade[]>> {

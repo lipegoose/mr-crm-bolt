@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { ImovelService, Proximidade } from '../../services/ImovelService';
 import logger from '../../utils/logger';
+import ProximidadeService from '../../services/ProximidadeService';
 
 interface ProximidadesProps {
   onUpdate: (data: any) => void;
@@ -161,17 +162,69 @@ const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate, onFieldChange, im
   };
 
   // Função para adicionar uma nova proximidade
-  const adicionarProximidade = () => {
-    if (novaProximidade && !opcoesProximidades.some(p => p.nome === novaProximidade)) {
-      // No contexto atual, sem endpoint para criar proximidade. Apenas fechar o formulário.
+  const adicionarProximidade = async () => {
+    try {
+      if (!novaProximidade.trim()) return;
+
+      // Verificar duplicidade por nome (case-insensitive)
+      const existing = opcoesProximidades.find(
+        (p) => p.nome.trim().toLowerCase() === novaProximidade.trim().toLowerCase()
+      );
+      if (existing) {
+        // Selecionar existente e salvar
+        const newSelection = proximidadesSelecionadas.includes(existing.id)
+          ? proximidadesSelecionadas
+          : [...proximidadesSelecionadas, existing.id];
+        setProximidadesSelecionadas(newSelection);
+        onFieldChange?.();
+        if (imovelId) {
+          if (savingTimeoutRef.current) clearTimeout(savingTimeoutRef.current as number);
+          savingTimeoutRef.current = setTimeout(async () => {
+            try {
+              await ImovelService.updateEtapaProximidades(imovelId, { proximidades: newSelection });
+            } catch (e) {
+              logger.error('[PROXIMIDADES] Erro ao salvar após selecionar existente:', e);
+            }
+          }, 0);
+        }
+        setNovaProximidade('');
+        setShowNovaProximidadeForm(false);
+        return;
+      }
+
+      // Criar no backend
+      const created = await ProximidadeService.createProximidade({ nome: novaProximidade.trim() });
+
+      // Atualizar opções (adequar ao tipo esperado pelo formulário/ImovelService)
+      const createdMapped: Proximidade = { id: created.id, nome: created.nome, categoria: '' };
+      const novasOpcoes = [...opcoesProximidades, createdMapped];
+      setOpcoesProximidades(novasOpcoes);
+
+      // Selecionar imediatamente
+      const newSelection = proximidadesSelecionadas.includes(createdMapped.id)
+        ? proximidadesSelecionadas
+        : [...proximidadesSelecionadas, createdMapped.id];
+      setProximidadesSelecionadas(newSelection);
+
+      // Notificar e salvar
+      onFieldChange?.();
+      if (imovelId) {
+        if (savingTimeoutRef.current) clearTimeout(savingTimeoutRef.current as number);
+        savingTimeoutRef.current = setTimeout(async () => {
+          try {
+            await ImovelService.updateEtapaProximidades(imovelId, { proximidades: newSelection });
+            logger.info('[PROXIMIDADES] Nova proximidade criada e salva no imóvel.');
+          } catch (error) {
+            logger.error('[PROXIMIDADES] Erro ao salvar após criação de proximidade:', error);
+          }
+        }, 0);
+      }
+
+      // Fechar form
       setNovaProximidade('');
       setShowNovaProximidadeForm(false);
-      
-      // Notificar que houve mudança no campo
-      onFieldChange?.();
-      
-      // Nota: Não implementamos a criação de novas proximidades no backend
-      // Esta funcionalidade pode ser implementada no futuro
+    } catch (error) {
+      logger.error('[PROXIMIDADES] Erro ao adicionar proximidade:', error);
     }
   };
 

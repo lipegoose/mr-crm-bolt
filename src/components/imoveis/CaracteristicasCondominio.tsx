@@ -1,23 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ImovelService } from '../../services/ImovelService';
 import logger from '../../utils/logger';
+import CaracteristicaService from '../../services/CaracteristicaService';
 
-// Cache compartilhado no nível do módulo
-const OPCOES_CARREGADAS = {
-  IMOVEL: false,
-  CONDOMINIO: false
-};
 
 interface CaracteristicasCondominioProps {
   onUpdate: (data: any) => void;
   onFieldChange?: () => void;
   imovelId?: number;
   initialData?: Record<string, unknown>;
+  active?: boolean;
 }
 
-const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
+const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ onUpdate, onFieldChange, imovelId, initialData, active }) => {
   // Processamento dos dados iniciais para extrair IDs de objetos ou usar IDs diretos
   let sanitizedInitialData: number[] = [];
   
@@ -60,65 +57,49 @@ const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ o
   const [showNovaCaracteristicaForm, setShowNovaCaracteristicaForm] = useState(false);
   const [opcoes, setOpcoes] = useState<{ id: number; nome: string }[]>([]);
   const savingTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+  const loadedOnceRef = useRef(false);
+  const prevActiveRef = useRef<boolean | undefined>(undefined);
 
-  // Carregar opções dinâmicas do backend (apenas uma vez)
-  useEffect(() => {
-    // Carregar opções de características do condomínio
-    
-    // Se já carregamos as opções em alguma instância anterior do componente
-    if (OPCOES_CARREGADAS.CONDOMINIO) {
-      // Opções já carregadas, obtendo dados do cache
-      
-      // Não precisamos mais do tratamento de erro complexo, pois o serviço agora gerencia isso
-      // Apenas solicitamos os dados, o serviço decidirá se usa cache ou requisição pendente
-      ImovelService.getCaracteristicas('CONDOMINIO')
-        .then(resp => {
-          // Dados obtidos com sucesso
-          setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
-        })
-        .catch(err => {
-          // Erro já registrado pelo logger
-          logger.error('[CARACTERISTICAS_COND] Erro ao carregar opções:', err);
-          // Em caso de erro, permitimos tentar novamente em outra montagem
-          OPCOES_CARREGADAS.CONDOMINIO = false;
-        });
-      
-      return;
-    }
-    
-    // Marcamos como carregado imediatamente para evitar corrida
-    OPCOES_CARREGADAS.CONDOMINIO = true;
-    
+  // Função reutilizável para recarregar opções do backend (mantém ordenação do servidor)
+  const reloadOpcoes = useCallback(async () => {
     let isMounted = true;
-    
-    const carregarOpcoes = async () => {
-      try {
-        // Fazer chamada à API para obter características
-        const resp = await ImovelService.getCaracteristicas('CONDOMINIO');
-        
-        // Verifica se o componente ainda está montado antes de atualizar o estado
-        if (isMounted) {
-          setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
-          // Estado atualizado com as opções recebidas
-        }
-      } catch (error) {
-        if (isMounted) {
-          logger.error('[CARACTERISTICAS_COND] Erro ao carregar opções:', error);
-          // Erro já registrado pelo logger
-          // Se falhou, permitimos tentar novamente em outra montagem
-          OPCOES_CARREGADAS.CONDOMINIO = false;
-        }
+    try {
+      logger.info('[CARACTERISTICAS_COND] reloadOpcoes -> solicitando refreshCaracteristicas(CONDOMINIO)');
+      const resp = await ImovelService.refreshCaracteristicas('CONDOMINIO');
+      if (isMounted) {
+        setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
       }
-    };
-    
-    carregarOpcoes();
-    
-    // Cleanup para evitar atualização de estado em componente desmontado
-    return () => {
-      // Cleanup do useEffect
-      isMounted = false;
-    };
+    } catch (error) {
+      if (isMounted) {
+        logger.error('[CARACTERISTICAS_COND] Erro ao carregar opções:', error);
+      }
+    }
+    return () => { isMounted = false; };
   }, []);
+
+  // Carregar no mount (uma única vez, protegendo contra StrictMode)
+  useEffect(() => {
+    if (!loadedOnceRef.current) {
+      loadedOnceRef.current = true;
+      logger.info('[CARACTERISTICAS_COND] useEffect(mount): carregando opções (primeira vez)');
+      void reloadOpcoes();
+    } else {
+      logger.info('[CARACTERISTICAS_COND] useEffect(mount): ignorado (já carregado)');
+    }
+  }, [reloadOpcoes]);
+
+  // Recarregar quando a aba ficar ativa novamente (transição false -> true)
+  useEffect(() => {
+    const prev = prevActiveRef.current;
+    prevActiveRef.current = active;
+    // Só dispara quando houve transição explícita para true e não no primeiro render com true
+    if (prev === false && active === true) {
+      logger.info('[CARACTERISTICAS_COND] useEffect(active): reentrando na aba, recarregando opções');
+      void reloadOpcoes();
+    } else {
+      logger.info('[CARACTERISTICAS_COND] useEffect(active): sem reload (prev=', prev, ', active=', active, ')');
+    }
+  }, [active, reloadOpcoes]);
 
   // Notifica o componente pai sobre as características selecionadas (sem salvar na API)
   useEffect(() => {
@@ -164,6 +145,77 @@ const CaracteristicasCondominio: React.FC<CaracteristicasCondominioProps> = ({ o
   const adicionarCaracteristica = async () => {
     try {
       if (!novaCaracteristica.trim()) return;
+      // Evitar duplicidade por nome (case-insensitive)
+      const exists = opcoes.some(
+        (o) => o.nome.trim().toLowerCase() === novaCaracteristica.trim().toLowerCase()
+      );
+      if (exists) {
+        logger.warn('[CARACTERISTICAS_COND] Característica já existe pelo nome. Selecionando existente.');
+        const existing = opcoes.find(
+          (o) => o.nome.trim().toLowerCase() === novaCaracteristica.trim().toLowerCase()
+        );
+        if (existing) {
+          const newSelection = caracteristicasSelecionadas.includes(existing.id)
+            ? caracteristicasSelecionadas
+            : [...caracteristicasSelecionadas, existing.id];
+          setCaracteristicasSelecionadas(newSelection);
+          onFieldChange?.();
+          if (imovelId) {
+            if (savingTimeoutRef.current) clearTimeout(savingTimeoutRef.current as number);
+            savingTimeoutRef.current = setTimeout(async () => {
+              try {
+                const stringIds = newSelection.map((id) => String(id));
+                await ImovelService.updateEtapaCaracteristicasCondominio(imovelId, { caracteristicas: stringIds });
+              } catch (e) {
+                logger.error('[CARACTERISTICAS_COND] Erro ao salvar após seleção de existente:', e);
+              }
+            }, 0);
+          }
+        }
+        setNovaCaracteristica('');
+        setShowNovaCaracteristicaForm(false);
+        return;
+      }
+
+      // Criar no backend
+      const created = await CaracteristicaService.createCaracteristica({
+        nome: novaCaracteristica.trim(),
+        escopo: 'CONDOMINIO',
+      });
+
+      // Atualizar opções localmente para feedback imediato
+      const novasOpcoes = [...opcoes, { id: created.id, nome: created.nome }];
+      setOpcoes(novasOpcoes);
+
+      // Marcar como selecionada
+      const newSelection = caracteristicasSelecionadas.includes(created.id)
+        ? caracteristicasSelecionadas
+        : [...caracteristicasSelecionadas, created.id];
+      setCaracteristicasSelecionadas(newSelection);
+
+      // Notificar e salvar
+      onFieldChange?.();
+      if (imovelId) {
+        if (savingTimeoutRef.current) clearTimeout(savingTimeoutRef.current as number);
+        savingTimeoutRef.current = setTimeout(async () => {
+          try {
+            const stringIds = newSelection.map((id) => String(id));
+            await ImovelService.updateEtapaCaracteristicasCondominio(imovelId, { caracteristicas: stringIds });
+            logger.info('[CARACTERISTICAS_COND] Nova característica criada e salva no condomínio.');
+          } catch (error) {
+            logger.error('[CARACTERISTICAS_COND] Erro ao salvar após criação de característica:', error);
+          }
+        }, 0);
+      }
+
+      // Recarregar opções do backend para aplicar ordenação oficial
+      try {
+        await reloadOpcoes();
+      } catch {
+        // erro já logado internamente
+      }
+
+      // Fechar form
       setNovaCaracteristica('');
       setShowNovaCaracteristicaForm(false);
     } catch (error) {

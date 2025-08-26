@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ImovelService } from '../../services/ImovelService';
 import logger from '../../utils/logger';
+import CaracteristicaService from '../../services/CaracteristicaService';
 
 // Cache compartilhado no nível do módulo
 const OPCOES_CARREGADAS = {
@@ -148,7 +149,70 @@ const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate,
   const adicionarCaracteristica = async () => {
     try {
       if (!novaCaracteristica.trim()) return;
-      // No contexto atual, sem endpoint para criar característica. Apenas fechar o formulário.
+      // Evitar duplicidade por nome (case-insensitive)
+      const exists = opcoes.some(
+        (o) => o.nome.trim().toLowerCase() === novaCaracteristica.trim().toLowerCase()
+      );
+      if (exists) {
+        logger.warn('[CARACTERISTICAS_IMOVEL] Característica já existe pelo nome. Selecionando existente.');
+        const existing = opcoes.find(
+          (o) => o.nome.trim().toLowerCase() === novaCaracteristica.trim().toLowerCase()
+        );
+        if (existing) {
+          const newSelection = caracteristicasSelecionadas.includes(existing.id)
+            ? caracteristicasSelecionadas
+            : [...caracteristicasSelecionadas, existing.id];
+          setCaracteristicasSelecionadas(newSelection);
+          onFieldChange?.();
+          if (imovelId) {
+            if (savingTimeoutRef.current) clearTimeout(savingTimeoutRef.current as number);
+            savingTimeoutRef.current = setTimeout(async () => {
+              try {
+                const stringIds = newSelection.map((id) => String(id));
+                await ImovelService.updateEtapaCaracteristicas(imovelId, { caracteristicas: stringIds });
+              } catch (e) {
+                logger.error('[CARACTERISTICAS_IMOVEL] Erro ao salvar após seleção de existente:', e);
+              }
+            }, 0);
+          }
+        }
+        setNovaCaracteristica('');
+        setShowNovaCaracteristicaForm(false);
+        return;
+      }
+
+      // Criar no backend
+      const created = await CaracteristicaService.createCaracteristica({
+        nome: novaCaracteristica.trim(),
+        escopo: 'IMOVEL',
+      });
+
+      // Atualizar opções (inserir mantendo simplicidade: ao final)
+      const novasOpcoes = [...opcoes, { id: created.id, nome: created.nome }];
+      setOpcoes(novasOpcoes);
+
+      // Marcar como selecionada imediatamente
+      const newSelection = caracteristicasSelecionadas.includes(created.id)
+        ? caracteristicasSelecionadas
+        : [...caracteristicasSelecionadas, created.id];
+      setCaracteristicasSelecionadas(newSelection);
+
+      // Notificar mudança e salvar no backend (se houver imovelId)
+      onFieldChange?.();
+      if (imovelId) {
+        if (savingTimeoutRef.current) clearTimeout(savingTimeoutRef.current as number);
+        savingTimeoutRef.current = setTimeout(async () => {
+          try {
+            const stringIds = newSelection.map((id) => String(id));
+            await ImovelService.updateEtapaCaracteristicas(imovelId, { caracteristicas: stringIds });
+            logger.info('[CARACTERISTICAS_IMOVEL] Nova característica criada e salva no imóvel.');
+          } catch (error) {
+            logger.error('[CARACTERISTICAS_IMOVEL] Erro ao salvar após criação de característica:', error);
+          }
+        }, 0);
+      }
+
+      // Fechar form
       setNovaCaracteristica('');
       setShowNovaCaracteristicaForm(false);
     } catch (error) {
