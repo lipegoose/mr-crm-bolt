@@ -12,11 +12,16 @@ import {
   Layers
 } from 'lucide-react';
 
-const menuItems = [
+// Itens do topo (1-4): Dashboard, Imóveis, Clientes, Condomínios
+const menuTop = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
+  { id: 'imoveis', label: 'Imóveis', icon: Building, path: '/imoveis' },
   { id: 'clientes', label: 'Clientes', icon: Users, path: '/clientes' },
   { id: 'condominios', label: 'Condomínios', icon: Building, path: '/condominios' },
-  { id: 'imoveis', label: 'Imóveis', icon: Building, path: '/imoveis' },
+];
+
+// Itens da base (7-9): Contratos, Relatórios, Configurações
+const menuBottom = [
   { id: 'contratos', label: 'Contratos', icon: FileText, path: '/contratos' },
   { id: 'relatorios', label: 'Relatórios', icon: BarChart3, path: '/relatorios' },
   { id: 'configuracoes', label: 'Configurações', icon: Settings, path: '/configuracoes' },
@@ -92,7 +97,8 @@ export const Sidebar: React.FC = () => {
 
         {/* Navigation */}
         <nav className="mt-8">
-          {menuItems.map((item) => {
+          {/* Grupo Topo: 1) Dashboard, 2) Imóveis, 3) Clientes, 4) Condomínios */}
+          {menuTop.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             
@@ -118,7 +124,13 @@ export const Sidebar: React.FC = () => {
           {/* Grupo: Características */}
           <div className="mt-2">
             <button
-              onClick={() => setCaracteristicasOpen(!caracteristicasOpen)}
+              onClick={() => {
+                if (isCollapsed) {
+                  handleNavigation('/caracteristicas?escopo=IMOVEL');
+                } else {
+                  setCaracteristicasOpen(!caracteristicasOpen);
+                }
+              }}
               className={`
                 w-full flex items-center px-4 py-3 text-left
                 hover:bg-gray-700 transition-colors text-gray-300
@@ -178,6 +190,30 @@ export const Sidebar: React.FC = () => {
               <span className="ml-3 font-body">Proximidades</span>
             )}
           </button>
+
+          {/* Grupo Base: 7) Contratos, 8) Relatórios, 9) Configurações */}
+          {menuBottom.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleNavigation(item.path)}
+                className={`
+                  w-full flex items-center px-4 py-3 text-left mt-2
+                  hover:bg-gray-700 transition-colors
+                  ${isActive ? 'bg-primary-orange text-white' : 'text-gray-300'}
+                  ${isCollapsed ? 'justify-center' : ''}
+                `}
+              >
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                {!isCollapsed && (
+                  <span className="ml-3 font-body">{item.label}</span>
+                )}
+              </button>
+            );
+          })}
         </nav>
       </aside>
     </>
