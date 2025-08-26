@@ -12,7 +12,7 @@ import {
   Layers
 } from 'lucide-react';
 
-// Itens do topo (1-4): Dashboard, Imóveis, Clientes, Condomínios
+// Itens do topo (1-5): Dashboard, Imóveis, Clientes, Condomínios
 const menuTop = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
   { id: 'imoveis', label: 'Imóveis', icon: Building, path: '/imoveis' },
@@ -20,10 +20,11 @@ const menuTop = [
   { id: 'condominios', label: 'Condomínios', icon: Building, path: '/condominios' },
 ];
 
-// Itens da base (7-9): Contratos, Relatórios, Configurações
+// Itens da base (7-9): Contratos, Relatórios, Seções (CMS), Configurações
 const menuBottom = [
   { id: 'contratos', label: 'Contratos', icon: FileText, path: '/contratos' },
   { id: 'relatorios', label: 'Relatórios', icon: BarChart3, path: '/relatorios' },
+  { id: 'secoes', label: 'Seções', icon: Layers, path: '/cms/sections' },
   { id: 'configuracoes', label: 'Configurações', icon: Settings, path: '/configuracoes' },
 ];
 

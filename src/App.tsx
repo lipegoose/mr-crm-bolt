@@ -6,6 +6,9 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { Login } from './components/pages/Login';
 import { Dashboard } from './components/pages/Dashboard';
+import Sections from './components/pages/Sections';
+import SectionDetail from './components/pages/SectionDetail';
+import SectionItemDetail from './components/pages/SectionItemDetail';
 import { Clientes } from './components/pages/Clientes';
 import ClienteCadastroCompleto from './components/pages/ClienteCadastroCompleto';
 import { Condominios } from './components/pages/Condominios';
@@ -29,6 +32,10 @@ const AppLayout: React.FC = () => {
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            {/* CMS Seções */}
+            <Route path="/cms/sections" element={<Sections />} />
+            <Route path="/cms/sections/:id" element={<SectionDetail />} />
+            <Route path="/cms/sections/:id/items/:itemId" element={<SectionItemDetail />} />
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/clientes/:id" element={<ClienteCadastroCompleto />} />
             <Route path="/condominios" element={<Condominios />} />
