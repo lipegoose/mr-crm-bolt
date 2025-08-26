@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -11,9 +11,10 @@ interface ProximidadesProps {
   onFieldChange?: () => void;
   imovelId?: number;
   initialData?: Record<string, unknown>;
+  active?: boolean;
 }
 
-const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
+const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate, onFieldChange, imovelId, initialData, active }) => {
   // Processamento dos dados iniciais para extrair proximidades
   let proximidadesIniciaisIds: number[] = [];
   let customProximidadesIniciais: {nome: string, distancia: string}[] = [];
@@ -55,31 +56,35 @@ const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate, onFieldChange, im
   // Estado para armazenar as opções de proximidades carregadas da API
   const [opcoesProximidades, setOpcoesProximidades] = useState<Proximidade[]>([]);
   
-  // Referência para controlar se o componente está montado
+  // Refs para controlar execução única e transição de aba
   const isMountedRef = useRef<boolean>(true);
+  const loadedOnceRef = useRef(false);
+  const prevActiveRef = useRef<boolean | undefined>(undefined);
 
-  // Carregar opções de proximidades da API e dados iniciais do imóvel
+  const reloadOpcoes = useCallback(async () => {
+    let alive = true;
+    try {
+      logger.info('[PROXIMIDADES] reloadOpcoes -> refreshProximidades()');
+      const resp = await ImovelService.refreshProximidades();
+      if (alive && isMountedRef.current) setOpcoesProximidades(resp.data);
+    } catch (err) {
+      if (alive && isMountedRef.current) logger.error('[PROXIMIDADES] Erro ao recarregar opções:', err);
+    }
+    return () => { alive = false; };
+  }, []);
+
+  // Carregar opções e dados do imóvel (proteção StrictMode)
   useEffect(() => {
-    // Garantir que o componente está montado
     isMountedRef.current = true;
-    
-    // Função para carregar opções de proximidades
-    const carregarOpcoes = async () => {
-      try {
-        logger.debug('[PROXIMIDADES] Carregando opções de proximidades');
-        const resp = await ImovelService.getProximidades();
-        
-        if (isMountedRef.current) {
-          setOpcoesProximidades(resp.data);
-          logger.debug('[PROXIMIDADES] Opções carregadas com sucesso');
-        }
-      } catch (error) {
-        if (isMountedRef.current) {
-          logger.error('[PROXIMIDADES] Erro ao carregar opções:', error);
-        }
-      }
-    };
-    
+
+    if (!loadedOnceRef.current) {
+      loadedOnceRef.current = true;
+      logger.info('[PROXIMIDADES] useEffect(mount): carregando opções (primeira vez)');
+      void reloadOpcoes();
+    } else {
+      logger.info('[PROXIMIDADES] useEffect(mount): ignorado (já carregado)');
+    }
+
     // Função para carregar dados do imóvel
     const carregarDadosImovel = async () => {
       if (!imovelId) return;
@@ -102,14 +107,25 @@ const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate, onFieldChange, im
     };
     
     // Executar carregamento de dados
-    carregarOpcoes();
     carregarDadosImovel();
     
     // Cleanup para evitar atualização de estado em componente desmontado
     return () => {
       isMountedRef.current = false;
     };
-  }, [imovelId]); // Dependência em imovelId para recarregar quando mudar
+  }, [imovelId, reloadOpcoes]); // Dependência em imovelId para recarregar quando mudar
+
+  // Recarregar ao reentrar na aba (transição false -> true)
+  useEffect(() => {
+    const prev = prevActiveRef.current;
+    prevActiveRef.current = active;
+    if (prev === false && active === true) {
+      logger.info('[PROXIMIDADES] useEffect(active): reentrando na aba, recarregando opções');
+      void reloadOpcoes();
+    } else {
+      logger.info('[PROXIMIDADES] useEffect(active): sem reload (prev=', prev, ', active=', active, ')');
+    }
+  }, [active, reloadOpcoes]);
 
   // Atualiza os dados do formulário quando há mudanças
   useEffect(() => {
@@ -219,6 +235,11 @@ const Proximidades: React.FC<ProximidadesProps> = ({ onUpdate, onFieldChange, im
           }
         }, 0);
       }
+
+      // Forçar refresh da lista para refletir ordenação e estado do backend
+      try {
+        await reloadOpcoes();
+      } catch {}
 
       // Fechar form
       setNovaProximidade('');

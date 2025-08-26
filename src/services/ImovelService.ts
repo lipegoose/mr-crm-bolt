@@ -754,6 +754,7 @@ export class ImovelService {
   static async getProximidades(forceCache: boolean = false): Promise<ApiResponse<Proximidade[]>> {
     // 1. Verificar cache primeiro
     if (this.proximidadesCache) {
+      logger.debug('[IMOVEL_SERVICE] getProximidades: HIT cache');
       return this.proximidadesCache;
     }
     
@@ -764,10 +765,12 @@ export class ImovelService {
     
     // 3. Verificar se já existe uma requisição pendente
     if (this.pendingProximidadesRequest) {
+      logger.debug('[IMOVEL_SERVICE] getProximidades: reutilizando requisição pendente');
       return this.pendingProximidadesRequest;
     }
-    
-    // 4. Criar nova requisição e armazená-la
+
+    // 4. Criar nova requisição
+    logger.debug('[IMOVEL_SERVICE] getProximidades: realizando novo GET');
     this.pendingProximidadesRequest = (async () => {
       try {
         const response = await api.get('/imoveis/opcoes/proximidades');
@@ -777,16 +780,32 @@ export class ImovelService {
         
         return response.data;
       } catch (error) {
-        // Em caso de erro, propaga o erro
         throw error;
       } finally {
-        // Limpar a referência da Promise quando concluída (sucesso ou erro)
         this.pendingProximidadesRequest = null;
       }
     })();
-    
-    // Retornar a Promise armazenada
+
     return this.pendingProximidadesRequest;
+  }
+
+  static invalidateProximidadesCache() {
+    this.proximidadesCache = null;
+    logger.debug('[IMOVEL_SERVICE] Cache de proximidades invalidado');
+  }
+
+  static async refreshProximidades(): Promise<ApiResponse<Proximidade[]>> {
+    if (this.pendingProximidadesRequest) {
+      logger.debug('[IMOVEL_SERVICE] refreshProximidades: pendente detectado, reutilizando');
+      return this.pendingProximidadesRequest;
+    }
+    if (this.proximidadesCache) {
+      logger.debug('[IMOVEL_SERVICE] refreshProximidades: invalidando cache existente');
+      this.proximidadesCache = null;
+    } else {
+      logger.debug('[IMOVEL_SERVICE] refreshProximidades: sem cache para invalidar');
+    }
+    return this.getProximidades();
   }
 
   // Método para finalizar cadastro (ativar imóvel)

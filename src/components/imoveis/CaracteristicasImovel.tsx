@@ -1,24 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ImovelService } from '../../services/ImovelService';
 import logger from '../../utils/logger';
 import CaracteristicaService from '../../services/CaracteristicaService';
 
-// Cache compartilhado no nível do módulo
-const OPCOES_CARREGADAS = {
-  IMOVEL: false,
-  CONDOMINIO: false
-};
+// Removido cache de módulo para evitar dados desatualizados e múltiplos fluxos
 
 interface CaracteristicasImovelProps {
   onUpdate: (data: any) => void;
   onFieldChange?: () => void;
   imovelId?: number;
   initialData?: Record<string, unknown>;
+  active?: boolean;
 }
 
-const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate, onFieldChange, imovelId, initialData }) => {
+const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate, onFieldChange, imovelId, initialData, active }) => {
   // Processamento dos dados iniciais para extrair IDs de objetos ou usar IDs diretos
   let sanitizedInitialData: number[] = [];
   
@@ -44,65 +41,45 @@ const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate,
   const [showNovaCaracteristicaForm, setShowNovaCaracteristicaForm] = useState(false);
   const [opcoes, setOpcoes] = useState<{ id: number; nome: string }[]>([]);
   const savingTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+  const loadedOnceRef = useRef(false);
+  const prevActiveRef = useRef<boolean | undefined>(undefined);
 
-  // Carregar opções dinâmicas do backend (apenas uma vez)
-  useEffect(() => {
-    // Carregar opções de características
-    
-    // Se já carregamos as opções em alguma instância anterior do componente
-    if (OPCOES_CARREGADAS.IMOVEL) {
-      // Opções já carregadas, obtendo dados do cache
-      
-      // Não precisamos mais do tratamento de erro complexo, pois o serviço agora gerencia isso
-      // Apenas solicitamos os dados, o serviço decidirá se usa cache ou requisição pendente
-      ImovelService.getCaracteristicas('IMOVEL')
-        .then(resp => {
-          // Dados obtidos com sucesso
-          setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
-        })
-        .catch(err => {
-          // Erro ao obter dados
-          logger.error('[CARACTERISTICAS_IMOVEL] Erro ao carregar opções:', err);
-          // Em caso de erro, permitimos tentar novamente em outra montagem
-          OPCOES_CARREGADAS.IMOVEL = false;
-        });
-      
-      return;
-    }
-    
-    // Marcamos como carregado imediatamente para evitar corrida
-    OPCOES_CARREGADAS.IMOVEL = true;
-    
+  const reloadOpcoes = useCallback(async () => {
     let isMounted = true;
-    
-    const carregarOpcoes = async () => {
-      try {
-        // Fazer chamada à API para obter características
-        const resp = await ImovelService.getCaracteristicas('IMOVEL');
-        
-        // Verifica se o componente ainda está montado antes de atualizar o estado
-        if (isMounted) {
-          setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
-          // Estado atualizado com as opções recebidas
-        }
-      } catch (error) {
-        if (isMounted) {
-          logger.error('[CARACTERISTICAS_IMOVEL] Erro ao carregar opções:', error);
-          // Erro já registrado pelo logger
-          // Se falhou, permitimos tentar novamente em outra montagem
-          OPCOES_CARREGADAS.IMOVEL = false;
-        }
+    try {
+      logger.info('[CARACTERISTICAS_IMOVEL] reloadOpcoes -> refreshCaracteristicas(IMOVEL)');
+      const resp = await ImovelService.refreshCaracteristicas('IMOVEL');
+      if (isMounted) {
+        setOpcoes(resp.data.map((c: any) => ({ id: c.id, nome: c.nome })));
       }
-    };
-    
-    carregarOpcoes();
-    
-    // Cleanup para evitar atualização de estado em componente desmontado
-    return () => {
-      // Cleanup do useEffect
-      isMounted = false;
-    };
+    } catch (err) {
+      if (isMounted) logger.error('[CARACTERISTICAS_IMOVEL] Erro ao recarregar opções:', err);
+    }
+    return () => { isMounted = false; };
   }, []);
+
+  // Carregar no mount (uma única vez) e proteger contra StrictMode
+  useEffect(() => {
+    if (!loadedOnceRef.current) {
+      loadedOnceRef.current = true;
+      logger.info('[CARACTERISTICAS_IMOVEL] useEffect(mount): carregando opções (primeira vez)');
+      void reloadOpcoes();
+    } else {
+      logger.info('[CARACTERISTICAS_IMOVEL] useEffect(mount): ignorado (já carregado)');
+    }
+  }, [reloadOpcoes]);
+
+  // Recarregar ao reentrar na aba (transição false -> true)
+  useEffect(() => {
+    const prev = prevActiveRef.current;
+    prevActiveRef.current = active;
+    if (prev === false && active === true) {
+      logger.info('[CARACTERISTICAS_IMOVEL] useEffect(active): reentrando na aba, recarregando opções');
+      void reloadOpcoes();
+    } else {
+      logger.info('[CARACTERISTICAS_IMOVEL] useEffect(active): sem reload (prev=', prev, ', active=', active, ')');
+    }
+  }, [active, reloadOpcoes]);
 
 
   // Notifica o componente pai sobre as características selecionadas (sem salvar na API)
@@ -187,7 +164,7 @@ const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate,
         escopo: 'IMOVEL',
       });
 
-      // Atualizar opções (inserir mantendo simplicidade: ao final)
+      // Atualizar opções rapidamente e depois forçar reload para ordenar pelo backend
       const novasOpcoes = [...opcoes, { id: created.id, nome: created.nome }];
       setOpcoes(novasOpcoes);
 
@@ -211,6 +188,11 @@ const CaracteristicasImovel: React.FC<CaracteristicasImovelProps> = ({ onUpdate,
           }
         }, 0);
       }
+
+      // Aplicar ordenação e estado real do backend
+      try {
+        await reloadOpcoes();
+      } catch {}
 
       // Fechar form
       setNovaCaracteristica('');

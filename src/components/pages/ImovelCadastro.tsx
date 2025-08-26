@@ -560,6 +560,7 @@ const ImovelCadastro: React.FC = () => {
               onFieldChange={() => markStepAsChanged('caracteristicas-imovel')}
               imovelId={id ? Number(id) : undefined}
               initialData={formData['caracteristicas-imovel'] as Record<string, unknown>}
+              active={activeStep === 'caracteristicas-imovel'}
             />
           </div>
         );
@@ -609,6 +610,7 @@ const ImovelCadastro: React.FC = () => {
               onFieldChange={() => markStepAsChanged('proximidades')}
               imovelId={id ? Number(id) : undefined}
               initialData={formData['proximidades'] as Record<string, unknown>}
+              active={activeStep === 'proximidades'}
             />
           </div>
         );
