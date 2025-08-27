@@ -20,21 +20,45 @@ const SectionImagens: React.FC<Props> = ({ sectionId }) => {
   const tituloDebounceTimers = useRef<Record<number, any>>({});
   const reorderDebounceTimer = useRef<any>(null);
 
-  const didFetchRef = useRef(false);
+  // Atenção: evitar gate de 1a execução para não conflitar com StrictMode (montagem dupla em dev)
+
+  const deriveTitleFromPath = (path?: string | null): string | null => {
+    if (!path) return null;
+    const seg = String(path).split('/').pop() || '';
+    if (!seg) return null;
+    const base = seg.replace(/\.[^.]+$/, '');
+    return base || null;
+  };
+  
+  // Logar mudanças do estado de imagens para diagnosticar renderização
   useEffect(() => {
-    if (didFetchRef.current) return;
-    didFetchRef.current = true;
+    logger.info('[SECTION_IMAGENS] imagens state changed', { count: imagens.length, imagens });
+  }, [imagens]);
+
+  const toUIImagem = (p: SectionPhoto): UIImagem => {
+    const direct = (p as any).url || (p as any).url_completa;
+    const caminho = (p as any).caminho as string | undefined;
+    const url = direct ? String(direct) : (caminho ? `/${caminho.replace(/^\//, '')}` : '');
+    logger.debug('[SECTION_IMAGENS] toUIImagem ->', { id: p.id, direct: !!direct, caminho, url });
+    return {
+      id: p.id,
+      url,
+      titulo: (p as any).titulo ?? deriveTitleFromPath(caminho),
+      principal: !!p.principal,
+    };
+  };
+  useEffect(() => {
     let mounted = true;
     const load = async () => {
       try {
         const list = await SectionsService.listPhotos(sectionId);
-        const mapped: UIImagem[] = (list || []).map((p: SectionPhoto) => ({
-          id: p.id,
-          url: (p as any).url || (p as any).url_completa || (p as any).caminho ? `/storage/${(p as any).caminho}` : '',
-          titulo: (p as any).titulo ?? null,
-          principal: !!p.principal,
-        }));
+        logger.info('[SECTION_IMAGENS] listPhotos resp', { sectionId, count: Array.isArray(list) ? list.length : null, list });
+        const mapped: UIImagem[] = (list || []).map((p: SectionPhoto) => toUIImagem(p));
+        logger.info('[SECTION_IMAGENS] mapped imagens', { count: mapped.length, mapped });
         if (mounted) setImagens(mapped);
+        if (mounted) {
+          logger.info('[SECTION_IMAGENS] setImagens done', { count: mapped.length });
+        }
       } catch (e) {
         logger.error('[SECTION_IMAGENS] Erro ao listar fotos:' + (e instanceof Error ? ` ${e.message}` : ''));
       }
@@ -48,19 +72,29 @@ const SectionImagens: React.FC<Props> = ({ sectionId }) => {
     try {
       const resp = await SectionsService.uploadPhotos(sectionId, arr);
       const uploaded = resp.uploaded || [];
-      setImagens(prev => ([
-        ...prev,
-        ...uploaded.map((img) => ({
-          id: img.id,
-          url: (img as any).url || (img as any).url_completa || (img as any).caminho ? `/storage/${(img as any).caminho}` : '',
-          titulo: (img as any).titulo ?? null,
-          principal: !!img.principal,
-        }))
-      ]));
+      logger.info('[SECTION_IMAGENS] uploadPhotos resp', { sectionId, uploaded });
+      // Atualiza títulos com base no nome dos arquivos se backend não definiu
+      const updates: Promise<any>[] = [];
+      const uiNew = uploaded.map((img, idx) => {
+        let ui = toUIImagem(img);
+        if ((!img.titulo || img.titulo === null) && arr[idx]) {
+          const fileName = arr[idx].name;
+          const base = fileName.replace(/\.[^.]+$/, '');
+          ui = { ...ui, titulo: base };
+          updates.push(SectionsService.updatePhoto(sectionId, img.id, { titulo: base } as any));
+        }
+        return ui;
+      });
+      if (updates.length) {
+        try { await Promise.allSettled(updates); } catch {}
+      }
+      setImagens(prev => ([...prev, ...uiNew]));
+      logger.info('[SECTION_IMAGENS] setImagens after upload');
     } catch (e) {
       logger.error('[SECTION_IMAGENS] Erro no upload:' + (e instanceof Error ? ` ${e.message}` : ''));
     }
   };
+
 
   const adicionarImagens = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;

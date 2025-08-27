@@ -55,6 +55,8 @@ export class SectionsService {
   // Anti-duplicação de GETs
   private static pendingList: Record<string, Promise<SectionListResponse> | undefined> = {};
   private static pendingGet: Record<number, Promise<Section> | undefined> = {};
+  private static pendingPhotos: Record<number, Promise<SectionPhoto[]> | undefined> = {};
+  private static cachePhotos: Record<number, { data: SectionPhoto[]; ts: number } | undefined> = {};
 
   static async list(params?: { page?: number; per_page?: number; q?: string; ativo?: boolean; show_on_home?: boolean; slug?: string; template?: string; }): Promise<SectionListResponse> {
     const key = JSON.stringify(params || {});
@@ -105,8 +107,28 @@ export class SectionsService {
 
   // Fotos da Seção
   static async listPhotos(sectionId: number): Promise<SectionPhoto[]> {
-    const resp = await api.get(`/cms/sections/${sectionId}/photos`);
-    return resp.data as SectionPhoto[];
+    // Cache leve para evitar duplo GET sob StrictMode (TTL 1500ms)
+    const now = Date.now();
+    const cached = this.cachePhotos[sectionId];
+    if (cached && (now - cached.ts) < 1500) {
+      logger.debug(`[SECTIONS_SERVICE] listPhotos cache hit: ${sectionId}`);
+      return Promise.resolve(cached.data);
+    }
+    if (this.pendingPhotos[sectionId] !== undefined) {
+      logger.debug(`[SECTIONS_SERVICE] Reutilizando listPhotos pendente: ${sectionId}`);
+      return this.pendingPhotos[sectionId]!;
+    }
+    this.pendingPhotos[sectionId] = (async () => {
+      try {
+        const resp = await api.get(`/cms/sections/${sectionId}/photos`);
+        const data = resp.data as SectionPhoto[];
+        this.cachePhotos[sectionId] = { data, ts: Date.now() };
+        return data;
+      } finally {
+        delete this.pendingPhotos[sectionId];
+      }
+    })();
+    return this.pendingPhotos[sectionId]!;
   }
 
   static async uploadPhotos(sectionId: number, files: File[]): Promise<{ uploaded: SectionPhoto[] }> {

@@ -5,6 +5,18 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 // Para:
 const isDebugEnabled = false; // Força desativação de logs debug # NUNCA APAGAR ESTA LINHA.
 
+// Helper: verifica se devemos exibir o log dado o canal e a mensagem
+const hasTag = (message: string, tag: string) => message?.includes(tag);
+const isLocalDebug = () => {
+  try { return localStorage.getItem('debug') === 'true'; } catch { return false; }
+};
+const shouldShowInfoWarn = (message: string) => (
+  hasTag(message, '[CONDOMINIO]') ||
+  hasTag(message, '[DADOS_PRIVATIVOS]') ||
+  hasTag(message, '[USUARIO_SERVICE]') ||
+  hasTag(message, '[SECTION_IMAGENS]')
+);
+
 interface Logger {
   debug: (message: string, ...args: unknown[]) => void;
   info: (message: string, ...args: unknown[]) => void;
@@ -16,28 +28,33 @@ interface Logger {
 
 const logger: Logger = {
   debug: (message: string, ...args: unknown[]) => {
-    if (isDebugEnabled) {
+    // Exibe debug se: explicitamente habilitado por localStorage, ou marcado com [SECTION_IMAGENS]
+    const show = isDebugEnabled || isLocalDebug() || hasTag(message, '[SECTION_IMAGENS]');
+    if (show) {
       console.debug(`[DEBUG] ${message}`, ...args);
+      // Garantir visibilidade para quem filtra 'Verbose' no console
+      if (hasTag(message, '[SECTION_IMAGENS]')) {
+        console.info(`[INFO] ${message}`, ...args);
+      }
     }
   },
   
   info: (message: string, ...args: unknown[]) => {
-    // Filtrar logs para mostrar apenas os relacionados a condomínio ou dados privativos
-    if (isDevelopment && (message.includes('[CONDOMINIO]') || message.includes('[DADOS_PRIVATIVOS]') || message.includes('[USUARIO_SERVICE]'))) {
+    // Em desenvolvimento, mostrar infos marcadas ou quando local debug ativo
+    if ((isDevelopment && shouldShowInfoWarn(message)) || isLocalDebug()) {
       console.info(`[INFO] ${message}`, ...args);
     }
   },
   
   warn: (message: string, ...args: unknown[]) => {
-    // Filtrar logs de aviso para mostrar apenas os relacionados a condomínio ou dados privativos
-    if (message.includes('[CONDOMINIO]') || message.includes('[DADOS_PRIVATIVOS]') || message.includes('[USUARIO_SERVICE]')) {
+    if (shouldShowInfoWarn(message) || isLocalDebug()) {
       console.warn(`[WARN] ${message}`, ...args);
     }
   },
   
   error: (message: string, ...args: unknown[]) => {
-    // Filtrar logs de erro para mostrar apenas os relacionados a condomínio ou dados privativos
-    if (message.includes('[CONDOMINIO]') || message.includes('[DADOS_PRIVATIVOS]') || message.includes('[USUARIO_SERVICE]')) {
+    // Sempre exibir erros em desenvolvimento; em produção, exibir os marcados
+    if (isDevelopment || shouldShowInfoWarn(message) || isLocalDebug() || hasTag(message, '[SECTION_IMAGENS]')) {
       console.error(`[ERROR] ${message}`, ...args);
     }
   },
