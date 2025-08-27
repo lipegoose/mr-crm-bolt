@@ -1,6 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SectionsService, Section } from '../../services/SectionsService';
+import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
+import { Search, Filter, Edit } from 'lucide-react';
 
 const Sections: React.FC = () => {
   const [data, setData] = React.useState<Section[] | null>(null);
@@ -39,29 +42,57 @@ const Sections: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Seções</h1>
-        <button onClick={handleCreate} className="px-3 py-2 bg-primary-orange text-white rounded">Adicionar</button>
+    <div className="space-y-section">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-title font-bold text-neutral-black">Seções</h1>
+          <p className="text-neutral-gray-medium mt-1">Gerencie as seções do site</p>
+        </div>
+        <Button onClick={handleCreate}>+ Nova Seção</Button>
       </div>
 
-      <div className="flex gap-2">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar..." className="border rounded px-3 py-2 w-full" />
-        <button onClick={load} className="px-3 py-2 bg-gray-800 text-white rounded">Buscar</button>
-      </div>
-
-      {loading && <div>Carregando...</div>}
-      {error && <div className="text-red-600">{error}</div>}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {data?.map((s) => (
-          <div key={s.id} className="border rounded p-4 bg-white">
-            <div className="font-semibold">{s.titulo}</div>
-            <div className="text-sm text-gray-600">slug: {s.slug} · template: {s.template}</div>
-            <div className="mt-2 flex justify-end">
-              <button onClick={() => navigate(`/cms/sections/${s.id}`)} className="px-3 py-1 bg-gray-100 border rounded">Editar</button>
+      {/* Filtros */}
+      <Card>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-gray-medium w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Buscar seções..."
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-neutral-gray rounded-default focus:outline-none focus:border-primary-orange"
+              />
             </div>
           </div>
+          <Button variant="secondary">
+            <Filter className="w-4 h-4 mr-2" />
+            Filtros
+          </Button>
+        </div>
+      </Card>
+
+      {loading && <div className="text-sm text-neutral-gray-medium mb-2">Carregando seções...</div>}
+      {error && <div className="text-status-error">{error}</div>}
+
+      {/* Lista */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {data?.map((s) => (
+          <Card key={s.id}>
+            <div className="flex items-start justify-between mb-1">
+              <h3 className="font-semibold text-neutral-black">{s.titulo}</h3>
+              <button
+                className="p-1 text-neutral-gray-medium hover:text-primary-orange"
+                onClick={() => navigate(`/cms/sections/${s.id}`)}
+                title="Editar"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="text-sm text-neutral-gray-medium">slug: {s.slug} · template: {s.template}</div>
+          </Card>
         ))}
       </div>
     </div>

@@ -26,7 +26,6 @@ export interface Section {
   url_link?: string | null;
   texto_url?: string | null;
   botao?: boolean;
-  url_amigavel?: string | null;
   template: 'destaques' | 'sobre' | 'servicos' | 'blog';
   show_on_home: boolean;
   ordem: number;
