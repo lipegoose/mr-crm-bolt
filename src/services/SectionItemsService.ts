@@ -4,10 +4,10 @@ import logger from '../utils/logger';
 export interface ItemPhoto {
   id: number;
   url?: string;
-  path?: string;
+  caminho?: string;
+  titulo?: string | null;
   principal: boolean;
   ordem: number;
-  alt_text?: string | null;
 }
 
 export interface SectionItem {

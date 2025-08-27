@@ -4,10 +4,10 @@ import logger from '../utils/logger';
 export interface SectionPhoto {
   id: number;
   url?: string; // backend pode retornar como accessor
-  path?: string;
+  caminho?: string;
+  titulo?: string | null;
   principal: boolean;
   ordem: number;
-  alt_text?: string | null;
 }
 
 export interface SectionItemSummary {
@@ -53,14 +53,14 @@ export interface SectionListResponse {
 
 export class SectionsService {
   // Anti-duplicação de GETs
-  private static pendingList: Record<string, Promise<SectionListResponse>> = {};
-  private static pendingGet: Record<number, Promise<Section>> = {};
+  private static pendingList: Record<string, Promise<SectionListResponse> | undefined> = {};
+  private static pendingGet: Record<number, Promise<Section> | undefined> = {};
 
   static async list(params?: { page?: number; per_page?: number; q?: string; ativo?: boolean; show_on_home?: boolean; slug?: string; template?: string; }): Promise<SectionListResponse> {
     const key = JSON.stringify(params || {});
-    if (this.pendingList[key]) {
+    if (this.pendingList[key] !== undefined) {
       logger.debug(`[SECTIONS_SERVICE] Reutilizando list pendente: ${key}`);
-      return this.pendingList[key];
+      return this.pendingList[key]!;
     }
     this.pendingList[key] = (async () => {
       try {
@@ -70,7 +70,7 @@ export class SectionsService {
         delete this.pendingList[key];
       }
     })();
-    return this.pendingList[key];
+    return this.pendingList[key]!;
   }
 
   static async create(data: Partial<Section>): Promise<Section> {
@@ -79,8 +79,8 @@ export class SectionsService {
     }
 
   static async get(id: number): Promise<Section> {
-    if (this.pendingGet[id]) {
-      return this.pendingGet[id];
+    if (this.pendingGet[id] !== undefined) {
+      return this.pendingGet[id]!;
     }
     this.pendingGet[id] = (async () => {
       try {
@@ -90,7 +90,7 @@ export class SectionsService {
         delete this.pendingGet[id];
       }
     })();
-    return this.pendingGet[id];
+    return this.pendingGet[id]!;
   }
 
   static async update(id: number, data: Partial<Section>): Promise<Section> {

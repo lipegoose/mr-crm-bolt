@@ -12,16 +12,22 @@ interface StepNavigationProps {
   steps: Step[];
   activeStep: string;
   onStepChange: (stepId: string) => void;
+  showHeader?: boolean; // controla exibição do título "Passo a passo:"
+  withRightBorder?: boolean; // controla borda direita + padding
 }
 
 export const StepNavigation: React.FC<StepNavigationProps> = ({
   steps,
   activeStep,
-  onStepChange
+  onStepChange,
+  showHeader = true,
+  withRightBorder = true,
 }) => {
   return (
-    <div className="flex flex-col space-y-1 min-w-[220px] border-r border-neutral-gray pr-4 h-full">
-      <h3 className="text-sm font-semibold text-neutral-gray-medium mb-4 px-3 pt-6">Passo a passo:</h3>
+    <div className={`flex flex-col space-y-1 min-w-[220px] ${withRightBorder ? 'border-r border-neutral-gray pr-4 h-full' : ''}`}>
+      {showHeader && (
+        <h3 className="text-sm font-semibold text-neutral-gray-medium mb-4 px-3 pt-6">Passo a passo:</h3>
+      )}
       <div className="flex flex-col space-y-1">
         {steps.map((step) => (
           <button
