@@ -19,7 +19,8 @@ export interface SectionItem {
   url_link?: string | null;
   texto_url?: string | null;
   botao?: boolean;
-  url_amigavel?: string | null;
+  slug?: string | null;
+  show_on_home?: boolean;
   ordem: number;
   ativo: boolean;
   photos?: ItemPhoto[];

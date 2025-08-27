@@ -1,6 +1,39 @@
 import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { SectionItemsService, SectionItem } from '../../services/SectionItemsService';
+import { SectionsService } from '../../services/SectionsService';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { TextArea } from '../ui/TextArea';
+
+// Toggle acessível (igual ao usado em SectionDetail)
+const Toggle: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label: string; id?: string }> = ({ checked, onChange, label, id }) => {
+  return (
+    <label htmlFor={id} className="flex items-center gap-2 select-none">
+      <button
+        id={id}
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={
+          `relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 border ${
+            checked ? 'bg-primary-orange border-primary-orange' : 'bg-gray-200 border-gray-300'
+          }`
+        }
+      >
+        <span
+          className={
+            `inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${
+              checked ? 'translate-x-5' : 'translate-x-0.5'
+            }`
+          }
+        />
+      </button>
+      <span className="text-sm text-gray-800">{label}</span>
+    </label>
+  );
+};
 
 const SectionItemDetail: React.FC = () => {
   const { id, itemId } = useParams();
@@ -9,8 +42,8 @@ const SectionItemDetail: React.FC = () => {
   const navigate = useNavigate();
 
   const [item, setItem] = React.useState<SectionItem | null>(null);
+  const [sectionTitle, setSectionTitle] = React.useState<string>('');
   const [loading, setLoading] = React.useState(false);
-  const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
@@ -29,6 +62,8 @@ const SectionItemDetail: React.FC = () => {
   React.useEffect(() => {
     if (!Number.isFinite(sectionId) || !Number.isFinite(parsedItemId)) return;
     load();
+    // carrega título da seção para breadcrumb
+    SectionsService.get(sectionId).then((sec) => setSectionTitle(sec?.titulo || `Seção ${sectionId}`)).catch(() => {});
   }, [load, sectionId, parsedItemId]);
 
   const updateField = <K extends keyof SectionItem>(key: K, value: SectionItem[K]) => {
@@ -36,28 +71,19 @@ const SectionItemDetail: React.FC = () => {
     setItem({ ...item, [key]: value });
   };
 
-  const handleSave = async () => {
+  // Autosave com debounce por campo
+  const debounceRefs = React.useRef<Record<string, number | undefined>>({});
+  const autoSaveField = <K extends keyof SectionItem>(field: K, value: SectionItem[K]) => {
     if (!item) return;
-    setSaving(true);
-    try {
-      const updated = await SectionItemsService.update(sectionId, item.id, {
-        titulo: item.titulo,
-        subtitulo: item.subtitulo,
-        descricao: item.descricao,
-        url_link: item.url_link,
-        texto_url: item.texto_url,
-        botao: item.botao,
-        url_amigavel: item.url_amigavel,
-        ordem: item.ordem,
-        ativo: item.ativo,
-      });
-      setItem(updated);
-    } catch (e) {
-      console.error(e);
-      alert('Falha ao salvar');
-    } finally {
-      setSaving(false);
-    }
+    const key = String(field);
+    if (debounceRefs.current[key]) window.clearTimeout(debounceRefs.current[key]);
+    debounceRefs.current[key] = window.setTimeout(async () => {
+      try {
+        await SectionItemsService.update(sectionId, item.id, { [field]: value } as Partial<SectionItem>);
+      } catch (e) {
+        console.error(`Erro ao salvar campo ${key}`, e);
+      }
+    }, 600);
   };
 
   const handleDelete = async () => {
@@ -72,61 +98,96 @@ const SectionItemDetail: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Editar Item</h1>
-        <div className="flex gap-2">
-          <button onClick={() => navigate(`/cms/sections/${sectionId}`)} className="px-3 py-2 border rounded">Voltar</button>
-          <button onClick={handleDelete} className="px-3 py-2 border rounded text-red-600 border-red-600">Remover</button>
-          <button onClick={handleSave} disabled={saving} className="px-3 py-2 bg-primary-orange text-white rounded">{saving ? 'Salvando...' : 'Salvar'}</button>
-        </div>
-      </div>
-
-      {loading && <div>Carregando...</div>}
-      {error && <div className="text-red-600">{error}</div>}
-
-      {item && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <label className="block">
-              <span className="text-sm text-gray-600">Título</span>
-              <input value={item.titulo} onChange={(e) => updateField('titulo', e.target.value)} className="border rounded px-3 py-2 w-full" />
-            </label>
-            <label className="block">
-              <span className="text-sm text-gray-600">Subtítulo</span>
-              <input value={item.subtitulo || ''} onChange={(e) => updateField('subtitulo', e.target.value)} className="border rounded px-3 py-2 w-full" />
-            </label>
-            <label className="block">
-              <span className="text-sm text-gray-600">Descrição</span>
-              <textarea value={item.descricao || ''} onChange={(e) => updateField('descricao', e.target.value)} className="border rounded px-3 py-2 w-full min-h-[100px]" />
-            </label>
+    <div className="container mx-auto px-4 py-8">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <nav className="text-sm text-gray-500 mb-2" aria-label="Breadcrumb">
+              <ol className="flex items-center gap-2 flex-wrap">
+                <li>
+                  <Link to="/cms/sections" className="hover:text-gray-700">Seções</Link>
+                </li>
+                <li className="text-gray-400">/</li>
+                <li>
+                  <Link to={`/cms/sections/${sectionId}`} className="hover:text-gray-700">{sectionTitle || `Seção ${sectionId}`}</Link>
+                </li>
+                <li className="text-gray-400">/</li>
+                <li className="text-gray-700">{item?.titulo || `Item ${parsedItemId}`}</li>
+              </ol>
+            </nav>
+            <h1 className="text-2xl font-semibold">Editar Item</h1>
           </div>
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block">
-                <span className="text-sm text-gray-600">URL</span>
-                <input value={item.url_link || ''} onChange={(e) => updateField('url_link', e.target.value)} className="border rounded px-3 py-2 w-full" />
-              </label>
-              <label className="block">
-                <span className="text-sm text-gray-600">Texto do botão</span>
-                <input value={item.texto_url || ''} onChange={(e) => updateField('texto_url', e.target.value)} className="border rounded px-3 py-2 w-full" />
-              </label>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => navigate(`/cms/sections/${sectionId}`)}>Voltar</Button>
+            <button onClick={handleDelete} className="px-3 py-2 border rounded text-red-600 border-red-600">Remover</button>
+          </div>
+        </div>
+
+        {loading && <div>Carregando...</div>}
+        {error && <div className="text-red-600">{error}</div>}
+
+        {item && (
+          <div className="space-y-8">
+            {/* Informações principais */}
+            <div className="border-b pb-6">
+              <h2 className="text-xl font-semibold mb-4">Informações do Item</h2>
+              <div className="space-y-4">
+                {/* Topo à direita: toggles e ordem */}
+                <div className="flex justify-end gap-6 items-end flex-wrap">
+                  <Toggle id="toggle-ativo-item" checked={!!item.ativo} onChange={(v) => { updateField('ativo', v); autoSaveField('ativo', v as any); }} label="Ativo" />
+                  <Toggle id="toggle-home-item" checked={!!item.show_on_home} onChange={(v) => { updateField('show_on_home', v as any); autoSaveField('show_on_home', v as any); }} label="Mostrar na home" />
+                  <div className="w-28">
+                    <Input label="Ordem" type="number" value={item.ordem as any} onChange={(e) => { const num = Math.min(999, Math.max(0, Number(e.target.value))); updateField('ordem', num); autoSaveField('ordem', num as any); }} />
+                  </div>
+                </div>
+
+                {/* Título (linha inteira) */}
+                <div>
+                  <Input label="Título" value={item.titulo} onChange={(e) => { updateField('titulo', e.target.value); autoSaveField('titulo', e.target.value); }} />
+                </div>
+
+                {/* Slug (linha inteira) */}
+                <div>
+                  <Input
+                    label="Slug"
+                    value={item.slug || ''}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      updateField('slug', v as any);
+                      autoSaveField('slug', (v || undefined) as any);
+                    }}
+                  />
+                </div>
+
+                {/* Subtítulo (linha inteira) */}
+                <div>
+                  <Input label="Subtítulo" value={item.subtitulo || ''} onChange={(e) => { updateField('subtitulo', e.target.value); autoSaveField('subtitulo', e.target.value || (undefined as any)); }} />
+                </div>
+
+                {/* Descrição (linha inteira) */}
+                <div>
+                  <TextArea label="Descrição" rows={3} value={item.descricao || ''} onChange={(e) => { updateField('descricao', e.target.value); autoSaveField('descricao', e.target.value || (undefined as any)); }} />
+                </div>
+
+                {/* URL, Texto do botão e Exibir botão (mesma linha 5/5/2) */}
+                <div className="grid grid-cols-12 gap-4 items-end">
+                  <div className="col-span-12 md:col-span-5">
+                    <Input label="URL" value={item.url_link || ''} onChange={(e) => { updateField('url_link', e.target.value); autoSaveField('url_link', e.target.value || (undefined as any)); }} />
+                  </div>
+                  <div className="col-span-12 md:col-span-5">
+                    <Input label="Texto do botão" value={item.texto_url || ''} onChange={(e) => { updateField('texto_url', e.target.value); autoSaveField('texto_url', e.target.value || (undefined as any)); }} />
+                  </div>
+                  <div className="col-span-12 md:col-span-2 flex items-center md:justify-start">
+                    <Toggle id="toggle-botao-item" checked={!!item.botao} onChange={(v) => { updateField('botao', v); autoSaveField('botao', v as any); }} label="Exibir botão" />
+                  </div>
+                </div>
+
+                
+              </div>
             </div>
-            <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={!!item.botao} onChange={(e) => updateField('botao', e.target.checked)} />
-              <span>Exibir botão</span>
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={!!item.ativo} onChange={(e) => updateField('ativo', e.target.checked)} />
-              <span>Ativo</span>
-            </label>
-            <label className="block">
-              <span className="text-sm text-gray-600">Ordem</span>
-              <input type="number" value={item.ordem} onChange={(e) => updateField('ordem', Number(e.target.value))} className="border rounded px-3 py-2 w-full" />
-            </label>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
