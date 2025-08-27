@@ -32,7 +32,7 @@ const SectionImagens: React.FC<Props> = ({ sectionId }) => {
   
   // Logar mudanças do estado de imagens para diagnosticar renderização
   useEffect(() => {
-    logger.info('[SECTION_IMAGENS] imagens state changed', { count: imagens.length, imagens });
+    logger.debug('[SECTION_IMAGENS] imagens state changed', { count: imagens.length, imagens });
   }, [imagens]);
 
   const toUIImagem = (p: SectionPhoto): UIImagem => {
@@ -52,12 +52,12 @@ const SectionImagens: React.FC<Props> = ({ sectionId }) => {
     const load = async () => {
       try {
         const list = await SectionsService.listPhotos(sectionId);
-        logger.info('[SECTION_IMAGENS] listPhotos resp', { sectionId, count: Array.isArray(list) ? list.length : null, list });
+        logger.debug('[SECTION_IMAGENS] listPhotos resp', { sectionId, count: Array.isArray(list) ? list.length : null, list });
         const mapped: UIImagem[] = (list || []).map((p: SectionPhoto) => toUIImagem(p));
-        logger.info('[SECTION_IMAGENS] mapped imagens', { count: mapped.length, mapped });
+        logger.debug('[SECTION_IMAGENS] mapped imagens', { count: mapped.length, mapped });
         if (mounted) setImagens(mapped);
         if (mounted) {
-          logger.info('[SECTION_IMAGENS] setImagens done', { count: mapped.length });
+          logger.debug('[SECTION_IMAGENS] setImagens done', { count: mapped.length });
         }
       } catch (e) {
         logger.error('[SECTION_IMAGENS] Erro ao listar fotos:' + (e instanceof Error ? ` ${e.message}` : ''));
@@ -72,7 +72,7 @@ const SectionImagens: React.FC<Props> = ({ sectionId }) => {
     try {
       const resp = await SectionsService.uploadPhotos(sectionId, arr);
       const uploaded = resp.uploaded || [];
-      logger.info('[SECTION_IMAGENS] uploadPhotos resp', { sectionId, uploaded });
+      logger.debug('[SECTION_IMAGENS] uploadPhotos resp', { sectionId, uploaded });
       // Atualiza títulos com base no nome dos arquivos se backend não definiu
       const updates: Promise<any>[] = [];
       const uiNew = uploaded.map((img, idx) => {
@@ -89,7 +89,7 @@ const SectionImagens: React.FC<Props> = ({ sectionId }) => {
         try { await Promise.allSettled(updates); } catch {}
       }
       setImagens(prev => ([...prev, ...uiNew]));
-      logger.info('[SECTION_IMAGENS] setImagens after upload');
+      logger.debug('[SECTION_IMAGENS] setImagens after upload');
     } catch (e) {
       logger.error('[SECTION_IMAGENS] Erro no upload:' + (e instanceof Error ? ` ${e.message}` : ''));
     }
