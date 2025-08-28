@@ -1,5 +1,6 @@
 import api from './api';
 import logger from '../utils/logger';
+import type { Keyword } from './KeywordService';
 
 export interface SectionPhoto {
   id: number;
@@ -33,6 +34,7 @@ export interface Section {
   published_at?: string | null;
   photos?: SectionPhoto[];
   items?: SectionItemSummary[];
+  keywords?: Keyword[]; // carregada em GET /cms/sections/:id
 }
 
 export interface Pagination {
@@ -57,6 +59,8 @@ export class SectionsService {
   private static pendingGet: Record<number, Promise<Section> | undefined> = {};
   private static pendingPhotos: Record<number, Promise<SectionPhoto[]> | undefined> = {};
   private static cachePhotos: Record<number, { data: SectionPhoto[]; ts: number } | undefined> = {};
+  private static pendingSectionKeywords: Record<number, Promise<Keyword[]> | undefined> = {};
+  private static cacheSectionKeywords: Record<number, { data: Keyword[]; ts: number } | undefined> = {};
 
   static async list(params?: { page?: number; per_page?: number; q?: string; ativo?: boolean; show_on_home?: boolean; slug?: string; template?: string; }): Promise<SectionListResponse> {
     const key = JSON.stringify(params || {});
@@ -148,5 +152,39 @@ export class SectionsService {
   static async deletePhoto(sectionId: number, photoId: number): Promise<{ message: string }> {
     const resp = await api.delete(`/cms/sections/${sectionId}/photos/${photoId}`);
     return resp.data as { message: string };
+  }
+
+  // Keywords da Seção
+  static async attachKeyword(sectionId: number, keywordId: number): Promise<{ message: string; keywords?: any[] }> {
+    const resp = await api.post(`/cms/sections/${sectionId}/keywords`, { keyword_id: keywordId });
+    return resp.data as { message: string; keywords?: any[] };
+  }
+
+  static async detachKeyword(sectionId: number, keywordId: number): Promise<{ message: string }> {
+    const resp = await api.delete(`/cms/sections/${sectionId}/keywords/${keywordId}`);
+    return resp.data as { message: string };
+  }
+
+  static async listSectionKeywords(sectionId: number): Promise<Keyword[]> {
+    // Cache leve para colapsar chamadas consecutivas sob StrictMode (TTL 600ms)
+    const now = Date.now();
+    const cached = this.cacheSectionKeywords[sectionId];
+    if (cached && (now - cached.ts) < 600) {
+      return Promise.resolve(cached.data);
+    }
+    if (this.pendingSectionKeywords[sectionId] !== undefined) {
+      return this.pendingSectionKeywords[sectionId]!;
+    }
+    this.pendingSectionKeywords[sectionId] = (async () => {
+      try {
+        const resp = await api.get(`/cms/sections/${sectionId}/keywords`);
+        const data = resp.data as Keyword[];
+        this.cacheSectionKeywords[sectionId] = { data, ts: Date.now() };
+        return data;
+      } finally {
+        delete this.pendingSectionKeywords[sectionId];
+      }
+    })();
+    return this.pendingSectionKeywords[sectionId]!;
   }
 }

@@ -232,8 +232,11 @@ const SectionDetail: React.FC = () => {
               </div>
             )}
 
-            {activeStep === 'keywords' && (
-              <SectionKeywords />
+            {activeStep === 'keywords' && section && (
+              <SectionKeywords
+                sectionId={sectionId}
+                initialLinkedIds={(section.keywords ?? []).map(k => k.id)}
+              />
             )}
 
             {activeStep === 'imagens' && Number.isFinite(sectionId) && (
