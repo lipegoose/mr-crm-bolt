@@ -9,6 +9,7 @@ Este diretório concentra a documentação atual e consolidada do projeto, otimi
 - components.md
 - hooks.md
 - api-contracts.md
+- section-keywords-sync.md
 - data-flow.md
 - development.md
 - troubleshooting.md
